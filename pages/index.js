@@ -127,8 +127,9 @@ const styles = {
     gap: '20px',
     '@media (max-width: 600px)': {
       flexDirection: 'column',
-      padding: '10px',
-      gap: '10px'
+      alignItems: 'center',
+      textAlign: 'center',
+      padding: '15px'
     }
   },
   cardImageContainer: {
@@ -138,9 +139,11 @@ const styles = {
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     '@media (max-width: 600px)': {
-      flex: '0 0 150px',
-      height: '150px',
-      width: '100%'
+      flex: 'none',
+      width: '80%',
+      maxWidth: '250px',
+      height: 'auto',
+      marginBottom: '15px'
     }
   },
   img: {
@@ -153,20 +156,32 @@ const styles = {
     flex: '1',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px'
+    gap: '10px',
+    '@media (max-width: 600px)': {
+      width: '100%',
+      alignItems: 'center'
+    }
   },
   cardTitle: {
     margin: '0',
     fontSize: '1.8rem',
     color: '#2E1437', // Roxo escuro para o título
-    fontWeight: '600'
+    fontWeight: '600',
+    '@media (max-width: 600px)': {
+      textAlign: 'center',
+      fontSize: '1.6rem'
+    }
   },
   cardDescription: {
     margin: '0',
     fontSize: '1.1rem',
     color: '#461E47', // Roxo escuro mais claro para o texto
     opacity: '0.9',
-    lineHeight: '1.4'
+    lineHeight: '1.4',
+    '@media (max-width: 600px)': {
+      textAlign: 'center',
+      fontSize: '1rem'
+    }
   },
   logoutBtn: {
     padding: '8px 16px',

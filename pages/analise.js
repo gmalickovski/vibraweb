@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';  // Add this import
 import ModalAnalise from '../components/ModalAnalise';
 import { useAnalise } from '../contexts/AnaliseContext'; // Corrigido o caminho do import
 
 export default function Analise() {
+  const router = useRouter();  // Add this line
   const [mostrarModal, setMostrarModal] = useState(false);
   const { analisesGuardadas, removerAnalise } = useAnalise();
 
@@ -37,6 +39,24 @@ export default function Analise() {
 
   return (
     <div style={styles.container}>
+      <div style={styles.navigationBar}>
+        <button 
+          onClick={() => router.push('/')} 
+          style={styles.btnNavigation}
+        >
+          Voltar ao Dashboard
+        </button>
+        <button 
+          onClick={() => {
+            localStorage.removeItem('isAuthenticated');
+            router.replace('/login');
+          }} 
+          style={{...styles.btnNavigation, backgroundColor: '#dc3545'}}
+        >
+          Sair
+        </button>
+      </div>
+
       <h1 style={styles.title}>Análise de Propósito</h1>
       
       <button style={styles.btnPrimary} onClick={() => setMostrarModal(true)}>
@@ -98,6 +118,26 @@ const styles = {
     padding: "2rem",
     maxWidth: "1200px",
     margin: "0 auto"
+  },
+  navigationBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: '2rem',
+    gap: '1rem'
+  },
+  btnNavigation: {
+    padding: '8px 16px',
+    backgroundColor: '#D4AF37',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    transition: 'background-color 0.3s ease',
+    '&:hover': {
+      opacity: '0.9'
+    }
   },
   title: {
     textAlign: "center",

@@ -278,19 +278,24 @@ const styles = {
     alignItems: 'flex-start',
     zIndex: 1000,
     overflow: 'auto',
-    padding: '20px'
+    padding: '10px'
   },
   modal: {
     background: '#fff',
-    padding: '20px',
+    padding: '15px',
     borderRadius: '8px',
-    width: '90%',
+    width: '95%',
     maxWidth: '800px',
     maxHeight: '95vh',
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
-    margin: '20px auto'
+    margin: '10px auto',
+    '@media (max-width: 600px)': {
+      padding: '10px',
+      width: '100%',
+      margin: '5px auto'
+    }
   },
   closeBtn: {
     position: 'absolute',
@@ -357,7 +362,11 @@ const styles = {
     padding: '1rem',
     backgroundColor: 'rgba(255,255,255,0.7)',
     borderRadius: '6px',
-    textAlign: 'left'
+    textAlign: 'left',
+    '@media (max-width: 600px)': {
+      padding: '0.75rem',
+      marginBottom: '1rem'
+    }
   },
   listItem: {
     margin: '0.5rem 0',
@@ -374,7 +383,11 @@ const styles = {
     display: "flex",
     gap: "1rem",
     justifyContent: "center",
-    marginTop: "1rem"
+    marginTop: "1rem",
+    '@media (max-width: 600px)': {
+      flexDirection: 'column',
+      gap: '0.5rem'
+    }
   },
   btnSalvar: {
     padding: "12px 24px",
