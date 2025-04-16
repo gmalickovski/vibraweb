@@ -237,16 +237,13 @@ function ModalAnalise({ fecharModal }) {
               <div style={styles.sectionContainer}>
                 <h3 style={styles.sectionTitle}>Harmonia Conjugal</h3>
                 {resultados.harmoniaConjugal && (
-                  <>
-                    <br />
-                    <em>Vibra: {resultados.harmoniaConjugal.vibra.join(', ')}</em>
-                    <br />
-                    <em>Atrai: {resultados.harmoniaConjugal.atraia ? resultados.harmoniaConjugal.atraia.join(', ') : 'N/A'}</em>
-                    <br />
-                    <em>Oposto: {resultados.harmoniaConjugal.oposto.join(', ')}</em>
-                    <br />
-                    <em>Passivo: {resultados.harmoniaConjugal.passivo.join(', ')}</em>
-                  </>
+                  <div style={styles.listContainer}>
+                    <p><strong>Número:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.numero}</span></p>
+                    <p><strong>Vibra com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.vibra.join(", ")}</span></p>
+                    <p><strong>Atrai:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.atrai.join(", ")}</span></p>
+                    <p><strong>É oposto a:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.oposto.join(", ")}</span></p>
+                    <p><strong>É passivo com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.passivo.join(", ")}</span></p>
+                  </div>
                 )}
               </div>
 
@@ -278,16 +275,22 @@ const styles = {
     background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     zIndex: 1000,
+    overflow: 'auto',
+    padding: '20px'
   },
   modal: {
     background: '#fff',
     padding: '20px',
     borderRadius: '8px',
     width: '90%',
-    maxWidth: '500px',
-    position: 'relative'
+    maxWidth: '800px',
+    maxHeight: '95vh',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    margin: '20px auto'
   },
   closeBtn: {
     position: 'absolute',
@@ -295,7 +298,7 @@ const styles = {
     right: '15px',
     cursor: 'pointer',
     fontSize: '24px',
-    color: '#666',
+    color: '#666'
   },
   formGroup: {
     marginBottom: '15px',
@@ -311,11 +314,16 @@ const styles = {
   fixedContent: {
     borderBottom: '1px solid #ccc',
     paddingBottom: '15px',
-    marginBottom: '15px'
+    marginBottom: '15px',
+    position: 'sticky',
+    top: 0,
+    background: '#fff',
+    zIndex: 2
   },
   resultados: {
     flex: 1,
     overflowY: 'auto',
+    maxHeight: 'calc(95vh - 200px)',
     padding: '10px',
     backgroundColor: '#f8f6f0',
     borderRadius: '8px',
@@ -355,6 +363,12 @@ const styles = {
     margin: '0.5rem 0',
     paddingLeft: '1rem',
     borderLeft: '3px solid #D4AF37'
+  },
+  listContainer: {
+    margin: '0.5rem 0',
+    padding: '1rem',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: '6px'
   },
   botoesContainer: {
     display: "flex",

@@ -1,6 +1,33 @@
 body {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    background-color: #f7f7f7;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f7f7f7;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ajustes para telas pequenas */
+@media (max-width: 600px) {
+  html {
+    font-size: 14px;
   }
+
+  input, select, textarea {
+    font-size: 16px !important; /* Evita zoom automático no iOS */
+  }
+
+  button {
+    min-height: 44px; /* Melhora área de toque */
+  }
+}
+
+/* Melhoria na rolagem */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Evita texto quebrado */
+p, h1, h2, h3, h4, h5, h6 {
+  word-wrap: break-word;
+}
