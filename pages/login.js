@@ -37,7 +37,7 @@ export default function Login() {
       </Head>
       
       <div style={styles.loginBox}>
-        <h1 style={styles.title}>Vibr@web</h1>
+        <h1 style={styles.title}>vibr@web</h1>
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>
             <label htmlFor="username">Usuário:</label>

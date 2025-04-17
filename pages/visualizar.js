@@ -496,35 +496,27 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
         )}
 
         {/* Botão de Imprimir */}
-        <div style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          zIndex: 1000
-        }}>
-          <button
-            onClick={() => window.print()}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: '#D4AF37',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/>
-              <path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/>
-            </svg>
-            Imprimir
-          </button>
-        </div>
+        <button
+          onClick={() => window.print()}
+          className="btn-animated modal-btn"
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: '#2D1B4E', // Roxo escuro
+            boxShadow: '0 2px 8px rgba(45, 27, 78, 0.2)'
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/>
+            <path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/>
+          </svg>
+          Imprimir
+        </button>
       </div>
     </>
   );
@@ -539,8 +531,8 @@ const styles = {
     padding: "20px", // Reduzido de 40px para dar mais espaço ao conteúdo
     maxWidth: "1000px",
     margin: "0 auto",
-    backgroundColor: "#fff",
-    color: "#2c2c2c",
+    backgroundColor: "#faf7f2", // Voltando para o tom amarelado anterior
+    color: "#2D1B4E", // Roxo escuro para texto
     lineHeight: "1.6",
     display: "flex",
     flexDirection: "column",
@@ -551,50 +543,62 @@ const styles = {
   },
   mainTitle: {  // h1
     fontSize: "2rem", // Reduzido de 2.5rem
-    color: "#1a1a1a",
+    color: "#2D1B4E", // Roxo escuro
     textAlign: "center",
     marginTop: "0.5rem", // Reduzido de 1rem
     marginBottom: "1rem", // Reduzido de 1.5rem
     paddingBottom: "0.4rem", // Reduzido de 0.6rem
-    borderBottom: "3px solid #D4AF37",
+    borderBottom: "3px solid #E67E22", // Laranja
     width: "100%"
   },
   sectionTitle: {  // h2
     fontSize: "1.75rem", // Reduzido de 2rem
-    color: "#2c2c2c",
+    color: "#2D1B4E", // Roxo escuro
     textAlign: "center",
     marginTop: "0",
     marginBottom: "0.5rem", // Reduzido de 1rem
     paddingBottom: "0.3rem", // Reduzido de 0.4rem
-    borderBottom: "2px solid #D4AF37",
+    borderBottom: "2px solid #E67E22", // Laranja
     width: "100%"
   },
   itemTitle: {  // h3
-    fontSize: "1.5rem",
-    color: "#333333",
-    marginBottom: "0.2rem", // Aumentado de 0.15rem
-    paddingBottom: "0.2rem", // Aumentado de 0.15rem
-    borderBottom: "1px solid #D4AF37",
-    display: "flex",
-    alignItems: "baseline",
-    gap: "0.15rem",
-    width: "100%"
+    fontSize: '1.5rem',
+    color: '#2D1B4E', // Roxo escuro
+    marginBottom: '0.2rem',
+    paddingBottom: '0.2rem',
+    borderBottom: '1px solid #E67E22', // Laranja
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.15rem',
+    width: '100%',
+    flexWrap: 'wrap', // Added to fix mobile wrapping
+    '@media (max-width: 600px)': {
+      fontSize: '1.2rem',
+      flexDirection: 'column',
+      gap: '0.1rem'
+    }
   },
   subItemTitle: {  // h4
-    fontSize: "1.25rem",
-    color: "#444444",
-    marginBottom: "0.2rem", // Aumentado de 0.15rem
-    marginTop: "0.2rem", // Aumentado de 0.15rem
-    display: "flex",
-    alignItems: "baseline",
-    gap: "0.15rem"
+    fontSize: '1.25rem',
+    color: '#2D1B4E', // Roxo escuro
+    marginBottom: '0.2rem',
+    marginTop: '0.2rem',
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.15rem',
+    flexWrap: 'wrap', // Added to fix mobile wrapping
+    '@media (max-width: 600px)': {
+      fontSize: '1.1rem',
+      flexDirection: 'column',
+      gap: '0.1rem'
+    }
   },
   sectionContainer: {
     width: "100%",
     padding: "0.5rem",
-    backgroundColor: "#f8f6f0",
+    backgroundColor: "#fff", // Fundo branco
     borderRadius: "8px",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    boxShadow: "0 2px 4px rgba(45, 27, 78, 0.1)", // Sombra com tom roxo
     marginBottom: "0.5rem",
     minHeight: "120px",
     display: "flex",
@@ -606,10 +610,14 @@ const styles = {
     overflowWrap: "break-word" // Suporte adicional para quebra de palavras
   },
   value: {
-    color: "#B8860B",
-    fontWeight: "500",
-    display: "inline-block",
-    marginLeft: "0.15rem" // Reduzido de 0.25rem - espaço após os dois pontos
+    color: '#E67E22', // Laranja
+    fontWeight: '500',
+    display: 'inline-block',
+    marginLeft: '0.15rem',
+    '@media (max-width: 600px)': {
+      marginLeft: 0,
+      width: '100%'
+    }
   },
   mainValue: {  // for h1
     fontSize: "2rem" // Reduzido de 2.5rem
@@ -634,17 +642,25 @@ const styles = {
     marginBottom: "0.3rem", // Aumentado de 0.25rem
     paddingLeft: "1rem",
     position: "relative",
-    borderLeft: "3px solid #D4AF37",
+    borderLeft: "3px solid #E67E22", // Laranja
     width: "100%",
-    boxSizing: "border-box"
+    boxSizing: "border-box",
+    '@media (max-width: 600px)': {
+      paddingLeft: '0.5rem'
+    }
   },
   paragraph: {
-    margin: "0.2rem 0",
-    lineHeight: "1.5",
-    color: "#333333",
-    width: "100%",
-    wordWrap: "break-word", // Adicionado para quebrar palavras longas
-    overflowWrap: "break-word" // Suporte adicional para quebra de palavras
+    margin: '0.2rem 0',
+    lineHeight: '1.5',
+    color: '#2D1B4E', // Roxo escuro mais suave
+    width: '100%',
+    wordWrap: 'break-word',
+    overflowWrap: 'break-word',
+    textAlign: 'justify', // Added for consistent text alignment
+    '@media (max-width: 600px)': {
+      fontSize: '0.95rem',
+      textAlign: 'left' // Better readability on mobile
+    }
   },
   listContainer: {
     width: "100%",
@@ -657,6 +673,11 @@ const styles = {
       margin: "0",
       width: "100%",
       boxSizing: "border-box"
+    }
+  },
+  tr: {
+    '&:hover': {
+      backgroundColor: "#fff9ea" // Voltando para o amarelo claro no hover
     }
   }
 };

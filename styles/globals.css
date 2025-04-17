@@ -31,3 +31,47 @@ body {
 p, h1, h2, h3, h4, h5, h6 {
   word-wrap: break-word;
 }
+
+/* Estilo base para botões animados */
+.btn-animated {
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-animated:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(45, 27, 78, 0.2);
+  opacity: 0.9;
+}
+
+/* Variações de cores para botões */
+.btn-primary {
+  background-color: #E67E22; /* Laranja */
+  color: white;
+}
+
+.btn-danger {
+  background-color: #c0392b; /* Vermelho harmonioso */
+  color: white;
+}
+
+.btn-success {
+  background-color: #27ae60; /* Verde harmonioso */
+  color: white;
+}
+
+/* Botão especial para modal */
+.modal-btn {
+  background-color: #2D1B4E; /* Roxo escuro */
+  color: white;
+  padding: 12px 24px;
+  font-size: 1.1rem;
+}
+
+.modal-btn:hover {
+  background-color: #1a0f2e; /* Roxo mais escuro */
+}

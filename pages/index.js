@@ -6,10 +6,20 @@ import Head from 'next/head';
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     // Executa verificação imediatamente
     checkAuth();
+
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 600);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const checkAuth = () => {
@@ -43,32 +53,60 @@ export default function Home() {
     );
   }
 
+  const hoverStyles = isHovered ? {
+    cardLink: {
+      transform: 'translateY(-8px)',
+      boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+    },
+    card: {
+      background: '#f0ebff',
+      borderColor: '#D4AF37',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+    }
+  } : {};
+
   return (
     <>
       <Head>
-        <title>Dashboard - Vibr@web</title>
+        <title>Dashboard - vibr@web</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       <div style={styles.container}>
         <header style={styles.header}>
-          <h1>Vibr@web</h1>
           <button onClick={handleLogout} style={styles.logoutBtn}>
             Sair
           </button>
         </header>
         <div style={styles.products}>
-          <Link href="/analise" style={styles.cardLink}>
-            <div style={styles.card}>
-              <div style={styles.cardImageContainer}>
+          <Link 
+            href="/analise" 
+            style={{...styles.cardLink, ...hoverStyles.cardLink}}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <div style={{...styles.card, ...hoverStyles.card}}>
+              <div style={{
+                ...styles.cardImageContainer,
+                ...(isMobile ? mobileStyles.cardImageContainer : {})
+              }}>
                 <img
                   src="/images/logo-analise-card.png"
                   alt="Análise de Propósito"
                   style={styles.img}
                 />
               </div>
-              <div style={styles.cardContent}>
-                <h2 style={styles.cardTitle}>Análise de Propósito</h2>
-                <p style={styles.cardDescription}>Descubra o seu potencial por meio da numerologia cabalística.</p>
+              <div style={{
+                ...styles.cardContent,
+                ...(isMobile ? mobileStyles.cardContent : {})
+              }}>
+                <h2 style={{
+                  ...styles.cardTitle,
+                  ...(isMobile ? mobileStyles.cardTitle : {})
+                }}>Análise de Propósito</h2>
+                <p style={{
+                  ...styles.cardDescription,
+                  ...(isMobile ? mobileStyles.cardDescription : {})
+                }}>Descubra o seu potencial por meio da numerologia cabalística.</p>
               </div>
             </div>
           </Link>
@@ -108,10 +146,9 @@ const styles = {
     display: 'block',
     width: '100%',
     maxWidth: '600px',
+    transform: 'translateY(0)',
     transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-    '@media (max-width: 600px)': {
-      maxWidth: '100%'
-    }
+    cursor: 'pointer'
   },
   card: {
     background: '#f8f6ff',
@@ -119,32 +156,18 @@ const styles = {
     borderRadius: '12px',
     padding: '15px',
     width: '100%',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    transition: 'transform 0.3s ease',
-    cursor: 'pointer',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+    transition: 'all 0.3s ease',
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
-    '@media (max-width: 600px)': {
-      flexDirection: 'column',
-      alignItems: 'center',
-      textAlign: 'center',
-      padding: '15px'
-    }
+    gap: '20px'
   },
   cardImageContainer: {
     flex: '0 0 200px',
     height: '200px',
     borderRadius: '8px',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    '@media (max-width: 600px)': {
-      flex: 'none',
-      width: '80%',
-      maxWidth: '250px',
-      height: 'auto',
-      marginBottom: '15px'
-    }
+    backgroundColor: 'rgba(255, 255, 255, 0.1)'
   },
   img: {
     width: '100%',
@@ -157,30 +180,27 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
-    '@media (max-width: 600px)': {
-      width: '100%',
-      alignItems: 'center'
-    }
+    textAlign: 'left'
   },
   cardTitle: {
     margin: '0',
     fontSize: '1.8rem',
-    color: '#2E1437', // Roxo escuro para o título
+    color: '#2E1437',
     fontWeight: '600',
-    '@media (max-width: 600px)': {
-      textAlign: 'center',
-      fontSize: '1.6rem'
+    '@media screen and (max-width: 600px)': {
+      fontSize: '1.5rem',
+      textAlign: 'center'
     }
   },
   cardDescription: {
     margin: '0',
     fontSize: '1.1rem',
-    color: '#461E47', // Roxo escuro mais claro para o texto
+    color: '#461E47',
     opacity: '0.9',
     lineHeight: '1.4',
-    '@media (max-width: 600px)': {
-      textAlign: 'center',
-      fontSize: '1rem'
+    '@media screen and (max-width: 600px)': {
+      fontSize: '1rem',
+      textAlign: 'center'
     }
   },
   logoutBtn: {
@@ -190,5 +210,31 @@ const styles = {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer'
+  }
+};
+
+const mobileStyles = {
+  card: {
+    flexDirection: 'column',
+    padding: '15px',
+    gap: '15px'
+  },
+  cardImageContainer: {
+    width: '100%',
+    maxWidth: '250px',
+    marginBottom: '10px'
+  },
+  cardContent: {
+    width: '100%',
+    alignItems: 'center',
+    textAlign: 'center'
+  },
+  cardTitle: {
+    fontSize: '1.5rem',
+    textAlign: 'center'
+  },
+  cardDescription: {
+    fontSize: '1rem',
+    textAlign: 'center'
   }
 };

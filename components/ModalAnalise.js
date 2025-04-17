@@ -46,6 +46,12 @@ function ModalAnalise({ fecharModal }) {
     atualizarCalculos(nome, dataNascimento);
   }, [nome, dataNascimento]);
 
+  const handleModalClick = (e) => {
+    if (e.target === e.currentTarget) {
+      fecharModal();
+    }
+  };
+
   const handleVisualizarTextos = () => {
     if (resultados) {
       const params = new URLSearchParams({
@@ -115,9 +121,15 @@ function ModalAnalise({ fecharModal }) {
   };
 
   return (
-    <div style={styles.modalBg}>
+    <div style={styles.modalBg} onClick={handleModalClick}>
       <div style={styles.modal}>
-        <span style={styles.closeBtn} onClick={fecharModal}>&times;</span>
+        <button 
+          onClick={fecharModal} 
+          style={styles.closeBtn}
+          aria-label="Fechar modal"
+        >
+          ✕
+        </button>
         
         <div style={styles.fixedContent}>
           <h2 style={styles.title}>Análise de Propósito</h2>
@@ -248,10 +260,17 @@ function ModalAnalise({ fecharModal }) {
               </div>
 
               <div style={styles.botoesContainer}>
-                <button style={styles.btnSalvar} onClick={handleSalvar}>
+                <button 
+                  className="btn-animated btn-success"
+                  onClick={handleSalvar}
+                >
                   Salvar Análise
                 </button>
-                <button style={styles.btnVisualizar} onClick={handleVisualizarTextos}>
+
+                <button 
+                  className="btn-animated btn-primary"
+                  onClick={handleVisualizarTextos}
+                >
                   Ver Análise Completa
                 </button>
               </div>
@@ -281,7 +300,7 @@ const styles = {
     padding: '10px'
   },
   modal: {
-    background: '#fff',
+    background: '#faf7f2', // Fundo claro amarelado
     padding: '15px',
     borderRadius: '8px',
     width: '95%',
@@ -301,9 +320,24 @@ const styles = {
     position: 'absolute',
     top: '10px',
     right: '15px',
-    cursor: 'pointer',
+    background: 'none',
+    border: 'none',
     fontSize: '24px',
-    color: '#666'
+    color: '#2D1B4E', // Roxo escuro
+    cursor: 'pointer',
+    width: '30px',
+    height: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '50%',
+    transition: 'all 0.2s ease',
+    zIndex: 1000,
+    padding: 0,
+    '&:hover': {
+      background: 'rgba(45, 27, 78, 0.05)', // Roxo muito claro
+      color: '#E67E22' // Laranja
+    }
   },
   formGroup: {
     marginBottom: '15px',
@@ -336,24 +370,24 @@ const styles = {
   },
   title: {
     fontSize: '2rem',
-    color: '#2c2c2c',
+    color: '#2D1B4E', // Roxo escuro
     textAlign: 'center',
     marginBottom: '1.5rem',
     paddingBottom: '0.6rem',
-    borderBottom: '2px solid #D4AF37'
+    borderBottom: "2px solid #E67E22" // Laranja
   },
   sectionTitle: {
     fontSize: '1.5rem',
-    color: '#333333',
+    color: '#2D1B4E', // Roxo escuro
     marginBottom: '1rem',
     paddingBottom: '0.4rem',
-    borderBottom: '1px solid #D4AF37',
+    borderBottom: "1px solid #E67E22", // Laranja
     display: 'flex',
     alignItems: 'baseline',
     gap: '0.5rem'
   },
   value: {
-    color: '#B8860B',
+    color: '#E67E22', // Laranja
     fontWeight: '500',
     fontSize: '1.1rem'
   },
@@ -371,7 +405,7 @@ const styles = {
   listItem: {
     margin: '0.5rem 0',
     paddingLeft: '1rem',
-    borderLeft: '3px solid #D4AF37'
+    borderLeft: "3px solid #E67E22" // Laranja
   },
   listContainer: {
     margin: '0.5rem 0',
@@ -383,7 +417,10 @@ const styles = {
     display: "flex",
     gap: "1rem",
     justifyContent: "center",
-    marginTop: "1rem",
+    marginTop: "2rem",
+    padding: "1rem",
+    borderTop: "1px solid rgba(45, 27, 78, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
     '@media (max-width: 600px)': {
       flexDirection: 'column',
       gap: '0.5rem'
@@ -391,21 +428,49 @@ const styles = {
   },
   btnSalvar: {
     padding: "12px 24px",
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#27ae60", // Verde harmonioso com a paleta
     color: "white",
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
-    fontWeight: "bold"
+    fontWeight: "bold",
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+      opacity: '0.9'
+    }
   },
   btnVisualizar: {
     padding: "12px 24px",
-    backgroundColor: "#D4AF37",
+    backgroundColor: "#E67E22", // Laranja
     color: "white",
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
-    fontWeight: "bold"
+    fontWeight: "bold",
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+      opacity: '0.9'
+    }
+  },
+  btnRealizar: {
+    padding: "12px 24px",
+    backgroundColor: "#2D1B4E", // Roxo escuro
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: "1.1rem",
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      backgroundColor: "#1a0f2e",
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(45, 27, 78, 0.2)'
+    }
   },
   visualizarBtn: {
     marginTop: '20px',

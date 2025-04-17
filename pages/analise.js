@@ -37,21 +37,23 @@ export default function Analise() {
     window.open(`/visualizar?${params.toString()}`, '_blank');
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    router.replace('/login');
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.navigationBar}>
         <button 
           onClick={() => router.push('/')} 
-          style={styles.btnNavigation}
+          className="btn-animated btn-primary"
         >
           Voltar ao Dashboard
         </button>
         <button 
-          onClick={() => {
-            localStorage.removeItem('isAuthenticated');
-            router.replace('/login');
-          }} 
-          style={{...styles.btnNavigation, backgroundColor: '#dc3545'}}
+          onClick={() => handleLogout()} 
+          className="btn-animated btn-danger"
         >
           Sair
         </button>
@@ -87,13 +89,13 @@ export default function Analise() {
                 <td style={styles.td}>{Number(analise.missao) || 0}</td>
                 <td style={styles.actionsCell}>
                   <button 
-                    style={styles.btnAction}
+                    className="btn-animated btn-primary"
                     onClick={() => handleVisualizarAnalise(analise)}
                   >
                     Ver Análise
                   </button>
                   <button 
-                    style={styles.btnDelete}
+                    className="btn-animated btn-danger"
                     onClick={() => removerAnalise(index)}
                   >
                     Excluir
@@ -117,7 +119,8 @@ const styles = {
     fontFamily: "'Roboto', Arial, sans-serif",
     padding: "2rem",
     maxWidth: "1200px",
-    margin: "0 auto"
+    margin: "0 auto",
+    background: "#faf7f2" // Fundo bem claro com tom amarelado
   },
   navigationBar: {
     display: 'flex',
@@ -134,19 +137,21 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: 'bold',
-    transition: 'background-color 0.3s ease',
+    transition: 'all 0.3s ease',
     '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
       opacity: '0.9'
     }
   },
   title: {
     textAlign: "center",
-    color: "#2c2c2c",
+    color: "#2D1B4E", // Roxo escuro
     marginBottom: "2rem"
   },
   btnPrimary: {
     padding: "12px 24px",
-    backgroundColor: "#D4AF37",
+    backgroundColor: "#E67E22", // Laranja
     color: "white",
     border: "none",
     borderRadius: "4px",
@@ -154,13 +159,19 @@ const styles = {
     fontWeight: "bold",
     marginBottom: "2rem",
     display: "block",
-    margin: "0 auto"
+    margin: "0 auto",
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+      opacity: '0.9'
+    }
   },
   tableContainer: {
     overflowX: "auto",
     marginTop: "2rem",
     padding: "1.5rem",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    boxShadow: "0 2px 8px rgba(45, 27, 78, 0.1)", // Sombra com tom roxo
     borderRadius: "8px",
     backgroundColor: "white"
   },
@@ -172,18 +183,19 @@ const styles = {
   },
   th: {
     padding: "1rem",
-    borderBottom: "2px solid #D4AF37",
-    color: "#2c2c2c",
+    borderBottom: "2px solid #E67E22", // Laranja
+    color: "#2D1B4E", // Roxo escuro
     fontWeight: "bold"
   },
   td: {
     padding: "1rem",
-    borderBottom: "1px solid #eee"
+    borderBottom: "1px solid #f0e6d2" // Borda suave amarelada
   },
   nameCell: {
     fontWeight: "bold",
     padding: "1rem",
-    borderBottom: "1px solid #eee"
+    borderBottom: "1px solid #f0e6d2", // Borda suave amarelada
+    color: "#2D1B4E" // Roxo escuro
   },
   actionsCell: {
     padding: "1rem",
@@ -193,25 +205,37 @@ const styles = {
   },
   tr: {
     '&:hover': {
-      backgroundColor: "#f8f6f0"
+      backgroundColor: "#fff9ea" // Amarelo bem claro no hover
     }
   },
   btnAction: {
     padding: "8px 16px",
-    backgroundColor: "#D4AF37",
+    backgroundColor: "#E67E22", // Laranja
     color: "white",
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
-    fontSize: "0.9rem"
+    fontSize: "0.9rem",
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+      opacity: '0.9'
+    }
   },
   btnDelete: {
     padding: "8px 16px",
-    backgroundColor: "#dc3545",
+    backgroundColor: "#c0392b", // Vermelho harmonioso com a paleta
     color: "white",
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
-    fontSize: "0.9rem"
+    fontSize: "0.9rem",
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+      opacity: '0.9'
+    }
   }
 };
