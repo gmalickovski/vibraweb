@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';  // Adicione useEffect ao import
 import { useRouter } from 'next/router';  // Add this import
 import ModalAnalise from '../components/ModalAnalise';
 import { useAnalise } from '../contexts/AnaliseContext'; // Corrigido o caminho do import
@@ -6,7 +6,20 @@ import { useAnalise } from '../contexts/AnaliseContext'; // Corrigido o caminho 
 export default function Analise() {
   const router = useRouter();  // Add this line
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);  // Adicione este estado
   const { analisesGuardadas, removerAnalise } = useAnalise();
+
+  // Adicione este useEffect para detectar o tamanho da tela
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 600);
+    };
+    
+    handleResize(); // Set initial value
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleVisualizarAnalise = (dados) => {
     const params = new URLSearchParams({
@@ -67,45 +80,90 @@ export default function Analise() {
       </button>
 
       <div style={styles.tableContainer}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Nome</th>
-              <th style={styles.th}>Data Nascimento</th>
-              <th style={styles.th}>Expressão</th>
-              <th style={styles.th}>Motivação</th>
-              <th style={styles.th}>Destino</th>
-              <th style={styles.th}>Missão</th>
-              <th style={styles.th}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+        {!isMobile ? (
+          // Versão desktop - tabela atual
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Nome</th>
+                <th style={styles.th}>Data Nascimento</th>
+                <th style={styles.th}>Expressão</th>
+                <th style={styles.th}>Motivação</th>
+                <th style={styles.th}>Destino</th>
+                <th style={styles.th}>Missão</th>
+                <th style={styles.th}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analisesGuardadas.map((analise, index) => (
+                <tr key={index} style={styles.tr}>
+                  <td style={styles.nameCell}>{analise.nome || ''}</td>
+                  <td style={styles.td}>{analise.dataNascimento || ''}</td>
+                  <td style={styles.td}>{Number(analise.numeroExpressao) || 0}</td>
+                  <td style={styles.td}>{Number(analise.numeroMotivacao) || 0}</td>
+                  <td style={styles.td}>{Number(analise.numeroDestino) || 0}</td>
+                  <td style={styles.td}>{Number(analise.missao) || 0}</td>
+                  <td style={styles.actionsCell}>
+                    <button 
+                      className="btn-animated btn-primary"
+                      onClick={() => handleVisualizarAnalise(analise)}
+                    >
+                      Ver Análise
+                    </button>
+                    <button 
+                      className="btn-animated btn-danger"
+                      onClick={() => removerAnalise(index)}
+                    >
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          // Versão mobile - cards
+          <div style={styles.mobileCardContainer}>
             {analisesGuardadas.map((analise, index) => (
-              <tr key={index} style={styles.tr}>
-                <td style={styles.nameCell}>{analise.nome || ''}</td>
-                <td style={styles.td}>{analise.dataNascimento || ''}</td>
-                <td style={styles.td}>{Number(analise.numeroExpressao) || 0}</td>
-                <td style={styles.td}>{Number(analise.numeroMotivacao) || 0}</td>
-                <td style={styles.td}>{Number(analise.numeroDestino) || 0}</td>
-                <td style={styles.td}>{Number(analise.missao) || 0}</td>
-                <td style={styles.actionsCell}>
+              <div key={index} style={styles.mobileCard}>
+                <div style={styles.mobileCardContent}>
+                  <h3 style={styles.mobileCardTitle}>{analise.nome || ''}</h3>
+                  <p style={styles.mobileCardItem}>
+                    <strong>Data:</strong> {analise.dataNascimento || ''}
+                  </p>
+                  <p style={styles.mobileCardItem}>
+                    <strong>Expressão:</strong> {Number(analise.numeroExpressao) || 0}
+                  </p>
+                  <p style={styles.mobileCardItem}>
+                    <strong>Motivação:</strong> {Number(analise.numeroMotivacao) || 0}
+                  </p>
+                  <p style={styles.mobileCardItem}>
+                    <strong>Destino:</strong> {Number(analise.numeroDestino) || 0}
+                  </p>
+                  <p style={styles.mobileCardItem}>
+                    <strong>Missão:</strong> {Number(analise.missao) || 0}
+                  </p>
+                </div>
+                <div style={styles.mobileCardActions}>
                   <button 
                     className="btn-animated btn-primary"
                     onClick={() => handleVisualizarAnalise(analise)}
+                    style={styles.mobileCardButton}
                   >
                     Ver Análise
                   </button>
                   <button 
                     className="btn-animated btn-danger"
                     onClick={() => removerAnalise(index)}
+                    style={styles.mobileCardButton}
                   >
                     Excluir
                   </button>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
 
       {mostrarModal && (
@@ -238,5 +296,52 @@ const styles = {
       boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
       opacity: '0.9'
     }
+  },
+  mobileCardContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+    width: '100%',
+    '@media (max-width: 600px)': {
+      padding: '10px'
+    }
+  },
+  mobileCard: {
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    padding: '15px',
+    boxShadow: '0 2px 8px rgba(45, 27, 78, 0.1)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px'
+  },
+  mobileCardContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  mobileCardTitle: {
+    fontSize: '1.2rem',
+    color: '#2D1B4E',
+    borderBottom: '2px solid #E67E22',
+    paddingBottom: '8px',
+    marginBottom: '8px'
+  },
+  mobileCardItem: {
+    margin: '4px 0',
+    color: '#2D1B4E'
+  },
+  mobileCardActions: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '10px',
+    borderTop: '1px solid rgba(45, 27, 78, 0.1)',
+    paddingTop: '15px',
+    marginTop: '5px'
+  },
+  mobileCardButton: {
+    flex: 1,
+    padding: '8px',
+    fontSize: '0.9rem'
   }
 };

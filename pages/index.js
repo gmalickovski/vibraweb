@@ -88,29 +88,19 @@ export default function Home() {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <div style={{...styles.card, ...hoverStyles.card}}>
-              <div style={{
-                ...styles.cardImageContainer,
-                ...(isMobile ? mobileStyles.cardImageContainer : {})
-              }}>
+            <div style={isMobile ? styles.cardMobile : styles.card}>
+              <div style={isMobile ? styles.cardImageContainerMobile : styles.cardImageContainer}>
                 <img
                   src="/images/logo-analise-card.png"
                   alt="Análise de Propósito"
                   style={styles.img}
                 />
               </div>
-              <div style={{
-                ...styles.cardContent,
-                ...(isMobile ? mobileStyles.cardContent : {})
-              }}>
-                <h2 style={{
-                  ...styles.cardTitle,
-                  ...(isMobile ? mobileStyles.cardTitle : {})
-                }}>Análise de Propósito</h2>
-                <p style={{
-                  ...styles.cardDescription,
-                  ...(isMobile ? mobileStyles.cardDescription : {})
-                }}>Descubra o seu potencial por meio da numerologia cabalística.</p>
+              <div style={isMobile ? styles.cardContentMobile : styles.cardContent}>
+                <h2 style={styles.cardTitle}>Análise de Propósito</h2>
+                <p style={styles.cardDescription}>
+                  Descubra o seu potencial por meio da numerologia cabalística.
+                </p>
               </div>
             </div>
           </Link>
@@ -134,7 +124,6 @@ const styles = {
     marginBottom: '20px',
     padding: '10px',
     '@media (max-width: 600px)': {
-      flexDirection: 'column',
       gap: '10px'
     }
   },
@@ -152,13 +141,17 @@ const styles = {
     maxWidth: '600px',
     transform: 'translateY(0)',
     transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    '@media (max-width: 600px)': {
+      width: '95%',
+      margin: '0 auto'
+    }
   },
   card: {
     background: '#f8f6ff',
     border: '1px solid #e0e0e0',
     borderRadius: '12px',
-    padding: '15px',
+    padding: '20px',
     width: '100%',
     boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
     transition: 'all 0.3s ease',
@@ -166,18 +159,44 @@ const styles = {
     alignItems: 'center',
     gap: '20px'
   },
+  cardMobile: {
+    background: '#f8f6ff',
+    border: '1px solid #e0e0e0',
+    borderRadius: '12px',
+    padding: '15px',
+    width: '90%',
+    margin: '0 auto',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '15px'
+  },
   cardImageContainer: {
-    flex: '0 0 200px',
-    height: '200px',
+    flex: '0 0 150px',
+    height: '150px',
     borderRadius: '8px',
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.1)'
+  },
+  cardImageContainerMobile: {
+    width: '80%',
+    maxWidth: '180px',
+    height: '150px',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: '15px'
   },
   img: {
     width: '100%',
     height: '100%',
     objectFit: 'contain',
-    padding: '10px'
+    padding: '10px',
+    '@media (max-width: 600px)': {
+      maxHeight: '180px'
+    }
   },
   cardContent: {
     flex: '1',
@@ -186,14 +205,23 @@ const styles = {
     gap: '10px',
     textAlign: 'left'
   },
+  cardContentMobile: {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    textAlign: 'center'
+  },
   cardTitle: {
     margin: '0',
     fontSize: '1.8rem',
     color: '#2E1437',
     fontWeight: '600',
-    '@media screen and (max-width: 600px)': {
+    '@media (max-width: 600px)': {
       fontSize: '1.5rem',
-      textAlign: 'center'
+      textAlign: 'center',
+      width: '100%',
+      marginBottom: '5px'
     }
   },
   cardDescription: {
@@ -202,9 +230,10 @@ const styles = {
     color: '#461E47',
     opacity: '0.9',
     lineHeight: '1.4',
-    '@media screen and (max-width: 600px)': {
+    '@media (max-width: 600px)': {
       fontSize: '1rem',
-      textAlign: 'center'
+      textAlign: 'center',
+      width: '100%'
     }
   },
   logoutBtn: {
@@ -214,31 +243,5 @@ const styles = {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer'
-  }
-};
-
-const mobileStyles = {
-  card: {
-    flexDirection: 'column',
-    padding: '15px',
-    gap: '15px'
-  },
-  cardImageContainer: {
-    width: '100%',
-    maxWidth: '250px',
-    marginBottom: '10px'
-  },
-  cardContent: {
-    width: '100%',
-    alignItems: 'center',
-    textAlign: 'center'
-  },
-  cardTitle: {
-    fontSize: '1.5rem',
-    textAlign: 'center'
-  },
-  cardDescription: {
-    fontSize: '1rem',
-    textAlign: 'center'
   }
 };
