@@ -11,7 +11,7 @@ export default function Login() {
     // Verifica se já está autenticado
     if (typeof window !== 'undefined') {
       const isAuth = localStorage.getItem('isAuthenticated');
-      if (isAuth) {
+      if (isAuth === 'true') {
         router.replace('/');
       }
     }
@@ -23,6 +23,7 @@ export default function Login() {
 
     if (credentials.username === 'admin' && credentials.password === 'admin123') {
       localStorage.setItem('isAuthenticated', 'true');
+      document.cookie = 'isAuthenticated=true; path=/';
       router.replace('/');
     } else {
       setError('Usuário ou senha inválidos');
@@ -93,7 +94,7 @@ const styles = {
   },
   title: {
     textAlign: 'center',
-    color: '#333',
+    color: '#2D1B4E',
     marginBottom: '2rem',
     fontSize: '2.5rem',
     fontWeight: '700'
@@ -124,11 +125,16 @@ const styles = {
     cursor: 'pointer',
     fontSize: '1rem',
     fontWeight: 'bold',
-    transition: 'background-color 0.3s ease'
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      backgroundColor: '#b8941f',
+      transform: 'translateY(-2px)'
+    }
   },
   error: {
     color: '#dc3545',
     textAlign: 'center',
-    marginTop: '0.5rem'
+    marginTop: '0.5rem',
+    fontSize: '0.9rem'
   }
 };

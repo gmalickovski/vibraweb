@@ -54,39 +54,47 @@ function ModalAnalise({ fecharModal }) {
 
   const handleVisualizarTextos = () => {
     if (resultados) {
-      const params = new URLSearchParams({
-        nome,
-        dataNascimento,
-        expressao: resultados.numeroExpressao,
-        motivacao: resultados.numeroMotivacao,
-        impressao: resultados.numeroImpressao,
-        destino: resultados.numeroDestino,
-        missao: String(resultados.missao),
-        talentoOculto: resultados.talentoOculto,
-        diaNatalicio: resultados.diaNatalicio,
-        numeroPsiquico: resultados.numeroPsiquico,
-        debitosCarmicos: resultados.debitosCarmicos && Array.isArray(resultados.debitosCarmicos)
-          ? resultados.debitosCarmicos.join(',')
-          : '',
-        licoesCarmicas: Array.isArray(resultados.licoesCarmicas)
-          ? resultados.licoesCarmicas.join(',')
-          : '',
-        desafios: resultados.desafios
-          ? `${resultados.desafios.desafio1}, ${resultados.desafios.desafio2}, ${resultados.desafios.desafioPrincipal}`
-          : '',
-        respostaSubconsciente: resultados.respostaSubconsciente,
-        tendenciasOcultas: Array.isArray(resultados.tendenciasOcultas)
+      const params = new URLSearchParams();
+      
+      // Dados básicos
+      params.append('nome', encodeURIComponent(nome));
+      params.append('dataNascimento', encodeURIComponent(dataNascimento));
+      params.append('expressao', resultados.numeroExpressao);
+      params.append('motivacao', resultados.numeroMotivacao);
+      params.append('impressao', resultados.numeroImpressao);
+      params.append('destino', resultados.numeroDestino);
+      params.append('missao', String(resultados.missao));
+      params.append('talentoOculto', resultados.talentoOculto);
+      params.append('diaNatalicio', resultados.diaNatalicio);
+      params.append('numeroPsiquico', resultados.numeroPsiquico);
+      
+      // Arrays
+      params.append('debitosCarmicos', resultados.debitosCarmicos?.join(',') || '');
+      params.append('licoesCarmicas', resultados.licoesCarmicas?.join(',') || '');
+      
+      // Objetos complexos - garantindo encoding correto
+      params.append('desafios', encodeURIComponent(JSON.stringify(resultados.desafios || {})));
+      params.append('momentosDecisivos', encodeURIComponent(JSON.stringify(resultados.momentosDecisivos || {})));
+      params.append('ciclosDeVida', encodeURIComponent(JSON.stringify(resultados.ciclosDeVida || { ciclos: [] })));
+      
+      // Outros campos
+      params.append('respostaSubconsciente', resultados.respostaSubconsciente || '');
+      params.append('tendenciasOcultas', encodeURIComponent(
+        Array.isArray(resultados.tendenciasOcultas)
           ? resultados.tendenciasOcultas.join(',')
-          : '',
-        diasFavoraveis: resultados.diasFavoraveis,
-        momentosDecisivos: resultados.momentosDecisivos
-          ? `${resultados.momentosDecisivos.momento1}, ${resultados.momentosDecisivos.momento2}, ${resultados.momentosDecisivos.momento3}, ${resultados.momentosDecisivos.momento4}`
-          : '',
-        anoPessoal: resultados.anoPessoal,
-        ciclosDeVida: resultados.ciclosDeVida ? JSON.stringify(resultados.ciclosDeVida) : '',
-        harmoniaConjugal: resultados.harmoniaConjugal ? JSON.stringify(resultados.harmoniaConjugal) : '',
-        aptidoesProfissionais: resultados.aptidoesProfissionais || ''
-      });
+          : resultados.tendenciasOcultas || ''
+      ));
+      params.append('diasFavoraveis', resultados.diasFavoraveis || '');
+      
+      // Adicionando harmoniaConjugal aos parâmetros
+      params.append('harmoniaConjugal', encodeURIComponent(JSON.stringify({
+        numero: resultados.harmoniaConjugal?.numero || 0,
+        vibra: resultados.harmoniaConjugal?.vibra || [],
+        atrai: resultados.harmoniaConjugal?.atrai || [],
+        oposto: resultados.harmoniaConjugal?.oposto || [],
+        passivo: resultados.harmoniaConjugal?.passivo || []
+      })));
+      
       window.open(`/visualizar?${params.toString()}`, '_blank');
     }
   };
@@ -248,15 +256,19 @@ function ModalAnalise({ fecharModal }) {
 
               <div style={styles.sectionContainer}>
                 <h3 style={styles.sectionTitle}>Harmonia Conjugal</h3>
-                {resultados.harmoniaConjugal && (
-                  <div style={styles.listContainer}>
-                    <p><strong>Número:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.numero}</span></p>
-                    <p><strong>Vibra com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.vibra.join(", ")}</span></p>
-                    <p><strong>Atrai:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.atrai.join(", ")}</span></p>
-                    <p><strong>É oposto a:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.oposto.join(", ")}</span></p>
-                    <p><strong>É passivo com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.passivo.join(", ")}</span></p>
-                  </div>
-                )}
+                <p><strong>Número:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.numero}</span></p>
+                <div style={styles.listItem}>
+                  <strong>Vibra com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.vibra.join(", ")}</span>
+                </div>
+                <div style={styles.listItem}>
+                  <strong>Atrai:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.atrai.join(", ")}</span>
+                </div>
+                <div style={styles.listItem}>
+                  <strong>É oposto a:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.oposto.join(", ")}</span>
+                </div>
+                <div style={styles.listItem}>
+                  <strong>É passivo com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.passivo.join(", ")}</span>
+                </div>
               </div>
 
               <div style={styles.botoesContainer}>
@@ -483,6 +495,29 @@ const styles = {
     fontWeight: 'bold',
     width: '100%',
     transition: 'background 0.3s ease'
+  },
+  harmoniaNumero: {
+    fontSize: '1.1rem',
+    marginBottom: '1rem',
+    paddingBottom: '0.5rem',
+    borderBottom: '1px solid rgba(45, 27, 78, 0.1)'
+  },
+  ul: {
+    listStyleType: 'none',
+    padding: 0,
+    margin: 0
+  },
+  li: {
+    marginBottom: '0.5rem'
+  },
+  ulDash: {
+    listStyleType: 'none',
+    padding: 0,
+    margin: '0.5rem 0'
+  },
+  liDash: {
+    marginBottom: '0.5rem',
+    paddingLeft: '0'
   }
 };
 

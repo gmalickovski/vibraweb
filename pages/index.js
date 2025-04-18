@@ -10,7 +10,22 @@ export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    // Executa verificação imediatamente
+    const checkAuth = async () => {
+      try {
+        const isAuth = localStorage.getItem('isAuthenticated');
+        const authCookie = document.cookie.includes('isAuthenticated=true');
+        
+        if (!isAuth && !authCookie) {
+          router.replace('/login');
+          return;
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+        router.replace('/login');
+      }
+    };
+
     checkAuth();
 
     const handleResize = () => {
@@ -20,22 +35,11 @@ export default function Home() {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const checkAuth = () => {
-    // Verifica se está no cliente
-    if (typeof window !== 'undefined') {
-      const isAuth = localStorage.getItem('isAuthenticated');
-      if (!isAuth) {
-        router.replace('/login');
-        return;
-      }
-      setIsLoading(false);
-    }
-  };
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
+    document.cookie = 'isAuthenticated=false; path=/';
     router.replace('/login');
   };
 

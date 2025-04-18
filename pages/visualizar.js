@@ -278,25 +278,18 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {/* Seção Ciclos de Vida */}
           {resultados.ciclosDeVida && resultados.ciclosDeVida.ciclos && resultados.ciclosDeVida.ciclos.length > 0 && (
             <div style={styles.sectionContainer}>
-              <h3 style={styles.itemTitle}>
-                Ciclos de Vida: <span style={{...styles.value, ...styles.itemValue}}>
-                  {resultados.ciclosDeVida.ciclos.map(c => c.regente).join(", ")}
-                </span>
-              </h3>
+              <h3 style={styles.itemTitle}>Ciclos de Vida</h3>
               <ul style={styles.ul}>
                 {resultados.ciclosDeVida.ciclos.map((ciclo, index) => (
                   <li key={index} style={styles.li}>
                     <h4 style={styles.subItemTitle}>
                       {index + 1}º Ciclo: <span style={{...styles.value, ...styles.subItemValue}}>{ciclo.regente}</span>
-                       - Período: {ciclo.inicio} - {ciclo.fim}
+                      - Período: {ciclo.inicio} - {ciclo.fim}
                     </h4>
-                    {resultados?.blocosCiclos &&
-                    resultados.blocosCiclos[index] &&
-                    resultados.blocosCiclos[index].blocks &&
-                    resultados.blocosCiclos[index].blocks.length > 0 ? (
-                      resultados.blocosCiclos[index].blocks.map(block => renderBlock(block))
+                    {resultados?.blocosCiclos && resultados.blocosCiclos[index] ? (
+                      resultados.blocosCiclos[index].map(block => renderBlock(block))
                     ) : (
-                      <p style={styles.paragraph}>Texto não encontrado para este ciclo.</p>
+                      <p style={styles.paragraph}>Texto não encontrado para o {index + 1}º Ciclo.</p>
                     )}
                   </li>
                 ))}
@@ -417,30 +410,30 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {/* Seção Harmonia Conjugal */}
           <div style={styles.sectionContainer}>
             <h3 style={styles.itemTitle}>
-              Harmonia Conjugal: <span style={{...styles.value, ...styles.itemValue}}>{resultados.harmoniaConjugal.numero}</span>
+              Harmonia Conjugal: <span style={{...styles.value, ...styles.itemValue}}>{resultados.harmoniaConjugal?.numero || 'N/A'}</span>
             </h3>
             {resultados.harmoniaConjugal && (
               <>
                 <ul style={styles.ul}>
                   <li style={styles.li}>
-                    <h4 style={styles.subItemTitle}>
-                      Vibra com: <span style={{...styles.value, ...styles.subItemValue}}>{resultados.harmoniaConjugal.vibra.join(", ")}</span>
-                    </h4>
+                    <strong>Vibra com:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                      {resultados.harmoniaConjugal.vibra?.join(", ") || 'N/A'}
+                    </span>
                   </li>
                   <li style={styles.li}>
-                    <h4 style={styles.subItemTitle}>
-                      Atrai: <span style={{...styles.value, ...styles.subItemValue}}>{resultados.harmoniaConjugal.atrai.join(", ")}</span>
-                    </h4>
+                    <strong>Atrai:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                      {resultados.harmoniaConjugal.atrai?.join(", ") || 'N/A'}
+                    </span>
                   </li>
                   <li style={styles.li}>
-                    <h4 style={styles.subItemTitle}>
-                      É oposto a: <span style={{...styles.value, ...styles.subItemValue}}>{resultados.harmoniaConjugal.oposto.join(", ")}</span>
-                    </h4>
+                    <strong>É oposto a:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                      {resultados.harmoniaConjugal.oposto?.join(", ") || 'N/A'}
+                    </span>
                   </li>
                   <li style={styles.li}>
-                    <h4 style={styles.subItemTitle}>
-                      É passivo com: <span style={{...styles.value, ...styles.subItemValue}}>{resultados.harmoniaConjugal.passivo.join(", ")}</span>
-                    </h4>
+                    <strong>É passivo com:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                      {resultados.harmoniaConjugal.passivo?.join(", ") || 'N/A'}
+                    </span>
                   </li>
                 </ul>
                 {resultados?.blocosHarmoniaConjugal && resultados.blocosHarmoniaConjugal.length > 0 ? (
@@ -679,6 +672,11 @@ const styles = {
     '&:hover': {
       backgroundColor: "#fff9ea" // Voltando para o amarelo claro no hover
     }
+  },
+  harmoniaNumero: {
+    marginBottom: '1rem',
+    paddingBottom: '0.5rem',
+    borderBottom: '1px solid rgba(45, 27, 78, 0.1)'
   }
 };
 
@@ -712,6 +710,20 @@ export async function getServerSideProps(context) {
     ? converterData(decodeURIComponent(dataNascimento).trim())
     : "2000/01/01";
 
+  // Função auxiliar para parse seguro de JSON com decode
+  const safeJSONParse = (str, defaultValue = {}) => {
+    if (!str) return defaultValue;
+    try {
+      const decoded = decodeURIComponent(str);
+      // Remove possíveis caracteres inválidos no início e fim
+      const cleaned = decoded.replace(/^\s+|\s+$/g, '');
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.error('Erro ao fazer parse do JSON:', error, str);
+      return defaultValue;
+    }
+  };
+
   const resultados = {
     numeroExpressao: expressao ? Number(expressao) : null,
     numeroMotivacao: motivacao ? Number(motivacao) : null,
@@ -725,96 +737,21 @@ export async function getServerSideProps(context) {
     licoesCarmicas: licoesCarmicas ? licoesCarmicas.split(",") : [],
     diasFavoraveis: diasFavoraveis || "",
     anoPessoal: anoPessoal ? Number(anoPessoal) : null,
-    desafios: (() => {
-      if (!desafios) return {};
-      const t = desafios.trim();
-      if (t[0] !== "{" && t[0] !== "[") {
-        const parts = t.split(",").map(x => x.trim());
-        return {
-          desafio1: parts[0] || "",
-          desafio2: parts[1] || "",
-          desafioPrincipal: parts[2] || "",
-        };
-      }
-      try {
-        return JSON.parse(desafios);
-      } catch (e) {
-        console.error("Erro ao parsear desafios:", e);
-        return {};
-      }
-    })(),
+    desafios: safeJSONParse(desafios),
     respostaSubconsciente: respostaSubconsciente || "",
     tendenciasOcultas: tendenciasOcultas
-      ? (() => {
-          const decoded = decodeURIComponent(tendenciasOcultas).trim();
-          return decoded.indexOf(",") > -1 ? decoded.split(",").map(x => x.trim()) : decoded;
-        })()
-      : null,
-    momentosDecisivos: (() => {
-      try {
-        if (momentosDecisivos && momentosDecisivos.trim().startsWith("{")) {
-          return JSON.parse(momentosDecisivos);
-        } else if (momentosDecisivos) {
-          const parts = momentosDecisivos.split(",").map(x => x.trim());
-          return {
-            momento1: parts[0] || "",
-            momento2: parts[1] || "",
-            momento3: parts[2] || "",
-            momento4: parts[3] || "",
-          };
-        } else return {};
-      } catch (e) {
-        console.error("Erro ao parsear momentos decisivos:", e);
-        return {};
-      }
-    })(),
-    ciclosDeVida: null,
-    harmoniaConjugal: null,
-    aptidoesProfissionais: null,
-  };
-
-  // Process introduction and conclusion blocks first
-  try {
-    if (introducaoBlocosParam) {
-      resultados.introducaoBlocos = JSON.parse(introducaoBlocosParam);
-    } else {
-      // Use the same field validation as other blocks
-      resultados.introducaoBlocos = await buscarBlocosPorCampo("Introdução", "1");
-    }
-    
-    if (conclusaoBlocosParam) {
-      resultados.conclusaoBlocos = JSON.parse(conclusaoBlocosParam);
-    } else {
-      // Use the same field validation as other blocks
-      resultados.conclusaoBlocos = await buscarBlocosPorCampo("Conclusão", "1");
-    }
-  } catch (error) {
-    console.error("Erro ao processar blocos de introdução/conclusão:", error);
-    resultados.introducaoBlocos = [];
-    resultados.conclusaoBlocos = [];
-  }
-
-  if (ciclosParam) {
-    try {
-      resultados.ciclosDeVida = JSON.parse(ciclosParam);
-    } catch (e) {
-      console.error("Erro ao parsear ciclosDeVida:", e);
-      resultados.ciclosDeVida = { ciclos: [] };
-    }
-  } else {
-    resultados.ciclosDeVida = numerologia.calcularCiclosDeVida(safeDataNascimento, resultados.numeroDestino);
-    if (!resultados.ciclosDeVida || !resultados.ciclosDeVida.ciclos) {
-      resultados.ciclosDeVida = { ciclos: [] };
-    }
-  }
-
-  const periodos = getPeriodosMomentos(safeDataNascimento);
-  resultados.momentosDecisivos = {
-    ...resultados.momentosDecisivos,
-    periodo1: periodos.periodo1,
-    periodo2: periodos.periodo2,
-    periodo3: periodos.periodo3,
-    periodo4: periodos.periodo4,
+      ? decodeURIComponent(tendenciasOcultas).split(",").map(x => x.trim())
+      : [],
+    momentosDecisivos: safeJSONParse(momentosDecisivos),
+    ciclosDeVida: safeJSONParse(ciclosParam),
+    harmoniaConjugal: safeJSONParse(context.query.harmoniaConjugal, {
+      numero: 0,
+      vibra: [],
+      atrai: [],
+      oposto: [],
+      passivo: []
+    }),
+    aptidoesProfissionais: context.query.aptidoesProfissionais || '',
   };
 
   const campos = [
@@ -827,203 +764,147 @@ export async function getServerSideProps(context) {
     { label: "Dia Natalício", key: "diaNatalicio" },
     { label: "Número Psíquico", key: "numeroPsiquico" },
   ];
-  const blocosTextos = {};
-  for (const campo of campos) {
-    try {
-      const blocks = await buscarBlocosPorCampo(campo.label, resultados[campo.key]);
-      blocosTextos[campo.label] = blocks;
-    } catch (error) {
-      console.error("Erro buscando blocos para", campo.label, error);
-      blocosTextos[campo.label] = [];
-    }
-  }
-  resultados.blocosTextos = blocosTextos;
 
-  if (resultados.numeroExpressao != null && resultados.numeroDestino != null) {
-    resultados.harmoniaConjugal = numerologia.interpretarHarmoniaConjugal(
-      numerologia.calcularNumeroDoAmor(resultados.numeroExpressao, resultados.numeroDestino)
-    );
-  }
-  if (!resultados.harmoniaConjugal) {
-    resultados.harmoniaConjugal = { numero: "N/A", vibra: [], atrai: [], oposto: [], passivo: [] };
-  }
-  let blocosHarmoniaConjugal = [];
-  if (resultados.harmoniaConjugal.numero && resultados.harmoniaConjugal.numero !== "N/A") {
-    try {
-      blocosHarmoniaConjugal = await buscarBlocosPorCampo("Harmonia Conjugal", resultados.harmoniaConjugal.numero);
-    } catch (error) {
-      console.error("Erro buscando blocos para Harmonia Conjugal", error);
-      blocosHarmoniaConjugal = [];
-    }
-  }
-  resultados.blocosHarmoniaConjugal = blocosHarmoniaConjugal;
-  
-  if (resultados.numeroExpressao != null) {
-    resultados.aptidoesProfissionais = numerologia.calcularAptidoesProfissionais(resultados.numeroExpressao);
-  }
-  if (resultados.aptidoesProfissionais === null || resultados.aptidoesProfissionais === undefined) {
-    resultados.aptidoesProfissionais = "N/A";
-  }
-  
-  const blocosCiclos = [];
-  if (resultados.ciclosDeVida && resultados.ciclosDeVida.ciclos) {
-    for (let i = 0; i < resultados.ciclosDeVida.ciclos.length; i++) {
-      const ciclo = resultados.ciclosDeVida.ciclos[i];
-      try {
-        const blocks = await buscarBlocosPorCampo(`Ciclo ${i + 1}`, ciclo.regente);
-        blocosCiclos.push({ titulo: `Ciclo ${i + 1}`, blocks });
-      } catch (error) {
-        console.error("Erro buscando blocos para Ciclo", i + 1, error);
-        blocosCiclos.push({ titulo: `Ciclo ${i + 1}`, blocks: [] });
-      }
-    }
-  }
-  resultados.blocosCiclos = blocosCiclos;
-  
-  const blocosDesafios = {};
-  const desafiosKeys = [
-    { label: "1º Desafio", prop: "desafio1" },
-    { label: "2º Desafio", prop: "desafio2" },
-    { label: "3º Desafio (Principal)", prop: "desafioPrincipal" },
-  ];
-  for (const item of desafiosKeys) {
-    try {
-      const blocks = await buscarBlocosPorCampo(item.label, resultados.desafios[item.prop]);
-      blocosDesafios[item.label] = blocks;
-    } catch (error) {
-      console.error("Erro buscando blocos para", item.label, error);
-      blocosDesafios[item.label] = [];
-    }
-  }
-  resultados.blocosDesafios = blocosDesafios;
-  
-  let blocosDiasFavoraveis = [];
+  // Busca blocos de texto do Notion para todos os campos necessários
   try {
-    blocosDiasFavoraveis = await buscarBlocosPorCampo("Dias Favoráveis", "0");
-  } catch (error) {
-    console.error("Erro buscando blocos para Dias Favoráveis", error);
-  }
-  resultados.blocosDiasFavoraveis = blocosDiasFavoraveis;
-  
-  const blocosTendenciasOcultas = {};
-  if (resultados.tendenciasOcultas) {
-    if (Array.isArray(resultados.tendenciasOcultas)) {
-      for (const item of resultados.tendenciasOcultas) {
+    // Blocos básicos
+    const blocosTextos = {};
+    await Promise.all(
+      campos.map(async (campo) => {
         try {
-          const blocks = await buscarBlocosPorCampo("Tendência Oculta", item);
-          blocosTendenciasOcultas[item] = blocks;
+          const blocks = await buscarBlocosPorCampo(campo.label, resultados[campo.key]);
+          blocosTextos[campo.label] = blocks;
         } catch (error) {
-          console.error("Erro buscando blocos para Tendência Oculta", error);
-          blocosTendenciasOcultas[item] = [];
+          console.error("Erro buscando blocos para", campo.label, error);
+          blocosTextos[campo.label] = [];
         }
-      }
-    } else {
-      try {
-        const blocks = await buscarBlocosPorCampo("Tendência Oculta", resultados.tendenciasOcultas);
-        blocosTendenciasOcultas[resultados.tendenciasOcultas] = blocks;
-      } catch (error) {
-        console.error("Erro buscando blocos para Tendência Oculta", error);
-        blocosTendenciasOcultas[resultados.tendenciasOcultas] = [];
-      }
-    }
-  }
-  resultados.blocosTendenciasOcultas = blocosTendenciasOcultas;
-  
-  const blocosDebitosCarmicos = {};
-  if (resultados.debitosCarmicos && resultados.debitosCarmicos.length > 0) {
-    for (const deb of resultados.debitosCarmicos) {
-      try {
-        const blocks = await buscarBlocosPorCampo("Débito Cármico", deb);
-        blocosDebitosCarmicos[deb] = blocks;
-      } catch (error) {
-        console.error("Erro buscando blocos para Débito Cármico", error);
-        blocosDebitosCarmicos[deb] = [];
-      }
-    }
-  }
-  resultados.blocosDebitosCarmicos = blocosDebitosCarmicos;
-  
-  const blocosLicoesCarmicas = {};
-  if (resultados.licoesCarmicas && resultados.licoesCarmicas.length > 0) {
-    for (const licao of resultados.licoesCarmicas) {
-      try {
-        const blocks = await buscarBlocosPorCampo("Lição Cármica", licao);
-        blocosLicoesCarmicas[licao] = blocks;
-      } catch (error) {
-        console.error("Erro buscando blocos para Lição Cármica", error);
-        blocosLicoesCarmicas[licao] = [];
-      }
-    }
-  }
-  resultados.blocosLicoesCarmicas = blocosLicoesCarmicas;
-  
-  const blocosMomentosDecisivos = {};
-  if (resultados.momentosDecisivos && typeof resultados.momentosDecisivos === "object") {
-    for (let i = 1; i <= 4; i++) {
-      const key = "momento" + i;
-      try {
-        const numero = resultados.momentosDecisivos[key];
-        if (numero) {
-          // Buscar blocos usando o formato exato do título do Notion e número
-          let blocks = await buscarBlocosPorCampo("Momento Decisivo", numero);
-          if (!blocks || blocks.length === 0) {
-            // Fallback para o formato alternativo se necessário
-            blocks = await buscarBlocosPorCampo(`${i}º Momento Decisivo`, numero);
-          }
-          blocosMomentosDecisivos[key] = blocks;
-        }
-      } catch (e) {
-        console.error(`Erro buscando blocos para Momento Decisivo ${i}`, e);
-        blocosMomentosDecisivos[key] = [];
-      }
-    }
-  }
-  resultados.blocosMomentosDecisivos = blocosMomentosDecisivos;
+      })
+    );
+    resultados.blocosTextos = blocosTextos;
 
-  let blocosRespostaSubconsciente = [];
-  try {
-    blocosRespostaSubconsciente = await buscarBlocosPorCampo(
+    // Blocos de introdução
+    resultados.introducaoBlocos = await buscarBlocosPorCampo("Introdução", "1");
+
+    // Blocos de conclusão
+    resultados.conclusaoBlocos = await buscarBlocosPorCampo("Conclusão", "1");
+
+    // Blocos de Resposta do Subconsciente
+    resultados.blocosRespostaSubconsciente = await buscarBlocosPorCampo(
       "Resposta do Subconsciênte",
       resultados.respostaSubconsciente?.toString()
     );
-  } catch (error) {
-    console.error("Erro buscando blocos para Resposta do Subconsciênte", error);
-  }
-  resultados.blocosRespostaSubconsciente = blocosRespostaSubconsciente;
 
-  let blocosAnoPessoal = [];
-  if (resultados.anoPessoal != null) {
-    try {
-      blocosAnoPessoal = await buscarBlocosPorCampo(
-        "Ano Pessoal",
-        resultados.anoPessoal.toString()
+    // Blocos de Ano Pessoal
+    resultados.blocosAnoPessoal = await buscarBlocosPorCampo(
+      "Ano Pessoal",
+      resultados.anoPessoal?.toString()
+    );
+
+    // Blocos de Momentos Decisivos
+    const blocosMomentosDecisivos = {};
+    if (resultados.momentosDecisivos) {
+      for (let i = 1; i <= 4; i++) {
+        const momento = resultados.momentosDecisivos[`momento${i}`];
+        if (momento) {
+          blocosMomentosDecisivos[`momento${i}`] = await buscarBlocosPorCampo(
+            "Momento Decisivo",
+            momento.toString()
+          );
+        }
+      }
+    }
+    resultados.blocosMomentosDecisivos = blocosMomentosDecisivos;
+
+    // Blocos de Aptidões Profissionais
+    resultados.blocosAptidoesProfissionais = await buscarBlocosPorCampo(
+      "Aptidões e Potencialidades Profissionais",
+      resultados.aptidoesProfissionais
+    );
+
+    // Blocos de Harmonia Conjugal
+    if (resultados.harmoniaConjugal?.numero) {
+      resultados.blocosHarmoniaConjugal = await buscarBlocosPorCampo(
+        "Harmonia Conjugal",
+        resultados.harmoniaConjugal.numero.toString()
       );
-      if (!blocosAnoPessoal || blocosAnoPessoal.length === 0) {
-        // Try alternative format
-        blocosAnoPessoal = await buscarBlocosPorCampo(
-          "Ano Pessoal",
-          `${resultados.anoPessoal}`
+    }
+
+    // Blocos de Dias Favoráveis
+    resultados.blocosDiasFavoraveis = await buscarBlocosPorCampo("Dias Favoráveis", "0");
+
+    // Blocos de Tendências Ocultas
+    const blocosTendenciasOcultas = {};
+    if (Array.isArray(resultados.tendenciasOcultas)) {
+      for (const tendencia of resultados.tendenciasOcultas) {
+        blocosTendenciasOcultas[tendencia] = await buscarBlocosPorCampo(
+          "Tendência Oculta",
+          tendencia.toString()
         );
       }
-    } catch (error) {
-      console.error(`Erro buscando blocos para Ano Pessoal`, error);
     }
-  }
-  resultados.blocosAnoPessoal = blocosAnoPessoal;
+    resultados.blocosTendenciasOcultas = blocosTendenciasOcultas;
 
-  let blocosAptidoesProfissionais = [];
-  if (resultados.aptidoesProfissionais && resultados.aptidoesProfissionais !== "N/A") {
-    try {
-      blocosAptidoesProfissionais = await buscarBlocosPorCampo(
-        "Aptidões e Potencialidades Profissionais",
-        resultados.aptidoesProfissionais.toString()
-      );
-    } catch (error) {
-      console.error("Erro buscando blocos para Aptidões e Potencialidades Profissionais", error);
+    // Blocos de Ciclos de Vida
+    if (resultados.ciclosDeVida && resultados.ciclosDeVida.ciclos) {
+      const blocosCiclos = [];
+      for (let i = 0; i < resultados.ciclosDeVida.ciclos.length; i++) {
+        const ciclo = resultados.ciclosDeVida.ciclos[i];
+        try {
+          const tituloExato = `${i + 1}º Ciclo`; // Exemplo: "1º Ciclo", "2º Ciclo", etc.
+          const blocks = await buscarBlocosPorCampo(
+            tituloExato,
+            ciclo.regente.toString()
+          );
+          blocosCiclos[i] = blocks || [];
+        } catch (error) {
+          console.error(`Erro ao buscar blocos para ciclo ${i + 1}:`, error);
+          blocosCiclos[i] = [];
+        }
+      }
+      resultados.blocosCiclos = blocosCiclos;
     }
+
+    // Blocos de Débitos Cármicos - Ajustado
+    const blocosDebitosCarmicos = {};
+    for (const debito of resultados.debitosCarmicos || []) {
+      const blocks = await buscarBlocosPorCampo("Débito Cármico", debito.toString());
+      if (blocks && blocks.length > 0) {
+        blocosDebitosCarmicos[debito] = blocks;
+      }
+    }
+    resultados.blocosDebitosCarmicos = blocosDebitosCarmicos;
+
+    // Blocos de Lições Cármicas - Ajustado
+    const blocosLicoesCarmicas = {};
+    for (const licao of resultados.licoesCarmicas || []) {
+      const blocks = await buscarBlocosPorCampo("Lição Cármica", licao.toString());
+      if (blocks && blocks.length > 0) {
+        blocosLicoesCarmicas[licao] = blocks;
+      }
+    }
+    resultados.blocosLicoesCarmicas = blocosLicoesCarmicas;
+
+    // Blocos de Desafios
+    if (resultados.desafios) {
+      const blocosDesafios = {};
+      const desafiosLabels = [
+        { key: "desafio1", label: "1º Desafio" },
+        { key: "desafio2", label: "2º Desafio" },
+        { key: "desafioPrincipal", label: "3º Desafio (Principal)" }
+      ];
+
+      for (const { key, label } of desafiosLabels) {
+        if (resultados.desafios[key]) {
+          blocosDesafios[label] = await buscarBlocosPorCampo(label, resultados.desafios[key].toString());
+        }
+      }
+      resultados.blocosDesafios = blocosDesafios;
+    }
+
+  } catch (error) {
+    console.error("Erro ao buscar blocos do Notion:", error);
   }
-  resultados.blocosAptidoesProfissionais = blocosAptidoesProfissionais;
-  
+
   return {
     props: {
       nome: safeNome,

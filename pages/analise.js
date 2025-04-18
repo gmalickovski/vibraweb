@@ -39,6 +39,7 @@ export default function Analise() {
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
+    document.cookie = 'isAuthenticated=false; path=/';
     router.replace('/login');
   };
 
