@@ -8,10 +8,11 @@ export default function Login() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Verifica se já está autenticado
+    // Verifica se já está autenticado e redireciona para home
     if (typeof window !== 'undefined') {
       const isAuth = localStorage.getItem('isAuthenticated');
-      if (isAuth === 'true') {
+      const authCookie = document.cookie.includes('isAuthenticated=true');
+      if (isAuth === 'true' || authCookie) {
         router.replace('/');
       }
     }
@@ -23,7 +24,7 @@ export default function Login() {
 
     if (credentials.username === 'admin' && credentials.password === 'admin123') {
       localStorage.setItem('isAuthenticated', 'true');
-      document.cookie = 'isAuthenticated=true; path=/';
+      document.cookie = 'isAuthenticated=true; path=/; max-age=86400'; // Cookie válido por 24 horas
       router.replace('/');
     } else {
       setError('Usuário ou senha inválidos');
