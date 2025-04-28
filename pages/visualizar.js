@@ -209,6 +209,12 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                     : resultados.tendenciasOcultas}
                 </span>
               </h3>
+              {/* Introdução Tendências Ocultas */}
+              {resultados?.blocosTendenciasOcultasIntroducao && resultados.blocosTendenciasOcultasIntroducao.length > 0 ? (
+                resultados.blocosTendenciasOcultasIntroducao.map(block => renderBlock(block))
+              ) : (
+                <p style={styles.paragraph}>Texto de introdução não encontrado.</p>
+              )}
               <ul style={styles.ul}>
                 {(Array.isArray(resultados.tendenciasOcultas)
                   ? resultados.tendenciasOcultas
@@ -242,6 +248,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                   {resultados.diasFavoraveis?.split(',').map(dia => dia.trim()).join(', ')}
                 </span>
               </h4>
+              {/* Texto do Notion Dias Favoráveis; 1 */}
               {resultados?.blocosDiasFavoraveis && resultados.blocosDiasFavoraveis.length > 0 ? (
                 resultados.blocosDiasFavoraveis.map(block => renderBlock(block))
               ) : (
@@ -256,6 +263,12 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
               <h3 style={styles.itemTitle}>
                 Débitos Cármicos: <span style={{...styles.value, ...styles.itemValue}}>{resultados.debitosCarmicos.join(", ")}</span>
               </h3>
+              {/* Introdução Débitos Cármicos */}
+              {resultados?.blocosDebitosCarmicosIntroducao && resultados.blocosDebitosCarmicosIntroducao.length > 0 ? (
+                resultados.blocosDebitosCarmicosIntroducao.map(block => renderBlock(block))
+              ) : (
+                <p style={styles.paragraph}>Texto de introdução não encontrado.</p>
+              )}
               <ul style={styles.ul}>
                 {resultados.debitosCarmicos.map(debito => (
                   <li key={debito} style={styles.li}>
@@ -275,34 +288,18 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
             </div>
           )}
 
-          {/* Seção Ciclos de Vida */}
-          {resultados.ciclosDeVida && resultados.ciclosDeVida.ciclos && resultados.ciclosDeVida.ciclos.length > 0 && (
-            <div style={styles.sectionContainer}>
-              <h3 style={styles.itemTitle}>Ciclos de Vida</h3>
-              <ul style={styles.ul}>
-                {resultados.ciclosDeVida.ciclos.map((ciclo, index) => (
-                  <li key={index} style={styles.li}>
-                    <h4 style={styles.subItemTitle}>
-                      {index + 1}º Ciclo: <span style={{...styles.value, ...styles.subItemValue}}>{ciclo.regente}</span>
-                      - Período: {ciclo.inicio} - {ciclo.fim}
-                    </h4>
-                    {resultados?.blocosCiclos && resultados.blocosCiclos[index] ? (
-                      resultados.blocosCiclos[index].map(block => renderBlock(block))
-                    ) : (
-                      <p style={styles.paragraph}>Texto não encontrado para o {index + 1}º Ciclo.</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {/* Seção Lições Cármicas */}
           {resultados.licoesCarmicas && resultados.licoesCarmicas.length > 0 && (
             <div style={styles.sectionContainer}>
               <h3 style={styles.itemTitle}>
                 Lições Cármicas: <span style={{...styles.value, ...styles.itemValue}}>{resultados.licoesCarmicas.join(", ")}</span>
               </h3>
+              {/* Introdução Lições Cármicas */}
+              {resultados?.blocosLicoesCarmicasIntroducao && resultados.blocosLicoesCarmicasIntroducao.length > 0 ? (
+                resultados.blocosLicoesCarmicasIntroducao.map(block => renderBlock(block))
+              ) : (
+                <p style={styles.paragraph}>Texto de introdução não encontrado.</p>
+              )}
               <ul style={styles.ul}>
                 {resultados.licoesCarmicas.map(licao => (
                   <li key={licao} style={styles.li}>
@@ -332,6 +329,12 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                   {[1,2,3,4].map(i => resultados.momentosDecisivos["momento" + i]).filter(Boolean).join(", ")}
                 </span>
               </h3>
+              {/* Introdução Momentos Decisivos */}
+              {resultados?.blocosMomentosDecisivosIntroducao && resultados.blocosMomentosDecisivosIntroducao.length > 0 ? (
+                resultados.blocosMomentosDecisivosIntroducao.map(block => renderBlock(block))
+              ) : (
+                <p style={styles.paragraph}>Texto de introdução não encontrado.</p>
+              )}
               <ul style={styles.ul}>
                 {[1, 2, 3, 4].map(i => {
                   const m = resultados.momentosDecisivos["momento" + i];
@@ -343,12 +346,12 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                         {p && <> - Período: {p}</>}
                       </h4>
                       <div>
-                        {resultados?.blocosMomentosDecisivos &&
-                        resultados.blocosMomentosDecisivos["momento" + i] &&
-                        resultados.blocosMomentosDecisivos["momento" + i].length > 0 ? (
-                          resultados.blocosMomentosDecisivos["momento" + i].map(block => renderBlock(block))
+                        {resultados?.blocosMomentosDecisivosDetalhados &&
+                        resultados.blocosMomentosDecisivosDetalhados[i] &&
+                        resultados.blocosMomentosDecisivosDetalhados[i].length > 0 ? (
+                          resultados.blocosMomentosDecisivosDetalhados[i].map(block => renderBlock(block))
                         ) : (
-                          <p style={styles.paragraph}>Momento Decisivo; {m}</p>
+                          <p style={styles.paragraph}>{`${i}º Momento Decisivo; ${m}`}</p>
                         )}
                       </div>
                     </li>
@@ -367,6 +370,12 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                 {[resultados.desafios.desafio1, resultados.desafios.desafio2, resultados.desafios.desafioPrincipal].filter(Boolean).join(", ")}
               </span>
             </h3>
+            {/* Introdução Desafios */}
+            {resultados?.blocosDesafiosIntroducao && resultados.blocosDesafiosIntroducao.length > 0 ? (
+              resultados.blocosDesafiosIntroducao.map(block => renderBlock(block))
+            ) : (
+              <p style={styles.paragraph}>Texto de introdução não encontrado.</p>
+            )}
             <ul style={styles.ul}>
               <li style={styles.li}>
                 <h4 style={styles.subItemTitle}>
@@ -800,20 +809,26 @@ export async function getServerSideProps(context) {
       resultados.anoPessoal?.toString()
     );
 
-    // Blocos de Momentos Decisivos
-    const blocosMomentosDecisivos = {};
+    // Blocos de Momentos Decisivos (Introdução)
+    resultados.blocosMomentosDecisivosIntroducao = await buscarBlocosPorCampo(
+      "Introdução Momentos Decisivos",
+      "1"
+    );
+
+    // Blocos detalhados de cada Momento Decisivo
+    const blocosMomentosDecisivosDetalhados = [];
     if (resultados.momentosDecisivos) {
       for (let i = 1; i <= 4; i++) {
         const momento = resultados.momentosDecisivos[`momento${i}`];
         if (momento) {
-          blocosMomentosDecisivos[`momento${i}`] = await buscarBlocosPorCampo(
-            "Momento Decisivo",
-            momento.toString()
-          );
+          const titulo = `${i}º Momento Decisivo`;
+          const valor = momento.toString();
+          const blocks = await buscarBlocosPorCampo(titulo, valor);
+          blocosMomentosDecisivosDetalhados[i] = blocks || [];
         }
       }
     }
-    resultados.blocosMomentosDecisivos = blocosMomentosDecisivos;
+    resultados.blocosMomentosDecisivosDetalhados = blocosMomentosDecisivosDetalhados;
 
     // Blocos de Aptidões Profissionais
     resultados.blocosAptidoesProfissionais = await buscarBlocosPorCampo(
@@ -829,10 +844,10 @@ export async function getServerSideProps(context) {
       );
     }
 
-    // Blocos de Dias Favoráveis
-    resultados.blocosDiasFavoraveis = await buscarBlocosPorCampo("Dias Favoráveis", "0");
+    // Blocos de Dias Favoráveis (sempre busca pelo valor 1)
+    resultados.blocosDiasFavoraveis = await buscarBlocosPorCampo("Dias Favoráveis", "1");
 
-    // Blocos de Tendências Ocultas
+    // Blocos de Tendências Ocultas (subitens)
     const blocosTendenciasOcultas = {};
     if (Array.isArray(resultados.tendenciasOcultas)) {
       for (const tendencia of resultados.tendenciasOcultas) {
@@ -844,17 +859,43 @@ export async function getServerSideProps(context) {
     }
     resultados.blocosTendenciasOcultas = blocosTendenciasOcultas;
 
+    // Fetch introduction blocks for all sections with static value "1"
+    resultados.blocosTendenciasOcultasIntroducao = await buscarBlocosPorCampo(
+      "Introdução Tendências Ocultas",
+      "1"
+    );
+
+    resultados.blocosDebitosCarmicosIntroducao = await buscarBlocosPorCampo(
+      "Introdução Débitos Cármicos",
+      "1"
+    );
+
+    resultados.blocosLicoesCarmicasIntroducao = await buscarBlocosPorCampo(
+      "Introdução Lições Cármicas",
+      "1"
+    );
+
+    resultados.blocosDesafiosIntroducao = await buscarBlocosPorCampo(
+      "Introdução Desafios",
+      "1"
+    );
+
     // Blocos de Ciclos de Vida
     if (resultados.ciclosDeVida && resultados.ciclosDeVida.ciclos) {
+      // Blocos de introdução dos ciclos
+      resultados.blocosCiclosIntroducao = await buscarBlocosPorCampo(
+        "Introdução Ciclos de Vida",
+        "1"
+      );
+
       const blocosCiclos = [];
       for (let i = 0; i < resultados.ciclosDeVida.ciclos.length; i++) {
         const ciclo = resultados.ciclosDeVida.ciclos[i];
         try {
-          const tituloExato = `${i + 1}º Ciclo`; // Exemplo: "1º Ciclo", "2º Ciclo", etc.
-          const blocks = await buscarBlocosPorCampo(
-            tituloExato,
-            ciclo.regente.toString()
-          );
+          // Busca usando título exato e regente
+          const titulo = `${i + 1}º Ciclo`;
+          const regente = ciclo.regente?.toString() || '';
+          const blocks = await buscarBlocosPorCampo(titulo, regente);
           blocosCiclos[i] = blocks || [];
         } catch (error) {
           console.error(`Erro ao buscar blocos para ciclo ${i + 1}:`, error);
@@ -864,7 +905,7 @@ export async function getServerSideProps(context) {
       resultados.blocosCiclos = blocosCiclos;
     }
 
-    // Blocos de Débitos Cármicos - Ajustado
+    // Blocos de Débitos Cármicos
     const blocosDebitosCarmicos = {};
     for (const debito of resultados.debitosCarmicos || []) {
       const blocks = await buscarBlocosPorCampo("Débito Cármico", debito.toString());
@@ -874,7 +915,7 @@ export async function getServerSideProps(context) {
     }
     resultados.blocosDebitosCarmicos = blocosDebitosCarmicos;
 
-    // Blocos de Lições Cármicas - Ajustado
+    // Blocos de Lições Cármicas
     const blocosLicoesCarmicas = {};
     for (const licao of resultados.licoesCarmicas || []) {
       const blocks = await buscarBlocosPorCampo("Lição Cármica", licao.toString());
