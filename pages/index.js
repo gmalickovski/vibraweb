@@ -1,61 +1,19 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 
 export default function Home() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const isAuth = localStorage.getItem('isAuthenticated');
-        const authCookie = document.cookie.includes('isAuthenticated=true');
-        
-        if (!isAuth && !authCookie) {
-          router.replace('/login');
-          return;
-        }
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Erro ao verificar autenticação:', error);
-        router.replace('/login');
-      }
-    };
-
-    checkAuth();
-
     const handleResize = () => {
       setIsMobile(window.innerWidth < 600);
     };
-
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [router]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    document.cookie = 'isAuthenticated=false; path=/';
-    router.replace('/login');
-  };
-
-  if (isLoading) {
-    return (
-      <div style={{
-        height: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        fontSize: '1.2rem'
-      }}>
-        Carregando...
-      </div>
-    );
-  }
+  }, []);
 
   const hoverStyles = isHovered ? {
     cardLink: {
@@ -76,11 +34,7 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       <div style={styles.container}>
-        <header style={styles.header}>
-          <button onClick={handleLogout} style={styles.logoutBtn}>
-            Sair
-          </button>
-        </header>
+        <header style={styles.header}></header>
         <div style={styles.products}>
           <Link 
             href="/analise" 
