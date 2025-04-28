@@ -748,7 +748,9 @@ const styles = {
     margin: "0 auto",
     backgroundColor: "#faf7f2",
     color: "#2D1B4E",
-    lineHeight: "1.6"
+    lineHeight: "1.6",
+    boxSizing: "border-box",
+    width: "100%",
   },
   mainTitle: {
     fontSize: "2rem",
@@ -758,7 +760,12 @@ const styles = {
     marginBottom: "1rem",
     paddingBottom: "0.4rem",
     borderBottom: "3px solid #E67E22",
-    width: "100%"
+    width: "100%",
+    // Mobile
+    '@media (max-width: 600px)': {
+      fontSize: "1.3rem",
+      padding: "0.5rem 0.2rem",
+    }
   },
   sectionTitle: {
     fontSize: "1.75rem",
@@ -768,7 +775,11 @@ const styles = {
     marginBottom: "0.5rem",
     paddingBottom: "0.3rem",
     borderBottom: "2px solid #E67E22",
-    width: "100%"
+    width: "100%",
+    '@media (max-width: 600px)': {
+      fontSize: "1.1rem",
+      padding: "0.3rem 0.1rem",
+    }
   },
   itemTitle: {
     fontSize: '1.5rem',
@@ -780,7 +791,12 @@ const styles = {
     alignItems: 'baseline',
     gap: '0.15rem',
     width: '100%',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    '@media (max-width: 600px)': {
+      fontSize: '1rem',
+      flexDirection: 'column',
+      gap: '0.1rem',
+    }
   },
   subItemTitle: {
     fontSize: '1.25rem',
@@ -790,37 +806,66 @@ const styles = {
     display: 'flex',
     alignItems: 'baseline',
     gap: '0.15rem',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    '@media (max-width: 600px)': {
+      fontSize: '0.95rem',
+      flexDirection: 'column',
+      gap: '0.05rem',
+    }
   },
   sectionContainer: {
     width: "100%",
-    padding: "0.5rem",
+    padding: "18px 24px",
     backgroundColor: "#fff",
-    borderRadius: "8px",
-    boxShadow: "0 2px 4px rgba(45, 27, 78, 0.1)",
-    marginBottom: "0.5rem",
+    borderRadius: "14px",
+    boxShadow: "0 2px 10px rgba(45, 27, 78, 0.08)",
+    marginBottom: "1.2rem",
     minHeight: "120px",
     display: "flex",
     flexDirection: "column",
-    gap: "0.2rem"
+    gap: "0.5rem",
+    border: "1px solid #f0e6d2",
+    boxSizing: "border-box",
+    '@media (max-width: 600px)': {
+      padding: "10px 6px",
+      minHeight: "auto",
+      marginBottom: "0.7rem",
+      borderRadius: "8px",
+      gap: "0.2rem",
+    }
   },
   value: {
     color: '#E67E22',
     fontWeight: '500',
     display: 'inline-block',
-    marginLeft: '0.15rem'
+    marginLeft: '0.15rem',
+    '@media (max-width: 600px)': {
+      fontSize: "1rem"
+    }
   },
   mainValue: {
-    fontSize: "2rem"
+    fontSize: "2rem",
+    '@media (max-width: 600px)': {
+      fontSize: "1.1rem"
+    }
   },
   sectionValue: {
-    fontSize: "1.75rem"
+    fontSize: "1.75rem",
+    '@media (max-width: 600px)': {
+      fontSize: "1rem"
+    }
   },
   itemValue: {
-    fontSize: "1.5rem"
+    fontSize: "1.35rem",
+    '@media (max-width: 600px)': {
+      fontSize: "1rem"
+    }
   },
   subItemValue: {
-    fontSize: "1.25rem"
+    fontSize: "1.1rem",
+    '@media (max-width: 600px)': {
+      fontSize: "0.95rem"
+    }
   },
   ul: {
     listStyle: "none",
@@ -833,7 +878,19 @@ const styles = {
     paddingLeft: "1rem",
     position: "relative",
     borderLeft: "3px solid #E67E22",
-    width: "100%"
+    width: "100%",
+    background: "rgba(250,247,242,0.7)",
+    borderRadius: "6px",
+    paddingTop: "8px",
+    paddingBottom: "8px",
+    paddingRight: "10px",
+    boxSizing: "border-box",
+    '@media (max-width: 600px)': {
+      paddingLeft: "0.5rem",
+      paddingTop: "4px",
+      paddingBottom: "4px",
+      fontSize: "0.95rem"
+    }
   },
   paragraph: {
     margin: '0.2rem 0',
@@ -842,14 +899,24 @@ const styles = {
     width: '100%',
     wordWrap: 'break-word',
     overflowWrap: 'break-word',
-    textAlign: 'justify'
+    textAlign: 'justify',
+    background: "rgba(255,255,255,0.7)",
+    borderRadius: "6px",
+    padding: "8px 14px",
+    '@media (max-width: 600px)': {
+      padding: "5px 6px",
+      fontSize: "0.95rem"
+    }
   },
   listContainer: {
     width: "100%",
     display: "flex",
     flexDirection: "column",
     gap: "0.4rem",
-    padding: "0"
+    padding: "0",
+    '@media (max-width: 600px)': {
+      gap: "0.15rem"
+    }
   },
   harmoniaNumero: {
     marginBottom: '1rem',
@@ -979,31 +1046,6 @@ export async function getServerSideProps(context) {
     );
 
     // Blocos de Momentos Decisivos (Introdução)
-    resultados.blocosMomentosDecisivosIntroducao = await buscarBlocosPorCampo(
-      "Introdução Momentos Decisivos",
-      "1"
-    );
-
-    // Blocos detalhados de cada Momento Decisivo
-    const blocosMomentosDecisivosDetalhados = [];
-    if (resultados.momentosDecisivos) {
-      for (let i = 1; i <= 4; i++) {
-        const momento = resultados.momentosDecisivos[`momento${i}`];
-        if (momento) {
-          const titulo = `${i}º Momento Decisivo`;
-          const valor = momento.toString();
-          const blocks = await buscarBlocosPorCampo(titulo, valor);
-          blocosMomentosDecisivosDetalhados[i] = blocks || [];
-        }
-      }
-    }
-    resultados.blocosMomentosDecisivosDetalhados = blocosMomentosDecisivosDetalhados;
-
-    // Blocos de Aptidões Profissionais
-    resultados.blocosAptidoesProfissionais = await buscarBlocosPorCampo(
-      "Aptidões e Potencialidades Profissionais",
-      resultados.aptidoesProfissionais
-    );
 
     // Blocos de Harmonia Conjugal
     if (resultados.harmoniaConjugal?.numero) {

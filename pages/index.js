@@ -23,12 +23,18 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 600);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/login';
   };
 
-  // Adicione esta linha para definir hoverStyles corretamente
   const hoverStyles = isHovered ? {
     cardLink: {
       transform: 'translateY(-8px)',
@@ -67,19 +73,40 @@ export default function Home() {
             onMouseLeave={() => setIsHovered(false)}
           >
             <div style={isMobile ? styles.cardMobile : styles.card}>
-              <div style={isMobile ? styles.cardImageContainerMobile : styles.cardImageContainer}>
-                <img
-                  src="/images/logo-analise-card.png"
-                  alt="Análise de Propósito"
-                  style={styles.img}
-                />
-              </div>
-              <div style={isMobile ? styles.cardContentMobile : styles.cardContent}>
-                <h2 style={styles.cardTitle}>Análise de Propósito</h2>
-                <p style={styles.cardDescription}>
-                  Descubra o seu potencial por meio da numerologia cabalística.
-                </p>
-              </div>
+              {/* Mobile: imagem acima do texto */}
+              {isMobile ? (
+                <>
+                  <div style={styles.cardImageContainerMobile}>
+                    <img
+                      src="/images/logo-analise-card.png"
+                      alt="Análise de Propósito"
+                      style={styles.img}
+                    />
+                  </div>
+                  <div style={styles.cardContentMobile}>
+                    <h2 style={styles.cardTitle}>Análise de Propósito</h2>
+                    <p style={styles.cardDescription}>
+                      Descubra o seu potencial por meio da numerologia cabalística.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={styles.cardImageContainer}>
+                    <img
+                      src="/images/logo-analise-card.png"
+                      alt="Análise de Propósito"
+                      style={styles.img}
+                    />
+                  </div>
+                  <div style={styles.cardContent}>
+                    <h2 style={styles.cardTitle}>Análise de Propósito</h2>
+                    <p style={styles.cardDescription}>
+                      Descubra o seu potencial por meio da numerologia cabalística.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </Link>
         </div>
@@ -121,7 +148,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     gap: '20px',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    marginTop: '60px' // Adicionado para afastar o card do topo/botão Sair
   },
   cardLink: {
     textDecoration: 'none',
@@ -161,7 +189,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '15px'
+    gap: '10px'
   },
   cardImageContainer: {
     flex: '0 0 150px',
@@ -177,7 +205,7 @@ const styles = {
     borderRadius: '8px',
     overflow: 'hidden',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: '15px'
+    marginBottom: '10px'
   },
   img: {
     width: '100%',
@@ -199,7 +227,7 @@ const styles = {
     width: '100%',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px',
+    gap: '8px',
     textAlign: 'center'
   },
   cardTitle: {
