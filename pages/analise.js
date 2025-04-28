@@ -2,6 +2,20 @@ import { useState, useEffect } from 'react';  // Adicione useEffect ao import
 import { useRouter } from 'next/router';  // Add this import
 import ModalAnalise from '../components/ModalAnalise';
 import { useAnalise } from '../contexts/AnaliseContext'; // Corrigido o caminho do import
+import { parse } from 'cookie';
+
+export async function getServerSideProps({ req }) {
+  const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
+  if (!cookies.auth_token) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    };
+  }
+  return { props: {} };
+}
 
 export default function Analise() {
   const router = useRouter();  // Add this line
@@ -50,10 +64,9 @@ export default function Analise() {
     window.open(`/visualizar?${params.toString()}`, '_blank');
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    document.cookie = 'isAuthenticated=false; path=/';
-    router.replace('/login');
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
   };
 
   return (

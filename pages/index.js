@@ -1,20 +1,34 @@
+import { parse } from 'cookie';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
+
+export async function getServerSideProps({ req, res }) {
+  const cookies = req.headers.cookie ? parse(req.headers.cookie) : {};
+  if (!cookies.auth_token) {
+    // Redireciona para login se não autenticado
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    };
+  }
+  return { props: {} };
+}
 
 export default function Home() {
+  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 600);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
 
+  // Adicione esta linha para definir hoverStyles corretamente
   const hoverStyles = isHovered ? {
     cardLink: {
       transform: 'translateY(-8px)',
@@ -34,7 +48,17 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       <div style={styles.container}>
-        <header style={styles.header}></header>
+        <header style={styles.header}>
+          <div style={styles.logoutContainer}>
+            <button 
+              onClick={handleLogout}
+              className="btn-animated btn-danger"
+              style={styles.logoutButton}
+            >
+              Sair
+            </button>
+          </div>
+        </header>
         <div style={styles.products}>
           <Link 
             href="/analise" 
@@ -73,13 +97,25 @@ const styles = {
   },
   header: {
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px',
-    padding: '10px',
-    '@media (max-width: 600px)': {
-      gap: '10px'
-    }
+    justifyContent: 'flex-end',
+    width: '100%',
+    padding: '1rem',
+    backgroundColor: 'transparent'
+  },
+  logoutContainer: {
+    position: 'absolute',
+    top: '1rem',
+    right: '1rem'
+  },
+  logoutButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    transition: 'all 0.3s ease'
   },
   products: {
     display: 'flex',

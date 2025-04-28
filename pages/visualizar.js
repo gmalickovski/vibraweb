@@ -1,7 +1,9 @@
 // pages/visualizar.js
-import React from "react";
+import React, { useState } from "react";
 import { buscarBlocosPorCampo } from "../lib/notion";
 import * as numerologia from "../lib/numerologia";
+import VoiceModal from '../components/VoiceModal';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 /* ================================
    Funções Auxiliares
@@ -72,6 +74,9 @@ function renderItem(title, value, blocks) {
    Componente Principal
 ================================ */
 export default function Visualizar({ resultados, nome, dataNascimento }) {
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
   if (!resultados) {
     return (
       <div style={styles.container}>
@@ -80,8 +85,66 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
       </div>
     );
   }
+
+  const handleGenerateAudio = async (voiceSettings) => {
+    try {
+      setIsLoading(true);
+      
+      // Get text content
+      const mainContent = document.getElementById('printable-content');
+      const content = Array.from(mainContent.querySelectorAll('p, h1, h2, h3, h4, li'))
+        .map(el => el.textContent.trim())
+        .filter(text => text)
+        .join('. ');
+
+      const response = await fetch('/api/generate-audio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: content,
+          voiceConfig: {
+            voice: voiceSettings.voice,
+            speed: voiceSettings.speed || 1,
+            pitch: voiceSettings.pitch || 0
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao gerar áudio');
+      }
+
+      const audioBlob = await response.blob();
+      
+      // Verifica se o blob tem conteúdo
+      if (audioBlob.size === 0) {
+        throw new Error('Arquivo de áudio vazio');
+      }
+
+      // Cria URL do blob e faz o download
+      const url = window.URL.createObjectURL(audioBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'analise-numerologica.mp3';
+      document.body.appendChild(a);
+      a.click();
+      
+      // Limpa recursos
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setIsVoiceModalOpen(false);
+    } catch (error) {
+      console.error('Erro:', error);
+      alert('Erro ao gerar o áudio. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <>
+    <div>
       <style jsx global>{`
         @media print {
           /* Configurações básicas da página */
@@ -152,7 +215,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           }
         }
       `}</style>
-      <div style={styles.container}>
+      <div style={styles.container} id="printable-content">
         <h1 style={styles.mainTitle}>
           Análise de Propósito: <span style={{...styles.value, ...styles.mainValue}}>{nome}</span>
         </h1>
@@ -185,7 +248,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
             )
           )}
 
-          {/* Seção Resposta do Subconsciênte */}
+          {/* Seção Resposta do Subconciente */}
           <div style={styles.sectionContainer}>
             <h3 style={styles.itemTitle}>
               Resposta do Subconsciênte: <span style={{...styles.value, ...styles.itemValue}}>{resultados.respostaSubconsciente}</span>
@@ -198,6 +261,34 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
               )}
             </div>
           </div>
+
+          {/* Seção Ciclos de Vida */}
+          {resultados.ciclosDeVida && resultados.ciclosDeVida.ciclos && resultados.ciclosDeVida.ciclos.length > 0 && (
+            <div style={styles.sectionContainer}>
+              <h3 style={styles.itemTitle}>Ciclos de Vida</h3>
+              {/* Introdução dos Ciclos de Vida */}
+              {resultados?.blocosCiclosIntroducao && resultados.blocosCiclosIntroducao.length > 0 ? (
+                resultados.blocosCiclosIntroducao.map(block => renderBlock(block))
+              ) : (
+                <p style={styles.paragraph}>Texto de introdução não encontrado para Ciclos de Vida.</p>
+              )}
+              <ul style={styles.ul}>
+                {resultados.ciclosDeVida.ciclos.map((ciclo, index) => (
+                  <li key={index} style={styles.li}>
+                    <h4 style={styles.subItemTitle}>
+                      {index + 1}º Ciclo: <span style={{...styles.value, ...styles.subItemValue}}>{ciclo.regente}</span>
+                      {" - Período: "}{ciclo.inicio} – {ciclo.fim}
+                    </h4>
+                    {resultados?.blocosCiclos && resultados.blocosCiclos[index] && resultados.blocosCiclos[index].length > 0 ? (
+                      resultados.blocosCiclos[index].map(block => renderBlock(block))
+                    ) : (
+                      <p style={styles.paragraph}>Texto não encontrado para o {index + 1}º Ciclo.</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Seção Tendências Ocultas */}
           {resultados.tendenciasOcultas && (
@@ -497,190 +588,268 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           </div>
         )}
 
-        {/* Botão de Imprimir */}
-        <button
-          onClick={() => window.print()}
-          className="btn-animated modal-btn"
-          style={{
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            backgroundColor: '#2D1B4E', // Roxo escuro
-            boxShadow: '0 2px 8px rgba(45, 27, 78, 0.2)'
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M5 1a2 2 0 0 0-2 2v1h10V3a2 2 0 0 0-2-2H5zm6 8H5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z"/>
-            <path d="M0 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2H2a2 2 0 0 1-2-2V7zm2.5 1a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/>
-          </svg>
-          Imprimir
-        </button>
+        {/* Botões de Ação */}
+        <div className="botoes-container">
+          <button onClick={() => window.print()} className="btn-imprimir">
+            Imprimir
+          </button>
+          <button 
+            onClick={() => setIsVoiceModalOpen(true)} 
+            className="btn-audio"
+          >
+            Gerar Áudio
+          </button>
+        </div>
+
+        <VoiceModal 
+          isOpen={isVoiceModalOpen}
+          onClose={() => setIsVoiceModalOpen(false)}
+          onGenerate={handleGenerateAudio}
+        />
+
+        {isLoading && <LoadingOverlay />}
       </div>
-    </>
+
+      <style jsx>{`
+        /* ================================
+           Estilos
+        ================================= */
+        .botoes-container {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          display: flex;
+          gap: 1rem;
+          z-index: 1000;
+          @media print {
+            display: none;
+          }
+        }
+
+        .btn-imprimir,
+        .btn-audio {
+          padding: 0.75rem 1.5rem;
+          border: none;
+          border-radius: 4px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .btn-imprimir {
+          background-color: #2D1B4E;
+          color: white;
+        }
+
+        .btn-audio {
+          background-color: #E67E22;
+          color: white;
+        }
+
+        .btn-imprimir:hover,
+        .btn-audio:hover {
+          opacity: 0.9;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Estilos existentes */
+        #printable-content {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        @media print {
+          #printable-content {
+            display: block;
+          }
+        }
+
+        @media print {
+          /* Configurações básicas da página */
+          @page {
+            size: A4;
+            margin: 1.5cm 1cm; /* Reduzido: top/bottom 1.5cm, left/right 1cm */
+          }
+
+          /* Controle de quebra de página e margens */
+          @page :first {
+            margin-top: 1.5cm;
+          }
+
+          @page :left, @page :right {
+            margin: 1.5cm 1cm;
+          }
+
+          /* Ajustes do corpo da página */
+          body {
+            margin: 0;
+            padding: 1.5cm 1cm;
+          }
+
+          /* Ajustes para textos longos do Notion */
+          .notion-paragraph {
+            margin: 0.8em 0;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+            max-width: 100%;
+            box-sizing: border-box;
+          }
+
+          /* Ajustes para containers */
+          div[style*="sectionContainer"] {
+            overflow: hidden;
+            page-break-inside: avoid;
+            width: 100%;
+            box-sizing: border-box;
+          }
+
+          /* Remove links e URLs */
+          a[href]::after {
+            content: none !important;
+          }
+
+          /* Remove headers e footers específicos do navegador */
+          head, header, footer {
+            display: none !important;
+          }
+
+          /* Remove elementos não desejados na impressão */
+          button {
+            display: none !important;
+          }
+
+          /* Ajustes para parágrafos */
+          .notion-paragraph {
+            margin: 1em 0;
+            page-break-inside: avoid;
+          }
+
+          /* Força a remoção de qualquer cabeçalho ou rodapé */
+          body::before, body::after {
+            display: none !important;
+            content: none !important;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
 
-/* ================================
-   Estilos
-================================ */
 const styles = {
   container: {
     fontFamily: "'Roboto', 'Arial', sans-serif",
-    padding: "20px", // Reduzido de 40px para dar mais espaço ao conteúdo
+    padding: "20px",
     maxWidth: "1000px",
     margin: "0 auto",
-    backgroundColor: "#faf7f2", // Voltando para o tom amarelado anterior
-    color: "#2D1B4E", // Roxo escuro para texto
-    lineHeight: "1.6",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "1rem", // Reduzido de 1.5rem
-    boxSizing: "border-box", // Garantir que padding não afete a largura total
-    width: "100%" // Garantir largura total do container
+    backgroundColor: "#faf7f2",
+    color: "#2D1B4E",
+    lineHeight: "1.6"
   },
-  mainTitle: {  // h1
-    fontSize: "2rem", // Reduzido de 2.5rem
-    color: "#2D1B4E", // Roxo escuro
+  mainTitle: {
+    fontSize: "2rem",
+    color: "#2D1B4E",
     textAlign: "center",
-    marginTop: "0.5rem", // Reduzido de 1rem
-    marginBottom: "1rem", // Reduzido de 1.5rem
-    paddingBottom: "0.4rem", // Reduzido de 0.6rem
-    borderBottom: "3px solid #E67E22", // Laranja
+    marginTop: "0.5rem",
+    marginBottom: "1rem",
+    paddingBottom: "0.4rem",
+    borderBottom: "3px solid #E67E22",
     width: "100%"
   },
-  sectionTitle: {  // h2
-    fontSize: "1.75rem", // Reduzido de 2rem
-    color: "#2D1B4E", // Roxo escuro
+  sectionTitle: {
+    fontSize: "1.75rem",
+    color: "#2D1B4E",
     textAlign: "center",
     marginTop: "0",
-    marginBottom: "0.5rem", // Reduzido de 1rem
-    paddingBottom: "0.3rem", // Reduzido de 0.4rem
-    borderBottom: "2px solid #E67E22", // Laranja
+    marginBottom: "0.5rem",
+    paddingBottom: "0.3rem",
+    borderBottom: "2px solid #E67E22",
     width: "100%"
   },
-  itemTitle: {  // h3
+  itemTitle: {
     fontSize: '1.5rem',
-    color: '#2D1B4E', // Roxo escuro
+    color: '#2D1B4E',
     marginBottom: '0.2rem',
     paddingBottom: '0.2rem',
-    borderBottom: '1px solid #E67E22', // Laranja
+    borderBottom: '1px solid #E67E22',
     display: 'flex',
     alignItems: 'baseline',
     gap: '0.15rem',
     width: '100%',
-    flexWrap: 'wrap', // Added to fix mobile wrapping
-    '@media (max-width: 600px)': {
-      fontSize: '1.2rem',
-      flexDirection: 'column',
-      gap: '0.1rem'
-    }
+    flexWrap: 'wrap'
   },
-  subItemTitle: {  // h4
+  subItemTitle: {
     fontSize: '1.25rem',
-    color: '#2D1B4E', // Roxo escuro
+    color: '#2D1B4E',
     marginBottom: '0.2rem',
     marginTop: '0.2rem',
     display: 'flex',
     alignItems: 'baseline',
     gap: '0.15rem',
-    flexWrap: 'wrap', // Added to fix mobile wrapping
-    '@media (max-width: 600px)': {
-      fontSize: '1.1rem',
-      flexDirection: 'column',
-      gap: '0.1rem'
-    }
+    flexWrap: 'wrap'
   },
   sectionContainer: {
     width: "100%",
     padding: "0.5rem",
-    backgroundColor: "#fff", // Fundo branco
+    backgroundColor: "#fff",
     borderRadius: "8px",
-    boxShadow: "0 2px 4px rgba(45, 27, 78, 0.1)", // Sombra com tom roxo
+    boxShadow: "0 2px 4px rgba(45, 27, 78, 0.1)",
     marginBottom: "0.5rem",
     minHeight: "120px",
     display: "flex",
     flexDirection: "column",
-    gap: "0.2rem",
-    boxSizing: "border-box",
-    overflow: "hidden", // Adicionado para controlar overflow
-    wordWrap: "break-word", // Adicionado para quebrar palavras longas
-    overflowWrap: "break-word" // Suporte adicional para quebra de palavras
+    gap: "0.2rem"
   },
   value: {
-    color: '#E67E22', // Laranja
+    color: '#E67E22',
     fontWeight: '500',
     display: 'inline-block',
-    marginLeft: '0.15rem',
-    '@media (max-width: 600px)': {
-      marginLeft: 0,
-      width: '100%'
-    }
+    marginLeft: '0.15rem'
   },
-  mainValue: {  // for h1
-    fontSize: "2rem" // Reduzido de 2.5rem
+  mainValue: {
+    fontSize: "2rem"
   },
-  sectionValue: {  // for h2
-    fontSize: "1.75rem" // Reduzido de 2rem
+  sectionValue: {
+    fontSize: "1.75rem"
   },
-  itemValue: {  // for h3
-    fontSize: "1.5rem" // Reduzido de 1.75rem
+  itemValue: {
+    fontSize: "1.5rem"
   },
-  subItemValue: {  // for h4
+  subItemValue: {
     fontSize: "1.25rem"
   },
   ul: {
     listStyle: "none",
     padding: "0",
-    margin: "0.3rem 0", // Aumentado de 0.25rem
-    width: "100%",
-    boxSizing: "border-box"
+    margin: "0.3rem 0",
+    width: "100%"
   },
   li: {
-    marginBottom: "0.3rem", // Aumentado de 0.25rem
+    marginBottom: "0.3rem",
     paddingLeft: "1rem",
     position: "relative",
-    borderLeft: "3px solid #E67E22", // Laranja
-    width: "100%",
-    boxSizing: "border-box",
-    '@media (max-width: 600px)': {
-      paddingLeft: '0.5rem'
-    }
+    borderLeft: "3px solid #E67E22",
+    width: "100%"
   },
   paragraph: {
     margin: '0.2rem 0',
     lineHeight: '1.5',
-    color: '#2D1B4E', // Roxo escuro mais suave
+    color: '#2D1B4E',
     width: '100%',
     wordWrap: 'break-word',
     overflowWrap: 'break-word',
-    textAlign: 'justify', // Added for consistent text alignment
-    '@media (max-width: 600px)': {
-      fontSize: '0.95rem',
-      textAlign: 'left' // Better readability on mobile
-    }
+    textAlign: 'justify'
   },
   listContainer: {
     width: "100%",
     display: "flex",
     flexDirection: "column",
-    gap: "0.4rem", // Aumentado de 0.35rem
-    padding: "0",
-    boxSizing: "border-box",
-    '& > div': {
-      margin: "0",
-      width: "100%",
-      boxSizing: "border-box"
-    }
-  },
-  tr: {
-    '&:hover': {
-      backgroundColor: "#fff9ea" // Voltando para o amarelo claro no hover
-    }
+    gap: "0.4rem",
+    padding: "0"
   },
   harmoniaNumero: {
     marginBottom: '1rem',
