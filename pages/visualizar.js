@@ -39,19 +39,71 @@ function getPeriodosMomentos(dataNascimento) {
   return { periodo1: "", periodo2: "", periodo3: "", periodo4: "" };
 }
 
-// Renderiza um bloco retornado pelo Notion.
+// Função auxiliar para renderizar rich text do Notion
+function renderRichText(richTextArr) {
+  return richTextArr.map((rt, idx) => {
+    let el = rt.plain_text;
+    if (rt.href) {
+      el = <a key={idx} href={rt.href} target="_blank" rel="noopener noreferrer">{el}</a>;
+    }
+    if (rt.annotations) {
+      if (rt.annotations.bold) el = <strong key={idx}>{el}</strong>;
+      if (rt.annotations.italic) el = <em key={idx}>{el}</em>;
+      if (rt.annotations.underline) el = <u key={idx}>{el}</u>;
+      if (rt.annotations.strikethrough) el = <s key={idx}>{el}</s>;
+      if (rt.annotations.code) el = <code key={idx}>{el}</code>;
+      // cor
+      if (rt.annotations.color && rt.annotations.color !== "default") {
+        el = <span key={idx} style={{ color: rt.annotations.color }}>{el}</span>;
+      }
+    }
+    return el;
+  });
+}
+
+// Renderiza um bloco retornado pelo Notion com hierarquia e listas
 function renderBlock(block) {
   const type = block.type;
+  const key = block.id;
+
   if (!block[type] || !block[type].rich_text) {
     console.warn("Bloco com estrutura inesperada:", block);
     return (
-      <p key={block.id} className="notion-paragraph">
+      <p key={key} className="notion-paragraph">
         Bloco sem conteúdo válido.
       </p>
     );
   }
-  const content = block[type].rich_text.map(rt => rt.plain_text).join("");
-  return <p key={block.id} className="notion-paragraph">{content}</p>;
+
+  const content = renderRichText(block[type].rich_text);
+
+  // Títulos
+  if (type === "heading_1") return <h1 key={key} className="notion-heading1">{content}</h1>;
+  if (type === "heading_2") return <h2 key={key} className="notion-heading2">{content}</h2>;
+  if (type === "heading_3") return <h3 key={key} className="notion-heading3">{content}</h3>;
+
+  // Listas
+  if (type === "bulleted_list_item") return <li key={key} className="notion-bullet">{content}</li>;
+  if (type === "numbered_list_item") return <li key={key} className="notion-numbered">{content}</li>;
+  if (type === "to_do") return (
+    <li key={key} className="notion-todo">
+      <input type="checkbox" checked={block[type].checked} readOnly style={{ marginRight: 6 }} />
+      {content}
+    </li>
+  );
+
+  // Citações
+  if (type === "quote") return <blockquote key={key} className="notion-quote">{content}</blockquote>;
+
+  // Código
+  if (type === "code") return (
+    <pre key={key} className="notion-code">
+      <code>{block[type].rich_text.map(rt => rt.plain_text).join("")}</code>
+    </pre>
+  );
+
+  // Parágrafo padrão
+  return <p key={key} className="notion-paragraph">{content}</p>;
 }
 
 // Atualizar renderItem para usar h2 e garantir espaçamento consistente
@@ -213,7 +265,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
             display: none !important;
             content: none !important;
           }
-        }
+}
       `}</style>
       <div style={styles.container} id="printable-content">
         <h1 style={styles.mainTitle}>
@@ -1045,7 +1097,19 @@ export async function getServerSideProps(context) {
       resultados.anoPessoal?.toString()
     );
 
-    // Blocos de Momentos Decisivos (Introdução)
+    // Blocos de Momentos Decisivos (Introdução e Detalhes)
+    resultados.blocosMomentosDecisivosIntroducao = await buscarBlocosPorCampo("Introdução Momentos Decisivos", "1");
+
+    // Busca os textos específicos para cada momento decisivo
+    const blocosMomentosDecisivosDetalhados = {};
+    for (let i = 1; i <= 4; i++) {
+      const momento = resultados.momentosDecisivos[`momento${i}`];
+      if (momento) {
+        const blocks = await buscarBlocosPorCampo(`${i}º Momento Decisivo`, momento.toString());
+        blocosMomentosDecisivosDetalhados[i] = blocks;
+      }
+    }
+    resultados.blocosMomentosDecisivosDetalhados = blocosMomentosDecisivosDetalhados;
 
     // Blocos de Harmonia Conjugal
     if (resultados.harmoniaConjugal?.numero) {
@@ -1152,6 +1216,12 @@ export async function getServerSideProps(context) {
       }
       resultados.blocosDesafios = blocosDesafios;
     }
+
+    // Add this block for Professional Aptitudes
+    resultados.blocosAptidoesProfissionais = await buscarBlocosPorCampo(
+      "Aptidões e Potencialidades Profissionais",
+      resultados.aptidoesProfissionais?.toString()
+    );
 
   } catch (error) {
     console.error("Erro ao buscar blocos do Notion:", error);

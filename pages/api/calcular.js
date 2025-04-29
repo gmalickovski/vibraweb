@@ -27,7 +27,7 @@ export default function handler(req, res) {
   // Parte 03 e Novos Itens
   const numeroDoAmor = numerologia.calcularNumeroDoAmor(numeroExpressao, numeroDestino);
   const harmoniaConjugal = numerologia.interpretarHarmoniaConjugal(numeroDoAmor);
-  const aptidoesProfissionais = numerologia.calcularAptidoesProfissionais(numeroExpressao);
+  const aptidoesProfissionais = String(numeroExpressao); // Converting to string to match Notion validation
   const debitosCarmicos = numerologia.calcularDebitosCarmicos(dataNascimento, numeroDestino, numeroMotivacao, numeroExpressao);
   const desafios = numerologia.calcularDesafios(dataNascimento);
   const licoesCarmicas = numerologia.calcularLicoesCarmicas(nome);
