@@ -1,55 +1,25 @@
-# Vibr@web
-
-Sistema de análise numerológica baseado na Cabala.
-
-## Tecnologias
-
-- Next.js
-- React
-- JavaScript
+# Numerologia Cabala
 
 ## Instalação
 
-1. Clone o repositório:
 ```bash
-git clone https://github.com/seu-usuario/vibraweb.git
-```
-
-2. Instale as dependências:
-```bash
-cd vibraweb
+git clone https://github.com/seuusuario/seurepo.git
+cd numerologia-cabala
 npm install
 ```
 
-3. Execute o projeto:
-```bash
-npm run dev
-```
+## Configuração
 
-## Configuração para Produção
+1. Copie `.env.example` para `.env.local` e preencha com suas chaves reais.
+2. Coloque sua chave do Google Cloud em `config/chave.json` (não suba para o GitHub).
+3. Para autenticação local, edite `lib/auth.js` e cole o hash gerado pelo script `scripts/generate-hash.js`.
 
-1. Build do projeto:
-```bash
-npm run build
-```
+## Scripts
 
-2. Iniciar em produção:
-```bash
-npm start
-```
+- `npm run dev` — inicia em modo desenvolvimento
+- `npm run build` — build de produção
+- `npm start` — inicia em produção
 
-## Estrutura do Projeto
+## Segurança
 
-- `/pages` - Páginas da aplicação
-- `/components` - Componentes React reutilizáveis
-- `/contexts` - Contextos React
-- `/lib` - Funções utilitárias
-- `/public` - Arquivos estáticos
-
-## Responsividade
-
-O sistema foi otimizado para dispositivos móveis, incluindo:
-- Viewport meta tag
-- Media queries
-- Layouts flexíveis
-- Touch-friendly inputs
+- **Nunca suba arquivos sensíveis** como `.env.local`, `lib/auth.js` com hash real, ou `config/chave.json` para o repositório.
