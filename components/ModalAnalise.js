@@ -150,27 +150,34 @@ function ModalAnalise({ fecharModal }) {
         
         <div style={styles.fixedContent}>
           <h2 style={styles.title}>Análise de Propósito</h2>
-          <div style={styles.formGroup}>
-            <label>Nome Completo:</label>
-            <input
-              type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Digite seu nome"
-              style={styles.input}
-            />
-          </div>
-          <div style={styles.formGroup}>
-            <label>Data de Nascimento (DD/MM/AAAA):</label>
-            <input
-              type="text"
-              value={dataNascimento}
-              onChange={(e) => setDataNascimento(e.target.value)}
-              placeholder="Ex: 14/02/1990"
-              style={styles.input}
-            />
-          </div>
-          {erro && <p style={{ color: 'red' }}>{erro}</p>}
+          <form style={styles.formFields} autoComplete="off" onSubmit={e => e.preventDefault()}>
+            <div style={{ ...styles.formGroupModern, ...styles.formGroupNome }}>
+              <label style={styles.labelModern} htmlFor="nome">Nome Completo</label>
+              <input
+                id="nome"
+                type="text"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Digite seu nome completo"
+                style={styles.inputModern}
+                autoComplete="off"
+              />
+            </div>
+            <div style={{ ...styles.formGroupModern, ...styles.formGroupData }}>
+              <label style={styles.labelModern} htmlFor="dataNascimento">Data de Nascimento</label>
+              <input
+                id="dataNascimento"
+                type="text"
+                value={dataNascimento}
+                onChange={(e) => setDataNascimento(e.target.value)}
+                placeholder="Ex: 14/02/1990"
+                style={styles.inputModern}
+                autoComplete="off"
+                inputMode="numeric"
+              />
+            </div>
+            {erro && <p style={styles.errorMsg}>{erro}</p>}
+          </form>
         </div>
 
         <div style={styles.resultados}>
@@ -286,27 +293,31 @@ function ModalAnalise({ fecharModal }) {
                   <strong>Número:</strong> <span style={styles.value}>{coresFavoraveis}</span>
                 </div>
               </div>
-
-              <div style={styles.botoesContainer}>
-                <button 
-                  className="btn-animated btn-success"
-                  onClick={handleSalvar}
-                >
-                  Salvar Análise
-                </button>
-
-                <button 
-                  className="btn-animated btn-primary"
-                  onClick={handleVisualizarTextos}
-                >
-                  Ver Análise Completa
-                </button>
-              </div>
             </>
           ) : (
             <p>Preencha os campos para visualizar os resultados.</p>
           )}
         </div>
+
+        {/* Botões fixos transparentes, só aparecem com resultados */}
+        {resultados && (
+          <div style={styles.botoesFixos}>
+            <button 
+              className="btn-animated btn-success"
+              onClick={handleSalvar}
+              style={styles.btnSalvar}
+            >
+              Salvar Análise
+            </button>
+            <button 
+              className="btn-animated btn-primary"
+              onClick={handleVisualizarTextos}
+              style={styles.btnVisualizar}
+            >
+              Ver Análise Completa
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -322,26 +333,28 @@ const styles = {
     background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center', // Centraliza verticalmente
     zIndex: 1000,
     overflow: 'auto',
-    padding: '10px'
+    padding: '0',
   },
   modal: {
-    background: '#faf7f2', // Fundo claro amarelado
-    padding: '15px',
-    borderRadius: '8px',
-    width: '95%',
-    maxWidth: '800px',
-    maxHeight: '95vh',
+    background: '#faf7f2',
+    padding: '0',
+    borderRadius: '12px',
+    width: '100%',
+    maxWidth: '650px',
+    maxHeight: '96vh',
+    minHeight: '320px',
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
-    margin: '10px auto',
-    '@media (max-width: 600px)': {
-      padding: '10px',
-      width: '100%',
-      margin: '5px auto'
+    margin: '0 auto',
+    boxShadow: '0 4px 32px rgba(45,27,78,0.13)',
+    overflow: 'hidden',
+    '@media (max-width: 700px)': {
+      maxWidth: '98vw',
+      minHeight: '0',
     }
   },
   closeBtn: {
@@ -351,7 +364,7 @@ const styles = {
     background: 'none',
     border: 'none',
     fontSize: '24px',
-    color: '#2D1B4E', // Roxo escuro
+    color: '#2D1B4E',
     cursor: 'pointer',
     width: '30px',
     height: '30px',
@@ -363,42 +376,102 @@ const styles = {
     zIndex: 1000,
     padding: 0,
     '&:hover': {
-      background: 'rgba(45, 27, 78, 0.05)', // Roxo muito claro
-      color: '#E67E22' // Laranja
+      background: 'rgba(45, 27, 78, 0.05)',
+      color: '#E67E22'
     }
   },
-  formGroup: {
-    marginBottom: '15px',
-    textAlign: 'left'
-  },
-  input: {
-    width: '100%',
-    padding: '8px',
-    boxSizing: 'border-box',
-    border: '1px solid #ccc',
-    borderRadius: '4px'
-  },
   fixedContent: {
-    borderBottom: '1px solid #ccc',
-    paddingBottom: '15px',
-    marginBottom: '15px',
-    position: 'sticky',
-    top: 0,
+    borderBottom: '1px solid #eee',
+    padding: '18px 24px 10px 24px',
     background: '#fff',
-    zIndex: 2
+    zIndex: 2,
+    position: 'relative',
+    '@media (max-width: 600px)': {
+      padding: '12px 8px 8px 8px'
+    }
+  },
+  formFields: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '2rem',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    marginTop: '10px',
+    marginBottom: '0',
+    '@media (max-width: 600px)': {
+      flexDirection: 'column',
+      gap: '1rem',
+      alignItems: 'stretch'
+    }
+  },
+  formGroupModern: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    minWidth: '220px',
+    flex: 1,
+    '@media (max-width: 600px)': {
+      minWidth: 'unset'
+    }
+  },
+  formGroupNome: {
+    flex: 2, // ocupa mais espaço
+    minWidth: '260px',
+    maxWidth: '420px'
+  },
+  formGroupData: {
+    flex: 0.7, // ocupa menos espaço
+    minWidth: '120px',
+    maxWidth: '180px'
+  },
+  labelModern: {
+    fontWeight: 500,
+    color: '#2D1B4E',
+    fontSize: '1rem',
+    marginBottom: '2px',
+    letterSpacing: '0.01em'
+  },
+  inputModern: {
+    padding: '10px 14px',
+    borderRadius: '6px',
+    border: '1.5px solid #e0e0e0',
+    fontSize: '1rem',
+    outline: 'none',
+    background: '#faf7f2',
+    color: '#2D1B4E',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+    boxShadow: '0 1px 2px rgba(45,27,78,0.03)',
+    fontFamily: "'Roboto', Arial, sans-serif",
+    width: '100%',
+    boxSizing: 'border-box',
+    marginBottom: 0
+  },
+  errorMsg: {
+    color: '#e74c3c',
+    fontSize: '0.98rem',
+    marginTop: '0.5rem',
+    marginBottom: 0,
+    textAlign: 'center'
   },
   resultados: {
     flex: 1,
     overflowY: 'auto',
-    maxHeight: 'calc(95vh - 200px)',
-    padding: '10px',
+    padding: '18px 24px 10px 24px',
     backgroundColor: '#f8f6f0',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    borderRadius: '0 0 12px 12px',
+    boxShadow: 'none',
+    marginBottom: 0,
+    minHeight: 0,
+    maxHeight: 'calc(96vh - 120px)', // Ajusta para não cortar em telas pequenas
+    '@media (max-width: 600px)': {
+      padding: '10px 4px 6px 4px',
+      maxHeight: 'calc(98vh - 110px)'
+    }
   },
   title: {
     fontSize: '2rem',
-    color: '#2D1B4E', // Roxo escuro
+    color: '#2D1B4E',
     textAlign: 'center',
     marginBottom: '1.5rem',
     paddingBottom: '0.6rem',
@@ -406,7 +479,7 @@ const styles = {
   },
   sectionTitle: {
     fontSize: '1.5rem',
-    color: '#2D1B4E', // Roxo escuro
+    color: '#2D1B4E',
     marginBottom: '1rem',
     paddingBottom: '0.4rem',
     borderBottom: "1px solid #E67E22", // Laranja
@@ -415,7 +488,7 @@ const styles = {
     gap: '0.5rem'
   },
   value: {
-    color: '#E67E22', // Laranja
+    color: '#E67E22',
     fontWeight: '500',
     fontSize: '1.1rem'
   },
@@ -441,52 +514,52 @@ const styles = {
     backgroundColor: 'rgba(255,255,255,0.7)',
     borderRadius: '6px'
   },
-  botoesContainer: {
-    display: "flex",
-    gap: "1rem",
-    justifyContent: "center",
-    marginTop: "2rem",
-    padding: "1rem",
-    borderTop: "1px solid rgba(45, 27, 78, 0.1)",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    '@media (max-width: 600px)': {
+  botoesFixos: {
+    position: 'fixed',
+    left: '50%',
+    bottom: '18px',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '1rem',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: '650px',
+    zIndex: 1100,
+    background: 'transparent', // Sem background
+    boxShadow: 'none',
+    padding: 0,
+    borderRadius: 0,
+    '@media (max-width: 700px)': {
+      maxWidth: '98vw',
       flexDirection: 'column',
       gap: '0.5rem'
     }
   },
   btnSalvar: {
     padding: "12px 24px",
-    backgroundColor: "#27ae60", // Verde harmonioso com a paleta
+    backgroundColor: "#27ae60",
     color: "white",
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
     fontWeight: "bold",
     transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-      opacity: '0.9'
-    }
+    minWidth: '140px'
   },
   btnVisualizar: {
     padding: "12px 24px",
-    backgroundColor: "#E67E22", // Laranja
+    backgroundColor: "#E67E22",
     color: "white",
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
     fontWeight: "bold",
     transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-      opacity: '0.9'
-    }
+    minWidth: '180px'
   },
   btnRealizar: {
     padding: "12px 24px",
-    backgroundColor: "#2D1B4E", // Roxo escuro
+    backgroundColor: "#2D1B4E",
     color: "white",
     border: "none",
     borderRadius: "4px",
