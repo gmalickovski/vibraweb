@@ -9,6 +9,7 @@ function ModalAnalise({ fecharModal }) {
   const [dataNascimento, setDataNascimento] = useState(''); // inicia vazio
   const [resultados, setResultados] = useState(null);
   const [erro, setErro] = useState('');
+  const [coresFavoraveis, setCoresFavoraveis] = useState('');
 
   // Função para validar se a data está no formato "DD/MM/AAAA"
   function validateDate(value) {
@@ -44,6 +45,12 @@ function ModalAnalise({ fecharModal }) {
 
   useEffect(() => {
     atualizarCalculos(nome, dataNascimento);
+    // Calcula as cores favoráveis sempre que a data muda
+    if (dataNascimento && validateDate(dataNascimento)) {
+      setCoresFavoraveis(numerologia.calcularCoresFavoraveisPorDiaNatalicio(dataNascimento));
+    } else {
+      setCoresFavoraveis('');
+    }
   }, [nome, dataNascimento]);
 
   const handleModalClick = (e) => {
@@ -59,6 +66,7 @@ function ModalAnalise({ fecharModal }) {
       // Dados básicos
       params.append('nome', encodeURIComponent(nome));
       params.append('dataNascimento', encodeURIComponent(dataNascimento));
+      params.append('coresFavoraveis', Number(coresFavoraveis) || 0); // já está correto
       params.append('expressao', resultados.numeroExpressao);
       params.append('motivacao', resultados.numeroMotivacao);
       params.append('impressao', resultados.numeroImpressao);
@@ -122,7 +130,8 @@ function ModalAnalise({ fecharModal }) {
         anoPessoal: Number(resultados.anoPessoal) || 0,
         ciclosDeVida: resultados.ciclosDeVida || { ciclos: [] },
         harmoniaConjugal: resultados.harmoniaConjugal || { numero: 0, vibra: [], atrai: [], oposto: [], passivo: [] },
-        aptidoesProfissionais: resultados.aptidoesProfissionais || ''
+        aptidoesProfissionais: resultados.aptidoesProfissionais || '',
+        coresFavoraveis: Number(coresFavoraveis) || 0, // ADICIONE ESTA LINHA
       });
       fecharModal();
     }
@@ -268,6 +277,13 @@ function ModalAnalise({ fecharModal }) {
                 </div>
                 <div style={styles.listItem}>
                   <strong>É passivo com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.passivo.join(", ")}</span>
+                </div>
+              </div>
+
+              <div style={styles.sectionContainer}>
+                <h3 style={styles.sectionTitle}>Cores Favoráveis</h3>
+                <div style={styles.listItem}>
+                  <strong>Número:</strong> <span style={styles.value}>{coresFavoraveis}</span>
                 </div>
               </div>
 

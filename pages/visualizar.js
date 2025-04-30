@@ -291,7 +291,8 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
             { label: "Missão", key: "missao" },
             { label: "Talento Oculto", key: "talentoOculto" },
             { label: "Dia Natalício", key: "diaNatalicio" },
-            { label: "Número Psíquico", key: "numeroPsiquico" },
+            { label: "Número Psíquico", key: "numeroPsiquico" }
+            // Remova { label: "Cores Favoráveis", key: "coresFavoraveis" } daqui!
           ].map(campo =>
             renderItem(
               campo.label,
@@ -376,7 +377,24 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                     )}
                   </li>
                 ))}
+
               </ul>
+            </div>
+          )}
+
+          {/* Seção Cores Favoráveis (ajuste para sempre mostrar o número) */}
+          {resultados.coresFavoraveis !== null && resultados.coresFavoraveis !== undefined && (
+            <div style={styles.sectionContainer}>
+              <h3 style={styles.itemTitle}>
+                Cores Favoráveis: <span style={{...styles.value, ...styles.itemValue}}>{resultados.coresFavoraveis}</span>
+              </h3>
+              <div>
+                {resultados?.blocosCoresFavoraveis && resultados.blocosCoresFavoraveis.length > 0 ? (
+                  resultados.blocosCoresFavoraveis.map(block => renderBlock(block))
+                ) : (
+                  <p style={styles.paragraph}>Texto não encontrado para Cores Favoráveis.</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -1000,6 +1018,7 @@ export async function getServerSideProps(context) {
     ciclosDeVida: ciclosParam,
     introducaoBlocos: introducaoBlocosParam,
     conclusaoBlocos: conclusaoBlocosParam,
+    coresFavoraveis, // <-- adicione aqui
   } = context.query;
 
   const safeNome = nome ? decodeURIComponent(nome).trim() : "Nome Padrão";
@@ -1049,6 +1068,8 @@ export async function getServerSideProps(context) {
       passivo: []
     }),
     aptidoesProfissionais: context.query.aptidoesProfissionais || '',
+    // Corrija para garantir que o numeral é um número válido
+    coresFavoraveis: coresFavoraveis && !isNaN(Number(coresFavoraveis)) ? Number(coresFavoraveis) : null,
   };
 
   const campos = [
@@ -1060,6 +1081,7 @@ export async function getServerSideProps(context) {
     { label: "Talento Oculto", key: "talentoOculto" },
     { label: "Dia Natalício", key: "diaNatalicio" },
     { label: "Número Psíquico", key: "numeroPsiquico" },
+    // { label: "Cores Favoráveis", key: "coresFavoraveis" }, // Adicione esta linha
   ];
 
   // Busca blocos de texto do Notion para todos os campos necessários
@@ -1069,7 +1091,11 @@ export async function getServerSideProps(context) {
     await Promise.all(
       campos.map(async (campo) => {
         try {
-          const blocks = await buscarBlocosPorCampo(campo.label, resultados[campo.key]);
+          // Busca os blocos do Notion para cada campo usando o valor correspondente
+          const blocks = await buscarBlocosPorCampo(
+            campo.label,
+            resultados[campo.key]?.toString()
+          );
           blocosTextos[campo.label] = blocks;
         } catch (error) {
           console.error("Erro buscando blocos para", campo.label, error);
@@ -1222,6 +1248,11 @@ export async function getServerSideProps(context) {
       "Aptidões e Potencialidades Profissionais",
       resultados.aptidoesProfissionais?.toString()
     );
+
+    // Buscar blocos para Cores Favoráveis usando o numeral correto
+    resultados.blocosCoresFavoraveis = resultados.coresFavoraveis
+      ? await buscarBlocosPorCampo("Cores Favoráveis", resultados.coresFavoraveis)
+      : [];
 
   } catch (error) {
     console.error("Erro ao buscar blocos do Notion:", error);

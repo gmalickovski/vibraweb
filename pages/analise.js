@@ -59,7 +59,8 @@ export default function Analise() {
       anoPessoal: String(dados.anoPessoal || 0),
       ciclosDeVida: JSON.stringify(dados.ciclosDeVida || { ciclos: [] }),
       harmoniaConjugal: JSON.stringify(dados.harmoniaConjugal || {}),
-      aptidoesProfissionais: dados.aptidoesProfissionais || ''
+      aptidoesProfissionais: dados.aptidoesProfissionais || '',
+      coresFavoraveis: Number(dados.coresFavoraveis) || 0, // ADICIONE ESTA LINHA
     });
     window.open(`/visualizar?${params.toString()}`, '_blank');
   };
