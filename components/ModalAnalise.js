@@ -6,7 +6,7 @@ import { useAnalise } from "../contexts/AnaliseContext";
 function ModalAnalise({ fecharModal }) {
   const { salvarAnalise } = useAnalise();
   const [nome, setNome] = useState('');
-  const [dataNascimento, setDataNascimento] = useState(''); // inicia vazio
+  const [dataNascimento, setDataNascimento] = useState('');
   const [resultados, setResultados] = useState(null);
   const [erro, setErro] = useState('');
   const [coresFavoraveis, setCoresFavoraveis] = useState('');
@@ -16,6 +16,35 @@ function ModalAnalise({ fecharModal }) {
     const regex = /^\d{2}\/\d{2}\/\d{4}$/;
     return regex.test(value);
   }
+
+  // Função para formatar a data enquanto digita
+  const formatarData = (value) => {
+    // Remove tudo que não for número
+    let numbers = value.replace(/\D/g, '');
+    
+    if (numbers.length > 8) {
+      numbers = numbers.substr(0, 8);
+    }
+    
+    // Formata a data
+    let formattedDate = '';
+    if (numbers.length > 0) {
+      formattedDate = numbers.substring(0, 2);
+      if (numbers.length > 2) {
+        formattedDate += '/' + numbers.substring(2, 4);
+        if (numbers.length > 4) {
+          formattedDate += '/' + numbers.substring(4);
+        }
+      }
+    }
+    
+    return formattedDate;
+  };
+
+  const handleDataNascimento = (e) => {
+    const formatted = formatarData(e.target.value);
+    setDataNascimento(formatted);
+  };
 
   async function atualizarCalculos(nome, dataNascimento) {
     if (!nome || !dataNascimento) return;
@@ -45,7 +74,6 @@ function ModalAnalise({ fecharModal }) {
 
   useEffect(() => {
     atualizarCalculos(nome, dataNascimento);
-    // Calcula as cores favoráveis sempre que a data muda
     if (dataNascimento && validateDate(dataNascimento)) {
       setCoresFavoraveis(numerologia.calcularCoresFavoraveisPorDiaNatalicio(dataNascimento));
     } else {
@@ -63,10 +91,9 @@ function ModalAnalise({ fecharModal }) {
     if (resultados) {
       const params = new URLSearchParams();
       
-      // Dados básicos
       params.append('nome', encodeURIComponent(nome));
       params.append('dataNascimento', encodeURIComponent(dataNascimento));
-      params.append('coresFavoraveis', Number(coresFavoraveis) || 0); // já está correto
+      params.append('coresFavoraveis', Number(coresFavoraveis) || 0);
       params.append('expressao', resultados.numeroExpressao);
       params.append('motivacao', resultados.numeroMotivacao);
       params.append('impressao', resultados.numeroImpressao);
@@ -76,16 +103,13 @@ function ModalAnalise({ fecharModal }) {
       params.append('diaNatalicio', resultados.diaNatalicio);
       params.append('numeroPsiquico', resultados.numeroPsiquico);
       
-      // Arrays
       params.append('debitosCarmicos', resultados.debitosCarmicos?.join(',') || '');
       params.append('licoesCarmicas', resultados.licoesCarmicas?.join(',') || '');
       
-      // Objetos complexos - garantindo encoding correto
       params.append('desafios', encodeURIComponent(JSON.stringify(resultados.desafios || {})));
       params.append('momentosDecisivos', encodeURIComponent(JSON.stringify(resultados.momentosDecisivos || {})));
       params.append('ciclosDeVida', encodeURIComponent(JSON.stringify(resultados.ciclosDeVida || { ciclos: [] })));
       
-      // Outros campos
       params.append('respostaSubconsciente', resultados.respostaSubconsciente || '');
       params.append('tendenciasOcultas', encodeURIComponent(
         Array.isArray(resultados.tendenciasOcultas)
@@ -94,7 +118,6 @@ function ModalAnalise({ fecharModal }) {
       ));
       params.append('diasFavoraveis', resultados.diasFavoraveis || '');
       
-      // Adicionando harmoniaConjugal aos parâmetros
       params.append('harmoniaConjugal', encodeURIComponent(JSON.stringify({
         numero: resultados.harmoniaConjugal?.numero || 0,
         vibra: resultados.harmoniaConjugal?.vibra || [],
@@ -131,7 +154,7 @@ function ModalAnalise({ fecharModal }) {
         ciclosDeVida: resultados.ciclosDeVida || { ciclos: [] },
         harmoniaConjugal: resultados.harmoniaConjugal || { numero: 0, vibra: [], atrai: [], oposto: [], passivo: [] },
         aptidoesProfissionais: resultados.aptidoesProfissionais || '',
-        coresFavoraveis: Number(coresFavoraveis) || 0, // ADICIONE ESTA LINHA
+        coresFavoraveis: Number(coresFavoraveis) || 0,
       });
       fecharModal();
     }
@@ -158,10 +181,11 @@ function ModalAnalise({ fecharModal }) {
                 type="text"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                placeholder="Digite seu nome completo"
+                placeholder="Digite o Nome Completo"
                 style={styles.inputModern}
                 autoComplete="off"
               />
+              <span style={styles.helperText}>Digite o nome exatamente como consta na certidão de nascimento</span>
             </div>
             <div style={{ ...styles.formGroupModern, ...styles.formGroupData }}>
               <label style={styles.labelModern} htmlFor="dataNascimento">Data de Nascimento</label>
@@ -169,12 +193,14 @@ function ModalAnalise({ fecharModal }) {
                 id="dataNascimento"
                 type="text"
                 value={dataNascimento}
-                onChange={(e) => setDataNascimento(e.target.value)}
-                placeholder="Ex: 14/02/1990"
+                onChange={handleDataNascimento}
+                placeholder="Digite a Data"
                 style={styles.inputModern}
                 autoComplete="off"
+                maxLength="10"
                 inputMode="numeric"
               />
+              <span style={styles.helperText}>Digite apenas números, ex: DDMMAAAA</span>
             </div>
             {erro && <p style={styles.errorMsg}>{erro}</p>}
           </form>
@@ -272,18 +298,18 @@ function ModalAnalise({ fecharModal }) {
 
               <div style={styles.sectionContainer}>
                 <h3 style={styles.sectionTitle}>Harmonia Conjugal</h3>
-                <p><strong>Número:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.numero}</span></p>
+                <p><strong>Número:</strong> <span style={styles.value}>{resultados.harmoniaConjugal?.numero || 0}</span></p>
                 <div style={styles.listItem}>
-                  <strong>Vibra com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.vibra.join(", ")}</span>
+                  <strong>Vibra com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal?.vibra?.join(", ") || 'N/A'}</span>
                 </div>
                 <div style={styles.listItem}>
-                  <strong>Atrai:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.atrai.join(", ")}</span>
+                  <strong>Atrai:</strong> <span style={styles.value}>{resultados.harmoniaConjugal?.atrai?.join(", ") || 'N/A'}</span>
                 </div>
                 <div style={styles.listItem}>
-                  <strong>É oposto a:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.oposto.join(", ")}</span>
+                  <strong>É oposto a:</strong> <span style={styles.value}>{resultados.harmoniaConjugal?.oposto?.join(", ") || 'N/A'}</span>
                 </div>
                 <div style={styles.listItem}>
-                  <strong>É passivo com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal.passivo.join(", ")}</span>
+                  <strong>É passivo com:</strong> <span style={styles.value}>{resultados.harmoniaConjugal?.passivo?.join(", ") || 'N/A'}</span>
                 </div>
               </div>
 
@@ -299,7 +325,6 @@ function ModalAnalise({ fecharModal }) {
           )}
         </div>
 
-        {/* Botões fixos transparentes, só aparecem com resultados */}
         {resultados && (
           <div style={styles.botoesFixos}>
             <button 
@@ -333,7 +358,7 @@ const styles = {
     background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center', // Centraliza verticalmente
+    alignItems: 'center',
     zIndex: 1000,
     overflow: 'auto',
     padding: '0',
@@ -354,7 +379,10 @@ const styles = {
     overflow: 'hidden',
     '@media (max-width: 700px)': {
       maxWidth: '98vw',
-      minHeight: '0',
+      minHeight: '100vh',
+      height: '100vh',
+      borderRadius: 0,
+      overflow: 'auto'
     }
   },
   closeBtn: {
@@ -387,53 +415,81 @@ const styles = {
     zIndex: 2,
     position: 'relative',
     '@media (max-width: 600px)': {
-      padding: '12px 8px 8px 8px'
+      padding: '8px 6px 4px 6px',
+      textAlign: 'left',
+      display: 'block'
     }
   },
   formFields: {
     display: 'flex',
     flexDirection: 'row',
     gap: '2rem',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     justifyContent: 'center',
     flexWrap: 'wrap',
     marginTop: '10px',
     marginBottom: '0',
     '@media (max-width: 600px)': {
       flexDirection: 'column',
-      gap: '1rem',
-      alignItems: 'stretch'
+      gap: '0.1rem',
+      alignItems: 'flex-start',
+      margin: 0,
+      width: '100%',
+      justifyContent: 'flex-start'
     }
   },
   formGroupModern: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
+    gap: '0.1rem',
     minWidth: '220px',
     flex: 1,
+    alignItems: 'flex-start',
     '@media (max-width: 600px)': {
-      minWidth: 'unset'
+      minWidth: 'unset',
+      width: '100%',
+      alignItems: 'flex-start',
+      marginBottom: '0.1rem'
     }
   },
   formGroupNome: {
-    flex: 2, // ocupa mais espaço
+    flex: 2,
     minWidth: '260px',
-    maxWidth: '420px'
+    maxWidth: '420px',
+    '@media (max-width: 600px)': {
+      minWidth: 'unset',
+      maxWidth: 'unset',
+      width: '100%',
+      alignItems: 'flex-start'
+    }
   },
   formGroupData: {
-    flex: 0.7, // ocupa menos espaço
-    minWidth: '120px',
-    maxWidth: '180px'
+    flex: 0.7,
+    minWidth: '140px',
+    maxWidth: '200px',
+    '@media (max-width: 600px)': {
+      minWidth: 'unset',
+      maxWidth: 'unset',
+      width: '100%',
+      alignItems: 'flex-start'
+    }
   },
   labelModern: {
     fontWeight: 500,
     color: '#2D1B4E',
     fontSize: '1rem',
     marginBottom: '2px',
-    letterSpacing: '0.01em'
+    letterSpacing: '0.01em',
+    '@media (max-width: 600px)': {
+      fontSize: '0.95rem',
+      marginBottom: '1px',
+      textAlign: 'left',
+      width: '100%',
+      paddingLeft: 0
+    }
   },
   inputModern: {
-    padding: '10px 14px',
+    padding: '8px 10px',
     borderRadius: '6px',
     border: '1.5px solid #e0e0e0',
     fontSize: '1rem',
@@ -445,7 +501,25 @@ const styles = {
     fontFamily: "'Roboto', Arial, sans-serif",
     width: '100%',
     boxSizing: 'border-box',
-    marginBottom: 0
+    marginBottom: 0,
+    height: '36px',
+    '@media (max-width: 600px)': {
+      width: '100%',
+      marginLeft: 0
+    }
+  },
+  helperText: {
+    fontSize: '0.75rem',
+    color: '#666',
+    marginTop: '1px',
+    display: 'block',
+    lineHeight: '1.2',
+    '@media (max-width: 600px)': {
+      fontSize: '0.7rem',
+      marginTop: '0px',
+      textAlign: 'left',
+      paddingLeft: 0
+    }
   },
   errorMsg: {
     color: '#e74c3c',
@@ -463,10 +537,11 @@ const styles = {
     boxShadow: 'none',
     marginBottom: 0,
     minHeight: 0,
-    maxHeight: 'calc(96vh - 120px)', // Ajusta para não cortar em telas pequenas
+    maxHeight: 'calc(96vh - 120px)',
     '@media (max-width: 600px)': {
-      padding: '10px 4px 6px 4px',
-      maxHeight: 'calc(98vh - 110px)'
+      padding: '10px 12px',
+      maxHeight: 'none',
+      paddingBottom: '80px' // Espaço para os botões fixos
     }
   },
   title: {
@@ -475,14 +550,20 @@ const styles = {
     textAlign: 'center',
     marginBottom: '1.5rem',
     paddingBottom: '0.6rem',
-    borderBottom: "2px solid #E67E22" // Laranja
+    borderBottom: "2px solid #E67E22",
+    '@media (max-width: 600px)': {
+      fontSize: '1.1rem',
+      textAlign: 'left',
+      marginBottom: '0.3rem',
+      paddingBottom: '0.2rem'
+    }
   },
   sectionTitle: {
     fontSize: '1.5rem',
     color: '#2D1B4E',
     marginBottom: '1rem',
     paddingBottom: '0.4rem',
-    borderBottom: "1px solid #E67E22", // Laranja
+    borderBottom: "1px solid #E67E22",
     display: 'flex',
     alignItems: 'baseline',
     gap: '0.5rem'
@@ -506,7 +587,7 @@ const styles = {
   listItem: {
     margin: '0.5rem 0',
     paddingLeft: '1rem',
-    borderLeft: "3px solid #E67E22" // Laranja
+    borderLeft: "3px solid #E67E22"
   },
   listContainer: {
     margin: '0.5rem 0',
@@ -525,14 +606,18 @@ const styles = {
     width: '100%',
     maxWidth: '650px',
     zIndex: 1100,
-    background: 'transparent', // Sem background
+    background: 'transparent',
     boxShadow: 'none',
     padding: 0,
     borderRadius: 0,
     '@media (max-width: 700px)': {
-      maxWidth: '98vw',
-      flexDirection: 'column',
-      gap: '0.5rem'
+      maxWidth: '100%',
+      bottom: 0,
+      padding: '10px',
+      background: '#fff',
+      boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+      flexDirection: 'row', // Mantém os botões lado a lado no mobile
+      gap: '8px'
     }
   },
   btnSalvar: {

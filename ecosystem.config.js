@@ -5,9 +5,14 @@ module.exports = {
     args: 'start',
     env: {
       NODE_ENV: 'production',
-      NOTION_API_KEY: process.env.NOTION_API_KEY,
-      NOTION_DATABASE_ID: process.env.NOTION_DATABASE_ID,
       PORT: 3000
+    },
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env_production: {
+      NODE_ENV: 'production'
     }
   }]
 }

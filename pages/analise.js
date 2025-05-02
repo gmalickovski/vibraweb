@@ -70,6 +70,188 @@ export default function Analise() {
     router.push('/login');
   };
 
+  // Create a function to get dynamic styles
+  const getStyles = (analisesGuardadas) => ({
+    container: {
+      fontFamily: "'Roboto', Arial, sans-serif",
+      padding: "2rem",
+      maxWidth: "1200px",
+      margin: "0 auto",
+      background: "#faf7f2" // Fundo bem claro com tom amarelado
+    },
+    navigationBar: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      width: '100%',
+      marginBottom: '2rem',
+      gap: '1rem'
+    },
+    btnNavigation: {
+      padding: '8px 16px',
+      backgroundColor: '#D4AF37',
+      color: 'white',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+        opacity: '0.9'
+      }
+    },
+    title: {
+      textAlign: "center",
+      color: "#2D1B4E", // Roxo escuro
+      marginBottom: "2rem"
+    },
+    btnPrimary: {
+      padding: "12px 24px",
+      backgroundColor: "#E67E22", // Laranja
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+      fontWeight: "bold",
+      marginBottom: "2rem",
+      display: "block",
+      margin: "0 auto",
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+        opacity: '0.9'
+      }
+    },
+    tableContainer: {
+      overflowX: "auto",
+      marginTop: "2rem",
+      padding: "1.5rem",
+      boxShadow: "0 2px 8px rgba(45, 27, 78, 0.1)", // Sombra com tom roxo
+      borderRadius: "8px",
+      backgroundColor: "white",
+      '@media (max-width: 600px)': {
+        padding: analisesGuardadas.length === 0 ? 0 : '1rem',
+        boxShadow: analisesGuardadas.length === 0 ? 'none' : "0 2px 8px rgba(45, 27, 78, 0.1)",
+        backgroundColor: analisesGuardadas.length === 0 ? 'transparent' : 'white'
+      }
+    },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+      backgroundColor: "white",
+      textAlign: "left",
+    },
+    th: {
+      padding: "1rem",
+      borderBottom: "2px solid #E67E22", // Laranja
+      color: "#2D1B4E", // Roxo escuro
+      fontWeight: "bold"
+    },
+    td: {
+      padding: "1rem",
+      borderBottom: "1px solid #f0e6d2" // Borda suave amarelada
+    },
+    nameCell: {
+      fontWeight: "bold",
+      padding: "1rem",
+      borderBottom: "1px solid #f0e6d2", // Borda suave amarelada
+      color: "#2D1B4E" // Roxo escuro
+    },
+    actionsCell: {
+      padding: "1rem",
+      borderBottom: "1px solid #eee",
+      display: "flex",
+      gap: "0.5rem"
+    },
+    tr: {
+      '&:hover': {
+        backgroundColor: "#fff9ea" // Amarelo bem claro no hover
+      }
+    },
+    btnAction: {
+      padding: "8px 16px",
+      backgroundColor: "#E67E22", // Laranja
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+      fontSize: "0.9rem",
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+        opacity: '0.9'
+      }
+    },
+    btnDelete: {
+      padding: "8px 16px",
+      backgroundColor: "#c0392b", // Vermelho harmonioso com a paleta
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+      fontSize: "0.9rem",
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+        opacity: '0.9'
+      }
+    },
+    mobileCardContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '15px',
+      width: '100%',
+      '@media (max-width: 600px)': {
+        padding: analisesGuardadas.length === 0 ? 0 : '10px'
+      }
+    },
+    mobileCard: {
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      padding: '15px',
+      boxShadow: '0 2px 8px rgba(45, 27, 78, 0.1)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '15px'
+    },
+    mobileCardContent: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px'
+    },
+    mobileCardTitle: {
+      fontSize: '1.2rem',
+      color: '#2D1B4E',
+      borderBottom: '2px solid #E67E22',
+      paddingBottom: '8px',
+      marginBottom: '8px'
+    },
+    mobileCardItem: {
+      margin: '4px 0',
+      color: '#2D1B4E'
+    },
+    mobileCardActions: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: '10px',
+      borderTop: '1px solid rgba(45, 27, 78, 0.1)',
+      paddingTop: '15px',
+      marginTop: '5px'
+    },
+    mobileCardButton: {
+      flex: 1,
+      padding: '8px',
+      fontSize: '0.9rem'
+    }
+  });
+
+  // Get the current styles based on analisesGuardadas
+  const styles = getStyles(analisesGuardadas);
+
   return (
     <div style={styles.container}>
       <div style={styles.navigationBar}>
@@ -136,47 +318,51 @@ export default function Analise() {
             </tbody>
           </table>
         ) : (
-          // Versão mobile - cards
-          <div style={styles.mobileCardContainer}>
-            {analisesGuardadas.map((analise, index) => (
-              <div key={index} style={styles.mobileCard}>
-                <div style={styles.mobileCardContent}>
-                  <h3 style={styles.mobileCardTitle}>{analise.nome || ''}</h3>
-                  <p style={styles.mobileCardItem}>
-                    <strong>Data:</strong> {analise.dataNascimento || ''}
-                  </p>
-                  <p style={styles.mobileCardItem}>
-                    <strong>Expressão:</strong> {Number(analise.numeroExpressao) || 0}
-                  </p>
-                  <p style={styles.mobileCardItem}>
-                    <strong>Motivação:</strong> {Number(analise.numeroMotivacao) || 0}
-                  </p>
-                  <p style={styles.mobileCardItem}>
-                    <strong>Destino:</strong> {Number(analise.numeroDestino) || 0}
-                  </p>
-                  <p style={styles.mobileCardItem}>
-                    <strong>Missão:</strong> {Number(analise.missao) || 0}
-                  </p>
+          analisesGuardadas.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#666' }}>Nenhuma análise salva</p>
+          ) : (
+            // Versão mobile - cards
+            <div style={styles.mobileCardContainer}>
+              {analisesGuardadas.map((analise, index) => (
+                <div key={index} style={styles.mobileCard}>
+                  <div style={styles.mobileCardContent}>
+                    <h3 style={styles.mobileCardTitle}>{analise.nome || ''}</h3>
+                    <p style={styles.mobileCardItem}>
+                      <strong>Data:</strong> {analise.dataNascimento || ''}
+                    </p>
+                    <p style={styles.mobileCardItem}>
+                      <strong>Expressão:</strong> {Number(analise.numeroExpressao) || 0}
+                    </p>
+                    <p style={styles.mobileCardItem}>
+                      <strong>Motivação:</strong> {Number(analise.numeroMotivacao) || 0}
+                    </p>
+                    <p style={styles.mobileCardItem}>
+                      <strong>Destino:</strong> {Number(analise.numeroDestino) || 0}
+                    </p>
+                    <p style={styles.mobileCardItem}>
+                      <strong>Missão:</strong> {Number(analise.missao) || 0}
+                    </p>
+                  </div>
+                  <div style={styles.mobileCardActions}>
+                    <button 
+                      className="btn-animated btn-primary"
+                      onClick={() => handleVisualizarAnalise(analise)}
+                      style={styles.mobileCardButton}
+                    >
+                      Ver Análise
+                    </button>
+                    <button 
+                      className="btn-animated btn-danger"
+                      onClick={() => removerAnalise(index)}
+                      style={styles.mobileCardButton}
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
-                <div style={styles.mobileCardActions}>
-                  <button 
-                    className="btn-animated btn-primary"
-                    onClick={() => handleVisualizarAnalise(analise)}
-                    style={styles.mobileCardButton}
-                  >
-                    Ver Análise
-                  </button>
-                  <button 
-                    className="btn-animated btn-danger"
-                    onClick={() => removerAnalise(index)}
-                    style={styles.mobileCardButton}
-                  >
-                    Excluir
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
         )}
       </div>
 
@@ -186,176 +372,3 @@ export default function Analise() {
     </div>
   );
 }
-
-const styles = {
-  container: {
-    fontFamily: "'Roboto', Arial, sans-serif",
-    padding: "2rem",
-    maxWidth: "1200px",
-    margin: "0 auto",
-    background: "#faf7f2" // Fundo bem claro com tom amarelado
-  },
-  navigationBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: '2rem',
-    gap: '1rem'
-  },
-  btnNavigation: {
-    padding: '8px 16px',
-    backgroundColor: '#D4AF37',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-      opacity: '0.9'
-    }
-  },
-  title: {
-    textAlign: "center",
-    color: "#2D1B4E", // Roxo escuro
-    marginBottom: "2rem"
-  },
-  btnPrimary: {
-    padding: "12px 24px",
-    backgroundColor: "#E67E22", // Laranja
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontWeight: "bold",
-    marginBottom: "2rem",
-    display: "block",
-    margin: "0 auto",
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-      opacity: '0.9'
-    }
-  },
-  tableContainer: {
-    overflowX: "auto",
-    marginTop: "2rem",
-    padding: "1.5rem",
-    boxShadow: "0 2px 8px rgba(45, 27, 78, 0.1)", // Sombra com tom roxo
-    borderRadius: "8px",
-    backgroundColor: "white"
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    backgroundColor: "white",
-    textAlign: "left",
-  },
-  th: {
-    padding: "1rem",
-    borderBottom: "2px solid #E67E22", // Laranja
-    color: "#2D1B4E", // Roxo escuro
-    fontWeight: "bold"
-  },
-  td: {
-    padding: "1rem",
-    borderBottom: "1px solid #f0e6d2" // Borda suave amarelada
-  },
-  nameCell: {
-    fontWeight: "bold",
-    padding: "1rem",
-    borderBottom: "1px solid #f0e6d2", // Borda suave amarelada
-    color: "#2D1B4E" // Roxo escuro
-  },
-  actionsCell: {
-    padding: "1rem",
-    borderBottom: "1px solid #eee",
-    display: "flex",
-    gap: "0.5rem"
-  },
-  tr: {
-    '&:hover': {
-      backgroundColor: "#fff9ea" // Amarelo bem claro no hover
-    }
-  },
-  btnAction: {
-    padding: "8px 16px",
-    backgroundColor: "#E67E22", // Laranja
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "0.9rem",
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-      opacity: '0.9'
-    }
-  },
-  btnDelete: {
-    padding: "8px 16px",
-    backgroundColor: "#c0392b", // Vermelho harmonioso com a paleta
-    color: "white",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "0.9rem",
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-      opacity: '0.9'
-    }
-  },
-  mobileCardContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-    width: '100%',
-    '@media (max-width: 600px)': {
-      padding: '10px'
-    }
-  },
-  mobileCard: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '15px',
-    boxShadow: '0 2px 8px rgba(45, 27, 78, 0.1)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px'
-  },
-  mobileCardContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-  mobileCardTitle: {
-    fontSize: '1.2rem',
-    color: '#2D1B4E',
-    borderBottom: '2px solid #E67E22',
-    paddingBottom: '8px',
-    marginBottom: '8px'
-  },
-  mobileCardItem: {
-    margin: '4px 0',
-    color: '#2D1B4E'
-  },
-  mobileCardActions: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: '10px',
-    borderTop: '1px solid rgba(45, 27, 78, 0.1)',
-    paddingTop: '15px',
-    marginTop: '5px'
-  },
-  mobileCardButton: {
-    flex: 1,
-    padding: '8px',
-    fontSize: '0.9rem'
-  }
-};

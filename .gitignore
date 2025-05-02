@@ -42,3 +42,7 @@ yarn-error.log*
 
 # Generated audio files
 /public/audio/*
+
+# Google Cloud credentials
+google-credentials.json
+*.json.key
