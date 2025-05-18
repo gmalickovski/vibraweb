@@ -10,6 +10,7 @@ function ModalAnalise({ fecharModal }) {
   const [resultados, setResultados] = useState(null);
   const [erro, setErro] = useState('');
   const [coresFavoraveis, setCoresFavoraveis] = useState('');
+  const [abrindoVisualizacao, setAbrindoVisualizacao] = useState(false);
 
   // Função para validar se a data está no formato "DD/MM/AAAA"
   function validateDate(value) {
@@ -89,44 +90,48 @@ function ModalAnalise({ fecharModal }) {
 
   const handleVisualizarTextos = () => {
     if (resultados) {
-      const params = new URLSearchParams();
-      
-      params.append('nome', encodeURIComponent(nome));
-      params.append('dataNascimento', encodeURIComponent(dataNascimento));
-      params.append('coresFavoraveis', Number(coresFavoraveis) || 0);
-      params.append('expressao', resultados.numeroExpressao);
-      params.append('motivacao', resultados.numeroMotivacao);
-      params.append('impressao', resultados.numeroImpressao);
-      params.append('destino', resultados.numeroDestino);
-      params.append('missao', String(resultados.missao));
-      params.append('talentoOculto', resultados.talentoOculto);
-      params.append('diaNatalicio', resultados.diaNatalicio);
-      params.append('numeroPsiquico', resultados.numeroPsiquico);
-      
-      params.append('debitosCarmicos', resultados.debitosCarmicos?.join(',') || '');
-      params.append('licoesCarmicas', resultados.licoesCarmicas?.join(',') || '');
-      
-      params.append('desafios', encodeURIComponent(JSON.stringify(resultados.desafios || {})));
-      params.append('momentosDecisivos', encodeURIComponent(JSON.stringify(resultados.momentosDecisivos || {})));
-      params.append('ciclosDeVida', encodeURIComponent(JSON.stringify(resultados.ciclosDeVida || { ciclos: [] })));
-      
-      params.append('respostaSubconsciente', resultados.respostaSubconsciente || '');
-      params.append('tendenciasOcultas', encodeURIComponent(
-        Array.isArray(resultados.tendenciasOcultas)
-          ? resultados.tendenciasOcultas.join(',')
-          : resultados.tendenciasOcultas || ''
-      ));
-      params.append('diasFavoraveis', resultados.diasFavoraveis || '');
-      
-      params.append('harmoniaConjugal', encodeURIComponent(JSON.stringify({
-        numero: resultados.harmoniaConjugal?.numero || 0,
-        vibra: resultados.harmoniaConjugal?.vibra || [],
-        atrai: resultados.harmoniaConjugal?.atrai || [],
-        oposto: resultados.harmoniaConjugal?.oposto || [],
-        passivo: resultados.harmoniaConjugal?.passivo || []
-      })));
-      
-      window.open(`/visualizar?${params.toString()}`, '_blank');
+      setAbrindoVisualizacao(true);
+      setTimeout(() => {
+        const params = new URLSearchParams();
+        
+        params.append('nome', encodeURIComponent(nome));
+        params.append('dataNascimento', encodeURIComponent(dataNascimento));
+        params.append('coresFavoraveis', Number(coresFavoraveis) || 0);
+        params.append('expressao', resultados.numeroExpressao);
+        params.append('motivacao', resultados.numeroMotivacao);
+        params.append('impressao', resultados.numeroImpressao);
+        params.append('destino', resultados.numeroDestino);
+        params.append('missao', String(resultados.missao));
+        params.append('talentoOculto', resultados.talentoOculto);
+        params.append('diaNatalicio', resultados.diaNatalicio);
+        params.append('numeroPsiquico', resultados.numeroPsiquico);
+        
+        params.append('debitosCarmicos', resultados.debitosCarmicos?.join(',') || '');
+        params.append('licoesCarmicas', resultados.licoesCarmicas?.join(',') || '');
+        
+        params.append('desafios', encodeURIComponent(JSON.stringify(resultados.desafios || {})));
+        params.append('momentosDecisivos', encodeURIComponent(JSON.stringify(resultados.momentosDecisivos || {})));
+        params.append('ciclosDeVida', encodeURIComponent(JSON.stringify(resultados.ciclosDeVida || { ciclos: [] })));
+        
+        params.append('respostaSubconsciente', resultados.respostaSubconsciente || '');
+        params.append('tendenciasOcultas', encodeURIComponent(
+          Array.isArray(resultados.tendenciasOcultas)
+            ? resultados.tendenciasOcultas.join(',')
+            : resultados.tendenciasOcultas || ''
+        ));
+        params.append('diasFavoraveis', resultados.diasFavoraveis || '');
+        
+        params.append('harmoniaConjugal', encodeURIComponent(JSON.stringify({
+          numero: resultados.harmoniaConjugal?.numero || 0,
+          vibra: resultados.harmoniaConjugal?.vibra || [],
+          atrai: resultados.harmoniaConjugal?.atrai || [],
+          oposto: resultados.harmoniaConjugal?.oposto || [],
+          passivo: resultados.harmoniaConjugal?.passivo || []
+        })));
+        
+        window.open(`/visualizar?${params.toString()}`, '_blank');
+        setAbrindoVisualizacao(false);
+      }, 300); // Pequeno delay para garantir que o loading aparece
     }
   };
 
@@ -341,6 +346,42 @@ function ModalAnalise({ fecharModal }) {
             >
               Ver Análise Completa
             </button>
+          </div>
+        )}
+
+        {abrindoVisualizacao && (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(250,247,242,0.95)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              fontSize: '1.3rem',
+              color: '#2D1B4E',
+              marginBottom: '1.5rem',
+              fontWeight: 500
+            }}>
+              Aguarde, carregando as informações da análise...
+            </div>
+            <div style={{
+              border: '4px solid #E67E22',
+              borderTop: '4px solid #faf7f2',
+              borderRadius: '50%',
+              width: '48px',
+              height: '48px',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg);}
+                100% { transform: rotate(360deg);}
+              }
+            `}</style>
           </div>
         )}
       </div>

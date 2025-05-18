@@ -21,6 +21,7 @@ export default function Analise() {
   const router = useRouter();  // Add this line
   const [mostrarModal, setMostrarModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);  // Adicione este estado
+  const [abrindoVisualizacao, setAbrindoVisualizacao] = useState(false);
   const { analisesGuardadas, removerAnalise } = useAnalise();
 
   // Adicione este useEffect para detectar o tamanho da tela
@@ -36,33 +37,37 @@ export default function Analise() {
   }, []);
 
   const handleVisualizarAnalise = (dados) => {
-    const params = new URLSearchParams({
-      nome: dados.nome || '',
-      dataNascimento: dados.dataNascimento || '',
-      expressao: String(dados.numeroExpressao || 0),
-      motivacao: String(dados.numeroMotivacao || 0),
-      impressao: String(dados.numeroImpressao || 0),
-      destino: String(dados.numeroDestino || 0),
-      missao: String(dados.missao || 0),
-      talentoOculto: String(dados.talentoOculto || 0),
-      diaNatalicio: String(dados.diaNatalicio || 0),
-      numeroPsiquico: String(dados.numeroPsiquico || 0),
-      debitosCarmicos: (dados.debitosCarmicos || []).join(','),
-      licoesCarmicas: (dados.licoesCarmicas || []).join(','),
-      desafios: JSON.stringify(dados.desafios || {}),
-      respostaSubconsciente: dados.respostaSubconsciente || '',
-      tendenciasOcultas: Array.isArray(dados.tendenciasOcultas) 
-        ? dados.tendenciasOcultas.join(',') 
-        : String(dados.tendenciasOcultas || ''),
-      diasFavoraveis: dados.diasFavoraveis || '',
-      momentosDecisivos: JSON.stringify(dados.momentosDecisivos || {}),
-      anoPessoal: String(dados.anoPessoal || 0),
-      ciclosDeVida: JSON.stringify(dados.ciclosDeVida || { ciclos: [] }),
-      harmoniaConjugal: JSON.stringify(dados.harmoniaConjugal || {}),
-      aptidoesProfissionais: dados.aptidoesProfissionais || '',
-      coresFavoraveis: Number(dados.coresFavoraveis) || 0, // ADICIONE ESTA LINHA
-    });
-    window.open(`/visualizar?${params.toString()}`, '_blank');
+    setAbrindoVisualizacao(true);
+    setTimeout(() => {
+      const params = new URLSearchParams({
+        nome: dados.nome || '',
+        dataNascimento: dados.dataNascimento || '',
+        expressao: String(dados.numeroExpressao || 0),
+        motivacao: String(dados.numeroMotivacao || 0),
+        impressao: String(dados.numeroImpressao || 0),
+        destino: String(dados.numeroDestino || 0),
+        missao: String(dados.missao || 0),
+        talentoOculto: String(dados.talentoOculto || 0),
+        diaNatalicio: String(dados.diaNatalicio || 0),
+        numeroPsiquico: String(dados.numeroPsiquico || 0),
+        debitosCarmicos: (dados.debitosCarmicos || []).join(','),
+        licoesCarmicas: (dados.licoesCarmicas || []).join(','),
+        desafios: JSON.stringify(dados.desafios || {}),
+        respostaSubconsciente: dados.respostaSubconsciente || '',
+        tendenciasOcultas: Array.isArray(dados.tendenciasOcultas) 
+          ? dados.tendenciasOcultas.join(',') 
+          : String(dados.tendenciasOcultas || ''),
+        diasFavoraveis: dados.diasFavoraveis || '',
+        momentosDecisivos: JSON.stringify(dados.momentosDecisivos || {}),
+        anoPessoal: String(dados.anoPessoal || 0),
+        ciclosDeVida: JSON.stringify(dados.ciclosDeVida || { ciclos: [] }),
+        harmoniaConjugal: JSON.stringify(dados.harmoniaConjugal || {}),
+        aptidoesProfissionais: dados.aptidoesProfissionais || '',
+        coresFavoraveis: Number(dados.coresFavoraveis) || 0, // ADICIONE ESTA LINHA
+      });
+      window.open(`/visualizar?${params.toString()}`, '_blank');
+      setAbrindoVisualizacao(false);
+    }, 300);
   };
 
   const handleLogout = async () => {
@@ -365,6 +370,42 @@ export default function Analise() {
           )
         )}
       </div>
+
+      {abrindoVisualizacao && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(250,247,242,0.95)',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            fontSize: '1.3rem',
+            color: '#2D1B4E',
+            marginBottom: '1.5rem',
+            fontWeight: 500
+          }}>
+            Aguarde, carregando as informações da análise...
+          </div>
+          <div style={{
+            border: '4px solid #E67E22',
+            borderTop: '4px solid #faf7f2',
+            borderRadius: '50%',
+            width: '48px',
+            height: '48px',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg);}
+              100% { transform: rotate(360deg);}
+            }
+          `}</style>
+        </div>
+      )}
 
       {mostrarModal && (
         <ModalAnalise fecharModal={() => setMostrarModal(false)} />

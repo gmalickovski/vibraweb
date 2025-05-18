@@ -1,5 +1,5 @@
 // pages/visualizar.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { buscarBlocosPorCampo } from "../lib/notion";
 import * as numerologia from "../lib/numerologia";
 import VoiceModal from '../components/VoiceModal';
@@ -128,6 +128,96 @@ function renderItem(title, value, blocks) {
 export default function Visualizar({ resultados, nome, dataNascimento }) {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showInitialLoading, setShowInitialLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(true);
+
+  useEffect(() => {
+    // Só esconde o loading depois de um pequeno delay e quando os dados realmente chegaram
+    if (resultados && nome && dataNascimento) {
+      setShowLoading(false);
+    }
+  }, [resultados, nome, dataNascimento]);
+
+  useEffect(() => {
+    // Esconde o loading assim que o React monta e os dados já estão disponíveis
+    setShowInitialLoading(false);
+  }, []);
+
+  if (showLoading) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(250,247,242,0.95)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          fontSize: '1.3rem',
+          color: '#2D1B4E',
+          marginBottom: '1.5rem',
+          fontWeight: 500
+        }}>
+          Aguarde, carregando as informações da análise...
+        </div>
+        <div style={{
+          border: '4px solid #E67E22',
+          borderTop: '4px solid #faf7f2',
+          borderRadius: '50%',
+          width: '48px',
+          height: '48px',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (showInitialLoading) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(250,247,242,0.95)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          fontSize: '1.3rem',
+          color: '#2D1B4E',
+          marginBottom: '1.5rem',
+          fontWeight: 500
+        }}>
+          Aguarde, carregando as informações da análise...
+        </div>
+        <div style={{
+          border: '4px solid #E67E22',
+          borderTop: '4px solid #faf7f2',
+          borderRadius: '50%',
+          width: '48px',
+          height: '48px',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg);}
+            100% { transform: rotate(360deg);}
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   if (!resultados) {
     return (
@@ -141,13 +231,19 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
   const handleGenerateAudio = async (voiceSettings) => {
     try {
       setIsLoading(true);
-      
-      // Get text content
+
+      // Extrai todo o texto da página preservando acentos
       const mainContent = document.getElementById('printable-content');
-      const content = Array.from(mainContent.querySelectorAll('p, h1, h2, h3, h4, li'))
+      let content = Array.from(mainContent.querySelectorAll('p, h1, h2, h3, h4, li'))
         .map(el => el.textContent.trim())
         .filter(text => text)
         .join('. ');
+
+      // Remove apenas caracteres realmente inválidos, mantendo acentos
+      content = content
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove caracteres de controle
+        .replace(/\s+/g, ' ') // Normaliza espaços
+        .trim();
 
       const response = await fetch('/api/generate-audio', {
         method: 'POST',
@@ -158,7 +254,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           text: content,
           voiceConfig: {
             voice: voiceSettings.voice,
-            speed: voiceSettings.speed || 1,
+            speed: voiceSettings.speed || 0.95,  // Velocidade um pouco menor para melhor clareza
             pitch: voiceSettings.pitch || 0
           }
         }),
@@ -169,21 +265,21 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
       }
 
       const audioBlob = await response.blob();
-      
-      // Verifica se o blob tem conteúdo
+
       if (audioBlob.size === 0) {
         throw new Error('Arquivo de áudio vazio');
       }
 
-      // Cria URL do blob e faz o download
       const url = window.URL.createObjectURL(audioBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'analise-numerologica.mp3';
+      
+      // Usa o nome completo para o arquivo de áudio
+      const safeFileName = nome.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+      a.download = `Audio-AP-${safeFileName}.mp3`;
+      
       document.body.appendChild(a);
       a.click();
-      
-      // Limpa recursos
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       setIsVoiceModalOpen(false);

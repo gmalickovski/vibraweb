@@ -7,11 +7,13 @@ export default async function handler(req, res) {
 
   try {
     const { text, voiceConfig } = req.body;
-    
-    // Gerar o áudio
-    const audioUrl = await synthesizeSpeech(text, voiceConfig);
 
-    res.status(200).json({ audioUrl });
+    // Gera o áudio (deve retornar um Buffer)
+    const audioBuffer = await synthesizeSpeech(text, voiceConfig);
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Disposition', 'attachment; filename="analise.mp3"');
+    res.status(200).send(audioBuffer);
   } catch (error) {
     console.error('Error generating audio:', error);
     res.status(500).json({ error: error.message });
