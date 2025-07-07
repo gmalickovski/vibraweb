@@ -1,9 +1,7 @@
 import textToSpeech from '@google-cloud/text-to-speech';
-import path from 'path'; // Necessário se for usar keyFilename
+import path from 'path';
 
-// Se você usa um arquivo de chave JSON para autenticação, configure o caminho.
-// Caso contrário, a biblioteca tentará usar as Application Default Credentials.
-// const credentialsPath = path.join(process.cwd(), 'config', 'chave.json');
+const credentialsPath = path.join(process.cwd(), 'config', 'chave.json');
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -15,7 +13,9 @@ export default async function handler(req, res) {
   try {
     // Inicialização do cliente TTS
     // Se usar credentialsPath: new textToSpeech.TextToSpeechClient({ keyFilename: credentialsPath });
-    const client = new textToSpeech.TextToSpeechClient(); 
+    const client = new textToSpeech.TextToSpeechClient({
+      keyFilename: credentialsPath
+    }); 
     console.log('--- API /api/voices: Passo 1 - Solicitando vozes da API do Google...');
     
     const [response] = await client.listVoices({ languageCode: 'pt-BR' });
@@ -30,51 +30,40 @@ export default async function handler(req, res) {
     let allPtBrVoices = response.voices.filter(voice => voice.languageCodes.includes('pt-BR'));
     console.log(`--- API /api/voices: Encontradas ${allPtBrVoices.length} vozes para pt-BR (antes de remover Chirp).`);
 
-    // REMOVE VOZES "CHIRP"
-    console.log('--- API /api/voices: Passo 2 - Tentando filtrar vozes "Chirp"...');
+    // REMOVE VOZES "CHIRP" E "POLYGLOT"
+    console.log('--- API /api/voices: Passo 2 - Tentando filtrar vozes "Chirp" e "Polyglot"...');
     const voicesWithoutChirp = allPtBrVoices.filter(voice => {
-      const voiceNameUpper = voice.name.toUpperCase();
-      const isChirp = voiceNameUpper.includes('CHIRP');
-      console.log(`     API /api/voices: Verificando voz: "${voice.name}" (Upper: "${voiceNameUpper}") - Contém "CHIRP"? ${isChirp} - Será mantida? ${!isChirp}`);
-      if (isChirp) {
-        console.log(`     ---> API /api/voices: VOZ "${voice.name}" IDENTIFICADA COMO CHIRP E SERÁ REMOVIDA.`);
+      const voiceNameLower = voice.name.toLowerCase();
+      const isChirpOrPolyglot = voiceNameLower.includes('chirp') || voiceNameLower.includes('polyglot');
+      console.log(`     API /api/voices: Verificando voz: "${voice.name}" (Lower: "${voiceNameLower}") - Contém "CHIRP" ou "POLYGLOT"? ${isChirpOrPolyglot} - Será mantida? ${!isChirpOrPolyglot}`);
+      if (isChirpOrPolyglot) {
+        console.log(`     ---> API /api/voices: VOZ "${voice.name}" IDENTIFICADA COMO CHIRP/POLYGLOT E SERÁ REMOVIDA.`);
       }
-      return !isChirp; // Mantém a voz se NÃO for Chirp
+      return !isChirpOrPolyglot; // Mantém a voz se NÃO for Chirp ou Polyglot
     });
     
-    console.log(`--- API /api/voices: Após filtro Chirp: ${allPtBrVoices.length - voicesWithoutChirp.length} vozes "Chirp" foram (ou deveriam ter sido) removidas.`);
+    console.log(`--- API /api/voices: Após filtro Chirp/Polyglot: ${allPtBrVoices.length - voicesWithoutChirp.length} vozes "Chirp" ou "Polyglot" foram (ou deveriam ter sido) removidas.`);
     console.log(`--- API /api/voices: Restam ${voicesWithoutChirp.length} vozes pt-BR para processamento.`);
 
     if (voicesWithoutChirp.length === 0) {
-        console.warn('--- API /api/voices: AVISO - Nenhuma voz pt-BR restante após o filtro Chirp (ou nenhuma encontrada inicialmente)!');
+        console.warn('--- API /api/voices: AVISO - Nenhuma voz pt-BR restante após o filtro Chirp/Polyglot (ou nenhuma encontrada inicialmente)!');
         return res.status(200).json({ voices: [] });
     }
 
     const processedVoices = voicesWithoutChirp.map(voice => {
         const name = voice.name; 
-        const upperName = name.toUpperCase();
+        const lowerName = name.toLowerCase();
         let type = 'Standard'; // Predefinir como Standard
 
         // Lógica de atribuição de tipo para vozes NÃO-CHIRP
-        if (upperName.includes('-STUDIO-')) { 
-          type = 'Studio';
-        }
-        else if (upperName.includes('-NEURAL2-') ||
-                   upperName.endsWith('NEURAL') || // Para vozes como pt-BR-AntonioNeural
-                   upperName.includes('-NEWS-') ||
-                   upperName.includes('-JOURNEY-') ||
-                   upperName.includes('-CASUAL-') ||
-                   upperName.includes('-POLYGLOT-')) {
+        if (lowerName.includes('neural2')) { 
           type = 'Neural2';
         }
-        else if (upperName.includes('-WAVENET-')) {
-          type = 'WaveNet';
+        else if (lowerName.includes('neural')) {
+          type = 'Neural';
         }
-        else if (upperName.includes('-STANDARD-')) {
-          // Esta condição é importante para não classificar erroneamente
-          // vozes que não são Studio, Neural2 ou WaveNet, mas podem não ter '-Standard-' explícito.
-          // No entanto, se uma voz não tem nenhum dos outros identificadores, ela será Standard por fallback.
-          type = 'Standard';
+        else if (lowerName.includes('wavenet')) {
+          type = 'WaveNet';
         }
         // Fallback: Se não corresponder a nenhum dos acima, permanece 'Standard'
         

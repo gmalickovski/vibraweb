@@ -1,4 +1,4 @@
-import { synthesizeSpeech } from '../../lib/googleTTS'; // Ajuste o caminho se o seu ficheiro lib/googleTTS.js estiver noutro local
+import { synthesizeSpeech } from '../../lib/googleTTS';
 
 // Configuração para aumentar o limite do tamanho da resposta da API
 export const config = {
@@ -9,70 +9,43 @@ export const config = {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    console.log('/api/generate-audio: Método não permitido:', req.method);
+    res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  console.log('/api/generate-audio: Recebido pedido POST para gerar áudio MP3 (qualidade padrão).');
-
   try {
-    const { text, voiceConfig: clientVoiceConfig } = req.body;
+    // 1. Recebe 'text' e 'voiceConfig' do corpo da requisição
+    const { text, voiceConfig } = req.body;
 
-    if (!text) {
-      console.warn('/api/generate-audio: Texto para síntese não fornecido.');
-      return res.status(400).json({ error: 'Text is required for speech synthesis.' });
-    }
-    if (!clientVoiceConfig || !clientVoiceConfig.voice) {
-      console.warn('/api/generate-audio: Configuração de voz (do cliente) inválida.');
-      return res.status(400).json({ error: 'Voice configuration (voice name) is required.' });
+    // 2. Valida se os dados necessários foram recebidos
+    if (!text || !voiceConfig?.voice) {
+      console.error('API Route: Parâmetros "text" ou "voiceConfig.voice" ausentes no corpo da requisição.');
+      return res.status(400).json({ error: 'Parâmetros "text" e "voiceConfig.voice" são obrigatórios.' });
     }
 
-    // Define as configurações de áudio desejadas no servidor: MP3
-    // Não especificamos sampleRateHertz aqui para usar o padrão da API (geralmente 24000Hz para MP3),
-    // ou 24000Hz que será forçado para vozes Studio em lib/googleTTS.js.
-    const serverAudioSettings = { 
-      audioEncoding: 'MP3',
-      // sampleRateHertz: undefined // Deixando indefinido para usar o padrão da API
-    }; 
+    // 3. CHAMA A FUNÇÃO CORRETAMENTE com dois argumentos
+    //    Não montamos mais o objeto 'request' aqui. Apenas passamos os dados.
+    console.log('API Route: Chamando synthesizeSpeech com os parâmetros corretos...');
+    const audioContent = await synthesizeSpeech(text, voiceConfig);
 
-    // Mescla as configurações do cliente com as configurações de áudio definidas no servidor
-    const finalVoiceConfig = {
-      ...clientVoiceConfig, // Contém voice, speed, pitch vindos do cliente
-      ...serverAudioSettings // Adiciona/sobrescreve audioEncoding
-    };
-
-    console.log('/api/generate-audio: Configuração final da voz ANTES de chamar synthesizeSpeech:', JSON.stringify(finalVoiceConfig, null, 2));
-    
-    const audioBuffer = await synthesizeSpeech(text, finalVoiceConfig);
-
-    if (!audioBuffer || audioBuffer.length === 0) {
-      console.error('/api/generate-audio: Buffer de áudio gerado está vazio ou nulo.');
-      return res.status(500).json({ error: 'Failed to generate audio content (empty buffer).' });
+    // 4. Verifica se o áudio foi gerado antes de enviar
+    if (!audioContent || audioContent.length === 0) {
+        console.error('API Route: synthesizeSpeech retornou conteúdo de áudio vazio ou nulo.');
+        return res.status(500).json({ error: 'Falha ao gerar o áudio. Nenhum conteúdo foi retornado pela função de síntese.' });
     }
 
-    console.log(`/api/generate-audio: Síntese de voz concluída. Tamanho do buffer: ${audioBuffer.length} bytes. Encoding: ${finalVoiceConfig.audioEncoding}.`);
-
-    // Configurações para MP3
-    const contentType = 'audio/mpeg';
-    const filename = 'audio_gerado.mp3'; // Nome do ficheiro para download
-    console.log(`/api/generate-audio: Configurando Content-Type para ${contentType} e filename para ${filename}`);
-    
-    res.setHeader('Content-Type', contentType);
-    // Se o objetivo principal for um player online, a linha Content-Disposition pode ser comentada.
-    // Se for para download direto, mantenha ou ajuste o nome do ficheiro.
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`); 
-    
-    res.status(200).send(audioBuffer);
-    console.log(`/api/generate-audio: Resposta de áudio (${filename}) enviada com sucesso.`);
+    // 5. Envia o áudio como resposta
+    console.log(`API Route: Enviando áudio de ${audioContent.length} bytes para o cliente.`);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Disposition', 'attachment; filename="audio.mp3"');
+    res.send(audioContent);
 
   } catch (error) {
-    console.error('/api/generate-audio: Erro ao gerar áudio:', error.message);
-    if (error.stack) {
-      console.error(error.stack);
-    }
-    res.status(500).json({ 
-      error: 'Failed to generate audio', 
-      details: error.message 
+    // Captura qualquer erro que a função synthesizeSpeech possa lançar
+    console.error('Erro pego na rota da API /api/generate-audio:', error);
+    res.status(500).json({
+      error: 'Falha ao gerar o áudio.',
+      details: error.message, // A mensagem de erro vinda de synthesizeSpeech será mostrada aqui
     });
   }
 }
