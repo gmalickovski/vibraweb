@@ -7,19 +7,20 @@ require('dotenv').config();
 const { Client } = require('@notionhq/client');
 const { Client: PgClient } = require('pg');
 
-// Configurações Supabase
+// Configurações Supabase PostgreSQL (via variáveis de ambiente)
+const pgHost = process.env.POSTGRES_HOST || 'localhost';
 const SUPABASE_DB_CONFIG = {
-    host: 'supabase.studiomlk.com.br',
-    port: 5432,
-    database: 'postgres',
-    user: 'postgres',
-    password: process.env.POSTGRES_PASSWORD || 'Smlk14312025',
-    ssl: { rejectUnauthorized: false }
+    host: pgHost,
+    port: parseInt(process.env.POSTGRES_PORT) || 5432,
+    database: process.env.POSTGRES_DB || 'postgres',
+    user: process.env.POSTGRES_USER || 'postgres',
+    password: process.env.POSTGRES_PASSWORD,
+    ssl: pgHost === 'localhost' ? false : { rejectUnauthorized: false }
 };
 
 // Configurações Notion
 const NOTION_API_KEY = process.env.NOTION_API_KEY;
-const NOTION_DATABASE_ID = '1d146a68-4e95-8071-aaf0-daaf18295179';
+const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID || '1d146a684e958071aaf0daaf18295179';
 
 const notion = new Client({ auth: NOTION_API_KEY });
 
