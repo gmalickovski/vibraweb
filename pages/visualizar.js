@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { buscarBlocosPorCampo } from "../lib/notion";
 import * as numerologia from "../lib/numerologia";
-import VoiceModal from '../components/VoiceModal';
 import LoadingOverlay from '../components/LoadingOverlay';
 
 /* ================================
@@ -111,7 +110,7 @@ function renderItem(title, value, blocks) {
   return (
     <div style={styles.sectionContainer} key={title}>
       <h3 style={styles.itemTitle}>
-        {title}: <span style={{...styles.value, ...styles.itemValue}}>{value}</span>
+        {title}: <span style={{ ...styles.value, ...styles.itemValue }}>{value}</span>
       </h3>
       <div>
         {blocks && blocks.length > 0
@@ -126,7 +125,6 @@ function renderItem(title, value, blocks) {
    Componente Principal
 ================================ */
 export default function Visualizar({ resultados, nome, dataNascimento }) {
-  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showInitialLoading, setShowInitialLoading] = useState(true);
   const [showLoading, setShowLoading] = useState(true);
@@ -228,68 +226,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
     );
   }
 
-  const handleGenerateAudio = async (voiceSettings) => {
-    try {
-      setIsLoading(true);
-
-      // Extrai todo o texto da página preservando acentos
-      const mainContent = document.getElementById('printable-content');
-      let content = Array.from(mainContent.querySelectorAll('p, h1, h2, h3, h4, li'))
-        .map(el => el.textContent.trim())
-        .filter(text => text)
-        .join('. ');
-
-      // Remove apenas caracteres realmente inválidos, mantendo acentos
-      content = content
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove caracteres de controle
-        .replace(/\s+/g, ' ') // Normaliza espaços
-        .trim();
-
-      const response = await fetch('/api/generate-audio', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: content,
-          voiceConfig: {
-            voice: voiceSettings.voice,
-            speed: voiceSettings.speed || 0.95,  // Velocidade um pouco menor para melhor clareza
-            pitch: voiceSettings.pitch || 0
-          }
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao gerar áudio');
-      }
-
-      const audioBlob = await response.blob();
-
-      if (audioBlob.size === 0) {
-        throw new Error('Arquivo de áudio vazio');
-      }
-
-      const url = window.URL.createObjectURL(audioBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      
-      // Usa o nome completo para o arquivo de áudio
-      const safeFileName = nome.replace(/[^a-zA-Z0-9\s]/g, '').trim();
-      a.download = `Audio-AP-${safeFileName}.mp3`;
-      
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      setIsVoiceModalOpen(false);
-    } catch (error) {
-      console.error('Erro:', error);
-      alert('Erro ao gerar o áudio. Tente novamente.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Funcionalidade de áudio removida
 
   return (
     <div>
@@ -365,9 +302,9 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
       `}</style>
       <div style={styles.container} id="printable-content">
         <h1 style={styles.mainTitle}>
-          Análise de Propósito: <span style={{...styles.value, ...styles.mainValue}}>{nome}</span>
+          Análise de Propósito: <span style={{ ...styles.value, ...styles.mainValue }}>{nome}</span>
         </h1>
-        
+
         <div style={styles.sectionContainer}>
           <h2 style={styles.sectionTitle}>Introdução</h2>
           {resultados?.introducaoBlocos && resultados.introducaoBlocos.length > 0 ? (
@@ -376,7 +313,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
             <p style={styles.paragraph}>Texto de introdução não encontrado.</p>
           )}
         </div>
-        
+
         <h2 style={styles.sectionTitle}>Os Seus Números</h2>
         <div style={styles.listContainer}>
           {[
@@ -400,7 +337,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {/* Seção Resposta do Subconciente */}
           <div style={styles.sectionContainer}>
             <h3 style={styles.itemTitle}>
-              Resposta do Subconsciênte: <span style={{...styles.value, ...styles.itemValue}}>{resultados.respostaSubconsciente}</span>
+              Resposta do Subconsciênte: <span style={{ ...styles.value, ...styles.itemValue }}>{resultados.respostaSubconsciente}</span>
             </h3>
             <div>
               {resultados?.blocosRespostaSubconsciente && resultados.blocosRespostaSubconsciente.length > 0 ? (
@@ -425,7 +362,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                 {resultados.ciclosDeVida.ciclos.map((ciclo, index) => (
                   <li key={index} style={styles.li}>
                     <h4 style={styles.subItemTitle}>
-                      {index + 1}º Ciclo: <span style={{...styles.value, ...styles.subItemValue}}>{ciclo.regente}</span>
+                      {index + 1}º Ciclo: <span style={{ ...styles.value, ...styles.subItemValue }}>{ciclo.regente}</span>
                       {" - Período: "}{ciclo.inicio} – {ciclo.fim}
                     </h4>
                     {resultados?.blocosCiclos && resultados.blocosCiclos[index] && resultados.blocosCiclos[index].length > 0 ? (
@@ -443,7 +380,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {resultados.tendenciasOcultas && (
             <div style={styles.sectionContainer}>
               <h3 style={styles.itemTitle}>
-                Tendências Ocultas: <span style={{...styles.value, ...styles.itemValue}}>
+                Tendências Ocultas: <span style={{ ...styles.value, ...styles.itemValue }}>
                   {Array.isArray(resultados.tendenciasOcultas)
                     ? resultados.tendenciasOcultas.join(", ")
                     : resultados.tendenciasOcultas}
@@ -462,11 +399,11 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                 ).map(item => (
                   <li key={item} style={styles.li}>
                     <h4 style={styles.subItemTitle}>
-                      Tendência Oculta: <span style={{...styles.value, ...styles.subItemValue}}>{item}</span>
+                      Tendência Oculta: <span style={{ ...styles.value, ...styles.subItemValue }}>{item}</span>
                     </h4>
                     {resultados?.blocosTendenciasOcultas &&
-                    resultados.blocosTendenciasOcultas[item] &&
-                    resultados.blocosTendenciasOcultas[item].length > 0 ? (
+                      resultados.blocosTendenciasOcultas[item] &&
+                      resultados.blocosTendenciasOcultas[item].length > 0 ? (
                       resultados.blocosTendenciasOcultas[item].map(block => renderBlock(block))
                     ) : (
                       <p style={styles.paragraph}>Tendência Oculta; {item}</p>
@@ -482,7 +419,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {resultados.coresFavoraveis !== null && resultados.coresFavoraveis !== undefined && (
             <div style={styles.sectionContainer}>
               <h3 style={styles.itemTitle}>
-                Cores Favoráveis: <span style={{...styles.value, ...styles.itemValue}}>{resultados.coresFavoraveis}</span>
+                Cores Favoráveis: <span style={{ ...styles.value, ...styles.itemValue }}>{resultados.coresFavoraveis}</span>
               </h3>
               <div>
                 {resultados?.blocosCoresFavoraveis && resultados.blocosCoresFavoraveis.length > 0 ? (
@@ -501,7 +438,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
             </h3>
             <div>
               <h4 style={styles.subItemTitle}>
-                Seus dias: <span style={{...styles.value, ...styles.subItemValue}}>
+                Seus dias: <span style={{ ...styles.value, ...styles.subItemValue }}>
                   {resultados.diasFavoraveis?.split(',').map(dia => dia.trim()).join(', ')}
                 </span>
               </h4>
@@ -518,7 +455,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {resultados.debitosCarmicos && resultados.debitosCarmicos.length > 0 && (
             <div style={styles.sectionContainer}>
               <h3 style={styles.itemTitle}>
-                Débitos Cármicos: <span style={{...styles.value, ...styles.itemValue}}>{resultados.debitosCarmicos.join(", ")}</span>
+                Débitos Cármicos: <span style={{ ...styles.value, ...styles.itemValue }}>{resultados.debitosCarmicos.join(", ")}</span>
               </h3>
               {/* Introdução Débitos Cármicos */}
               {resultados?.blocosDebitosCarmicosIntroducao && resultados.blocosDebitosCarmicosIntroducao.length > 0 ? (
@@ -530,11 +467,11 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                 {resultados.debitosCarmicos.map(debito => (
                   <li key={debito} style={styles.li}>
                     <h4 style={styles.subItemTitle}>
-                      Débito Cármico: <span style={{...styles.value, ...styles.subItemValue}}>{debito}</span>
+                      Débito Cármico: <span style={{ ...styles.value, ...styles.subItemValue }}>{debito}</span>
                     </h4>
                     {resultados?.blocosDebitosCarmicos &&
-                    resultados.blocosDebitosCarmicos[debito] &&
-                    resultados.blocosDebitosCarmicos[debito].length > 0 ? (
+                      resultados.blocosDebitosCarmicos[debito] &&
+                      resultados.blocosDebitosCarmicos[debito].length > 0 ? (
                       resultados.blocosDebitosCarmicos[debito].map(block => renderBlock(block))
                     ) : (
                       <p style={styles.paragraph}>Débito Cármico; {debito}</p>
@@ -549,7 +486,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {resultados.licoesCarmicas && resultados.licoesCarmicas.length > 0 && (
             <div style={styles.sectionContainer}>
               <h3 style={styles.itemTitle}>
-                Lições Cármicas: <span style={{...styles.value, ...styles.itemValue}}>{resultados.licoesCarmicas.join(", ")}</span>
+                Lições Cármicas: <span style={{ ...styles.value, ...styles.itemValue }}>{resultados.licoesCarmicas.join(", ")}</span>
               </h3>
               {/* Introdução Lições Cármicas */}
               {resultados?.blocosLicoesCarmicasIntroducao && resultados.blocosLicoesCarmicasIntroducao.length > 0 ? (
@@ -561,11 +498,11 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                 {resultados.licoesCarmicas.map(licao => (
                   <li key={licao} style={styles.li}>
                     <h4 style={styles.subItemTitle}>
-                      Lição Cármica: <span style={{...styles.value, ...styles.subItemValue}}>{licao}</span>
+                      Lição Cármica: <span style={{ ...styles.value, ...styles.subItemValue }}>{licao}</span>
                     </h4>
                     {resultados?.blocosLicoesCarmicas &&
-                    resultados.blocosLicoesCarmicas[licao] &&
-                    resultados.blocosLicoesCarmicas[licao].length > 0 ? (
+                      resultados.blocosLicoesCarmicas[licao] &&
+                      resultados.blocosLicoesCarmicas[licao].length > 0 ? (
                       resultados.blocosLicoesCarmicas[licao].map(block => renderBlock(block))
                     ) : (
                       <p style={styles.paragraph}>Lição Cármica; {licao}</p>
@@ -578,12 +515,12 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
 
           {/* Seção Momentos Decisivos */}
           {resultados.momentosDecisivos &&
-          typeof resultados.momentosDecisivos === "object" &&
-          Object.keys(resultados.momentosDecisivos).length > 0 ? (
+            typeof resultados.momentosDecisivos === "object" &&
+            Object.keys(resultados.momentosDecisivos).length > 0 ? (
             <div style={styles.sectionContainer}>
               <h3 style={styles.itemTitle}>
-                Momentos Decisivos: <span style={{...styles.value, ...styles.itemValue}}>
-                  {[1,2,3,4].map(i => resultados.momentosDecisivos["momento" + i]).filter(Boolean).join(", ")}
+                Momentos Decisivos: <span style={{ ...styles.value, ...styles.itemValue }}>
+                  {[1, 2, 3, 4].map(i => resultados.momentosDecisivos["momento" + i]).filter(Boolean).join(", ")}
                 </span>
               </h3>
               {/* Introdução Momentos Decisivos */}
@@ -599,13 +536,13 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
                   return (
                     <li key={i} style={styles.li}>
                       <h4 style={styles.subItemTitle}>
-                        {i}º Momento Decisivo: <span style={{...styles.value, ...styles.subItemValue}}>{m}</span>
+                        {i}º Momento Decisivo: <span style={{ ...styles.value, ...styles.subItemValue }}>{m}</span>
                         {p && <> - Período: {p}</>}
                       </h4>
                       <div>
                         {resultados?.blocosMomentosDecisivosDetalhados &&
-                        resultados.blocosMomentosDecisivosDetalhados[i] &&
-                        resultados.blocosMomentosDecisivosDetalhados[i].length > 0 ? (
+                          resultados.blocosMomentosDecisivosDetalhados[i] &&
+                          resultados.blocosMomentosDecisivosDetalhados[i].length > 0 ? (
                           resultados.blocosMomentosDecisivosDetalhados[i].map(block => renderBlock(block))
                         ) : (
                           <p style={styles.paragraph}>{`${i}º Momento Decisivo; ${m}`}</p>
@@ -623,7 +560,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {/* Seção Desafios */}
           <div style={styles.sectionContainer}>
             <h3 style={styles.itemTitle}>
-              Desafios: <span style={{...styles.value, ...styles.itemValue}}>
+              Desafios: <span style={{ ...styles.value, ...styles.itemValue }}>
                 {[resultados.desafios.desafio1, resultados.desafios.desafio2, resultados.desafios.desafioPrincipal].filter(Boolean).join(", ")}
               </span>
             </h3>
@@ -636,11 +573,11 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
             <ul style={styles.ul}>
               <li style={styles.li}>
                 <h4 style={styles.subItemTitle}>
-                  1º Desafio: <span style={{...styles.value, ...styles.subItemValue}}>{resultados.desafios.desafio1}</span>
+                  1º Desafio: <span style={{ ...styles.value, ...styles.subItemValue }}>{resultados.desafios.desafio1}</span>
                 </h4>
                 {resultados?.blocosDesafios &&
-                resultados.blocosDesafios["1º Desafio"] &&
-                resultados.blocosDesafios["1º Desafio"].length > 0 ? (
+                  resultados.blocosDesafios["1º Desafio"] &&
+                  resultados.blocosDesafios["1º Desafio"].length > 0 ? (
                   resultados.blocosDesafios["1º Desafio"].map(block => renderBlock(block))
                 ) : (
                   <p style={styles.paragraph}>Texto não encontrado para 1º Desafio.</p>
@@ -648,11 +585,11 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
               </li>
               <li style={styles.li}>
                 <h4 style={styles.subItemTitle}>
-                  2º Desafio: <span style={{...styles.value, ...styles.subItemValue}}>{resultados.desafios.desafio2}</span>
+                  2º Desafio: <span style={{ ...styles.value, ...styles.subItemValue }}>{resultados.desafios.desafio2}</span>
                 </h4>
                 {resultados?.blocosDesafios &&
-                resultados.blocosDesafios["2º Desafio"] &&
-                resultados.blocosDesafios["2º Desafio"].length > 0 ? (
+                  resultados.blocosDesafios["2º Desafio"] &&
+                  resultados.blocosDesafios["2º Desafio"].length > 0 ? (
                   resultados.blocosDesafios["2º Desafio"].map(block => renderBlock(block))
                 ) : (
                   <p style={styles.paragraph}>Texto não encontrado para 2º Desafio.</p>
@@ -660,11 +597,11 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
               </li>
               <li style={styles.li}>
                 <h4 style={styles.subItemTitle}>
-                  3º Desafio (Principal): <span style={{...styles.value, ...styles.subItemValue}}>{resultados.desafios.desafioPrincipal}</span>
+                  3º Desafio (Principal): <span style={{ ...styles.value, ...styles.subItemValue }}>{resultados.desafios.desafioPrincipal}</span>
                 </h4>
                 {resultados?.blocosDesafios &&
-                resultados.blocosDesafios["3º Desafio (Principal)"] &&
-                resultados.blocosDesafios["3º Desafio (Principal)"].length > 0 ? (
+                  resultados.blocosDesafios["3º Desafio (Principal)"] &&
+                  resultados.blocosDesafios["3º Desafio (Principal)"].length > 0 ? (
                   resultados.blocosDesafios["3º Desafio (Principal)"].map(block => renderBlock(block))
                 ) : (
                   <p style={styles.paragraph}>Texto não encontrado para 3º Desafio (Principal).</p>
@@ -676,28 +613,28 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {/* Seção Harmonia Conjugal */}
           <div style={styles.sectionContainer}>
             <h3 style={styles.itemTitle}>
-              Harmonia Conjugal: <span style={{...styles.value, ...styles.itemValue}}>{resultados.harmoniaConjugal?.numero || 'N/A'}</span>
+              Harmonia Conjugal: <span style={{ ...styles.value, ...styles.itemValue }}>{resultados.harmoniaConjugal?.numero || 'N/A'}</span>
             </h3>
             {resultados.harmoniaConjugal && (
               <>
                 <ul style={styles.ul}>
                   <li style={styles.li}>
-                    <strong>Vibra com:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                    <strong>Vibra com:</strong> <span style={{ ...styles.value, ...styles.subItemValue }}>
                       {resultados.harmoniaConjugal.vibra?.join(", ") || 'N/A'}
                     </span>
                   </li>
                   <li style={styles.li}>
-                    <strong>Atrai:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                    <strong>Atrai:</strong> <span style={{ ...styles.value, ...styles.subItemValue }}>
                       {resultados.harmoniaConjugal.atrai?.join(", ") || 'N/A'}
                     </span>
                   </li>
                   <li style={styles.li}>
-                    <strong>É oposto a:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                    <strong>É oposto a:</strong> <span style={{ ...styles.value, ...styles.subItemValue }}>
                       {resultados.harmoniaConjugal.oposto?.join(", ") || 'N/A'}
                     </span>
                   </li>
                   <li style={styles.li}>
-                    <strong>É passivo com:</strong> <span style={{...styles.value, ...styles.subItemValue}}>
+                    <strong>É passivo com:</strong> <span style={{ ...styles.value, ...styles.subItemValue }}>
                       {resultados.harmoniaConjugal.passivo?.join(", ") || 'N/A'}
                     </span>
                   </li>
@@ -714,7 +651,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {/* Seção Ano Pessoal */}
           <div style={styles.sectionContainer}>
             <h3 style={styles.itemTitle}>
-              Ano Pessoal: <span style={{...styles.value, ...styles.itemValue}}>{resultados.anoPessoal}</span>
+              Ano Pessoal: <span style={{ ...styles.value, ...styles.itemValue }}>{resultados.anoPessoal}</span>
             </h3>
             <div>
               {resultados?.blocosAnoPessoal && resultados.blocosAnoPessoal.length > 0 ? (
@@ -729,9 +666,9 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           {resultados.aptidoesProfissionais && resultados.aptidoesProfissionais !== "N/A" && (
             <div style={styles.sectionContainer}>
               <h3 style={styles.itemTitle}>
-                Aptidões e Potencialidades Profissionais: <span style={{...styles.value, ...styles.itemValue}}>
-                  {Array.isArray(resultados.aptidoesProfissionais) 
-                    ? resultados.aptidoesProfissionais.join(", ") 
+                Aptidões e Potencialidades Profissionais: <span style={{ ...styles.value, ...styles.itemValue }}>
+                  {Array.isArray(resultados.aptidoesProfissionais)
+                    ? resultados.aptidoesProfissionais.join(", ")
                     : resultados.aptidoesProfissionais}
                 </span>
               </h3>
@@ -759,19 +696,7 @@ export default function Visualizar({ resultados, nome, dataNascimento }) {
           <button onClick={() => window.print()} className="btn-imprimir">
             Imprimir
           </button>
-          <button 
-            onClick={() => setIsVoiceModalOpen(true)} 
-            className="btn-audio"
-          >
-            Gerar Áudio
-          </button>
         </div>
-
-        <VoiceModal 
-          isOpen={isVoiceModalOpen}
-          onClose={() => setIsVoiceModalOpen(false)}
-          onGenerate={handleGenerateAudio}
-        />
 
         {isLoading && <LoadingOverlay />}
       </div>
