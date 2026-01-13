@@ -15,7 +15,7 @@ const SUPABASE_DB_CONFIG = {
     database: process.env.POSTGRES_DB || 'postgres',
     user: process.env.POSTGRES_USER || 'postgres',
     password: process.env.POSTGRES_PASSWORD,
-    ssl: pgHost === 'localhost' ? false : { rejectUnauthorized: false }
+    ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : false
 };
 
 // Configurações Notion
