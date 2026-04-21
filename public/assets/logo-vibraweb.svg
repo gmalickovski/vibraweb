@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 140" role="img" aria-label="Vibraweb">
+  <defs>
+    <linearGradient id="vw-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FDB813"></stop>
+      <stop offset="55%" stop-color="#E85D04"></stop>
+      <stop offset="100%" stop-color="#C0397B"></stop>
+    </linearGradient>
+  </defs>
+
+  
+  <g font-family="Poppins, Inter, sans-serif" font-weight="900" font-size="88" fill="#F3F4F6">
+    <text x="30" y="96">Vibr</text>
+  </g>
+
+  
+  <g transform="translate(240, 70)">
+    <g fill="none" stroke="url(#vw-grad)" stroke-linecap="round">
+      <path d="M -52 -8 A 52 52 0 0 1 -44 -28" stroke-width="3" opacity="0.95"></path>
+      <path d="M 52 -8 A 52 52 0 0 0 44 -28" stroke-width="3" opacity="0.95"></path>
+      <path d="M -52 8 A 52 52 0 0 0 -44 28" stroke-width="3" opacity="0.95"></path>
+      <path d="M 52 8 A 52 52 0 0 1 44 28" stroke-width="3" opacity="0.95"></path>
+
+      <path d="M -62 -6 A 62 62 0 0 1 -50 -34" stroke-width="2" opacity="0.55"></path>
+      <path d="M 62 -6 A 62 62 0 0 0 50 -34" stroke-width="2" opacity="0.55"></path>
+      <path d="M -62 6 A 62 62 0 0 0 -50 34" stroke-width="2" opacity="0.55"></path>
+      <path d="M 62 6 A 62 62 0 0 1 50 34" stroke-width="2" opacity="0.55"></path>
+
+      <path d="M -72 -4 A 72 72 0 0 1 -56 -40" stroke-width="1.5" opacity="0.3"></path>
+      <path d="M 72 -4 A 72 72 0 0 0 56 -40" stroke-width="1.5" opacity="0.3"></path>
+      <path d="M -72 4 A 72 72 0 0 0 -56 40" stroke-width="1.5" opacity="0.3"></path>
+      <path d="M 72 4 A 72 72 0 0 1 56 40" stroke-width="1.5" opacity="0.3"></path>
+    </g>
+
+    <circle cx="0" cy="0" r="38" fill="none" stroke="url(#vw-grad)" stroke-width="5"></circle>
+    <circle cx="-4" cy="2" r="18" fill="none" stroke="#F3F4F6" stroke-width="5"></circle>
+    <path d="M 14 -16 L 14 16 Q 14 28 26 28 Q 38 28 38 14" fill="none" stroke="#F3F4F6" stroke-width="5" stroke-linecap="round"></path>
+  </g>
+
+  
+  <g font-family="Poppins, Inter, sans-serif" font-weight="900" font-size="88" fill="url(#vw-grad)">
+    <text x="294" y="96">web</text>
+  </g>
+</svg>

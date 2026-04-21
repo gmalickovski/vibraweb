@@ -1,0 +1,113 @@
+/* Vibraweb — Design Tokens */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --vw-night:        #120A10;
+  --vw-night-2:      #1C1016;
+  --vw-plum:         #2A1620;
+  --vw-plum-border:  #3A1E2B;
+
+  --vw-gold:         #FDB813;
+  --vw-coral:        #E85D04;
+  --vw-magenta:      #C0397B;
+  --vw-wine:         #581C3C;
+
+  --vw-grad-sunrise: linear-gradient(90deg, #FDB813, #E85D04 55%, #C0397B);
+  --vw-grad-cta:     linear-gradient(90deg, #FDB813, #E85D04);
+  --vw-grad-text:    linear-gradient(90deg, #FDB813, #C0397B);
+  --vw-grad-glow:    radial-gradient(circle, rgba(88,28,60,0.35), transparent 70%);
+
+  --vw-fg:           #F3F4F6;
+  --vw-fg-2:         #D1D5DB;
+  --vw-fg-3:         #9CA3AF;
+  --vw-fg-4:         #6B7280;
+  --vw-divider:      rgba(255,255,255,0.08);
+
+  --vw-paper:        #FBF7F4;
+  --vw-paper-2:      #F1E9E2;
+  --vw-ink:          #1C1016;
+  --vw-ink-2:        #4A2F3B;
+
+  --vw-success:      #2EA36A;
+  --vw-warn:         #FDB813;
+  --vw-error:        #E23E57;
+  --vw-info:         #8E7DDB;
+
+  --vw-r-xs:   4px;
+  --vw-r-sm:   8px;
+  --vw-r-md:   12px;
+  --vw-r-lg:   16px;
+  --vw-r-xl:   24px;
+  --vw-r-2xl:  32px;
+  --vw-r-full: 9999px;
+
+  --vw-s-1:  4px;
+  --vw-s-2:  8px;
+  --vw-s-3:  12px;
+  --vw-s-4:  16px;
+  --vw-s-5:  24px;
+  --vw-s-6:  32px;
+  --vw-s-7:  48px;
+  --vw-s-8:  64px;
+  --vw-s-9:  96px;
+
+  --vw-shadow-sm:    0 1px 2px rgba(0,0,0,0.4);
+  --vw-shadow-md:    0 6px 18px rgba(0,0,0,0.35);
+  --vw-shadow-lg:    0 12px 36px rgba(0,0,0,0.45);
+  --vw-glow-gold:    0 4px 15px rgba(253,184,19,0.2);
+  --vw-glow-gold-hi: 0 6px 20px rgba(253,184,19,0.4);
+  --vw-glow-wine:    0 0 60px rgba(88,28,60,0.35);
+
+  --vw-font-display: 'Poppins', 'Inter', system-ui, sans-serif;
+  --vw-font-body:    'Inter', system-ui, -apple-system, sans-serif;
+  --vw-font-mono:    'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --vw-ease-out:    cubic-bezier(0.2, 0.8, 0.2, 1);
+  --vw-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --vw-dur-fast:   150ms;
+  --vw-dur-base:   300ms;
+  --vw-dur-slow:   600ms;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--vw-night);
+  color: var(--vw-fg);
+  font-family: var(--vw-font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--vw-font-display);
+  color: var(--vw-fg);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+p { margin: 0; }
+
+a { color: inherit; text-decoration: none; }
+
+button { cursor: pointer; font-family: inherit; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--vw-plum-border); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+.vw-grad-text {
+  background: var(--vw-grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}

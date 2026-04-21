@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/tmp/**)",
+      "Bash(cp \"/c/Users/gmali/.claude/projects/C--Dev-vibraweb/ec934e8e-3946-4d70-86ad-4d2c68fc828d/tool-results/webfetch-1776786677917-otppyo.bin\" design.gz)",
+      "Bash(gunzip -f design.gz)",
+      "Bash(file design *)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(npm run *)"
+    ]
+  }
+}
