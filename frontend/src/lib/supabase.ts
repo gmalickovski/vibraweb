@@ -45,6 +45,7 @@ export interface UserProfile {
   consultant_contact: string
   logo_url: string | null
   plan: 'free' | 'pro'
+  role: 'user' | 'admin' | 'teste'
 }
 
 export async function fetchUserProfile(): Promise<UserProfile | null> {
@@ -52,7 +53,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
   if (!user) return null
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('id, consultant_name, consultant_contact, logo_url, plan')
+    .select('id, consultant_name, consultant_contact, logo_url, plan, role')
     .eq('id', user.id)
     .single()
   if (error) return null

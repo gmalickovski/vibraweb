@@ -85,7 +85,8 @@ export function AppPage({ onLogout }: Props) {
 
   const consultantName = profile?.consultant_name ?? 'Vibraweb'
   const consultantContact = profile?.consultant_contact ?? 'vibraweb.com.br'
-  const workspaceName = `${consultantName} · ${profile?.plan === 'pro' ? 'Pro' : 'Essencial'}`
+  const roleTag = profile?.role === 'admin' ? '[Admin]' : profile?.role === 'teste' ? '[Teste]' : ''
+  const workspaceName = `${consultantName} · ${profile?.plan === 'pro' ? 'Pro' : 'Essencial'} ${roleTag}`.trim()
 
   return (
     <div style={{
