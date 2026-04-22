@@ -1,5 +1,7 @@
+import { motion } from 'framer-motion'
 import { t } from '../../lib/tokens'
 import { PrimaryBtn } from '../shared/Button'
+import { RippleBackground } from './RippleBackground'
 
 interface Props {
   onCta: () => void
@@ -9,60 +11,66 @@ export function Hero({ onCta }: Props) {
   return (
     <section style={{
       position: 'relative',
-      padding: '140px 32px',
+      padding: '160px 32px',
       overflow: 'hidden',
       textAlign: 'center',
     }}>
-      {/* Wine glow */}
+      {/* Background Ripple & Glow */}
       <div style={{
         position: 'absolute', top: -100, left: '50%', transform: 'translateX(-50%)',
-        width: 700, height: 700, borderRadius: 999,
-        background: 'radial-gradient(circle, rgba(88,28,60,.35), transparent 70%)',
+        width: 800, height: 800, borderRadius: 999,
+        background: 'radial-gradient(circle, rgba(88,28,60,.3), transparent 70%)',
         filter: 'blur(100px)', zIndex: 0, pointerEvents: 'none',
       }} />
+      <RippleBackground />
 
-      <div style={{ position: 'relative', maxWidth: 1120, margin: '0 auto' }}>
+      <motion.div 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        style={{ position: 'relative', maxWidth: 1120, margin: '0 auto', zIndex: 1 }}
+      >
         <span style={{
-          fontFamily: t.body, fontSize: 12, fontWeight: 600, color: t.gold,
+          fontFamily: t.body, fontSize: 13, fontWeight: 600, color: t.gold,
           textTransform: 'uppercase', letterSpacing: '.12em',
-          padding: '6px 14px', borderRadius: 999,
+          padding: '8px 18px', borderRadius: 999,
           border: '1px solid rgba(253,184,19,.25)',
-          background: 'rgba(253,184,19,.05)',
+          background: 'rgba(253,184,19,.08)',
         }}>
-          Plataforma SaaS · Numerologia Cabalística
+          Acelere seus Atendimentos
         </span>
 
         <h1 style={{
-          fontFamily: t.display, fontWeight: 900, fontSize: 80, lineHeight: 1.05,
-          letterSpacing: '-.02em', color: t.fg, margin: '24px 0 18px',
+          fontFamily: t.display, fontWeight: 900, fontSize: 72, lineHeight: 1.1,
+          letterSpacing: '-.02em', color: t.fg, margin: '32px 0 20px',
         }}>
-          Sua assinatura em<br />
+          Geração instantânea e análise de<br />
           <span style={{
             background: t.gradText,
             WebkitBackgroundClip: 'text', backgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
-            harmonia com os números.
+            mapas numerológicos cabalísticos.
           </span>
         </h1>
 
         <p style={{
-          fontFamily: t.body, fontSize: 19, color: t.fg2,
-          maxWidth: 680, margin: '0 auto 32px', lineHeight: 1.6,
+          fontFamily: t.body, fontSize: 20, color: t.fg2,
+          maxWidth: 720, margin: '0 auto 40px', lineHeight: 1.6,
         }}>
-          Gere mapas de numerologia cabalística com a sua marca, em tempo real.
-          Análise pessoal, nome de bebê, nome empresarial e previsões —
-          exportáveis em PDF e DOCX.
+          Sua plataforma definitiva para testes ágeis no dia a dia e para a emissão de cadernos em PDFs com a sua própria marca e seus textos personalizados.
         </p>
 
-        <PrimaryBtn onClick={onCta} style={{ fontSize: 15, padding: '18px 34px' }}>
-          Começar Grátis
-        </PrimaryBtn>
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ display: 'inline-block' }}>
+          <PrimaryBtn onClick={onCta} style={{ fontSize: 16, padding: '20px 42px', boxShadow: '0 8px 30px rgba(88,28,60, 0.4)' }}>
+            Experimentar a Plataforma
+          </PrimaryBtn>
+        </motion.div>
 
-        <p style={{ fontFamily: t.body, fontSize: 13, color: t.fg4, marginTop: 14 }}>
-          14 dias grátis · sem cartão de crédito
+        <p style={{ fontFamily: t.body, fontSize: 14, color: t.fg4, marginTop: 18 }}>
+          Liberação imediata · Comece seu teste com a conta gratuita
         </p>
-      </div>
+      </motion.div>
     </section>
   )
 }

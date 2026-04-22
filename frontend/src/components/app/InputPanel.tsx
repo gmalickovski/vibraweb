@@ -31,13 +31,13 @@ export function InputPanel({ data, setData, tab, setTab }: Props) {
       gap: 22,
       overflowY: 'auto',
     }}>
-      <div>
+      <div style={{ padding: '32px 32px 24px' }}>
         <h1 style={{
-          fontFamily: t.display, fontWeight: 900, fontSize: 22,
-          color: t.fg, letterSpacing: '-.02em',
-        }}>Nova Análise</h1>
-        <p style={{ fontFamily: t.body, fontSize: 13, color: t.fg3, marginTop: 4, lineHeight: 1.5 }}>
-          Digite e veja os números surgirem em tempo real.
+          fontFamily: t.display, fontWeight: 700, fontSize: 24, margin: 0,
+          color: t.fg,
+        }}>Novo Mapa Numerológico</h1>
+        <p style={{ color: t.fg3, fontSize: 13, margin: '6px 0 0', fontFamily: t.body }}>
+          Insira os dados do seu cliente para gerar os cálculos instantaneamente.
         </p>
       </div>
 

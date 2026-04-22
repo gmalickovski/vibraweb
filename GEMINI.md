@@ -11,16 +11,21 @@
 - Após qualquer alteração no frontend, rodar `npm run build` e confirmar build limpo.
 - Para Edge Functions ou SQL, testar a query/função antes de marcar como concluído.
 
-### 3. Arquitetura backend/frontend
+### 3. Arquitetura do Repositório (Frontend e Backend)
 
-**Frontend (browser):**
-- Apenas código de UI (React) e chamadas ao Supabase com a **anon key**.
-- Toda proteção de dados é feita por **RLS** no banco — não confiar em validações só no client.
-- **Jamais** colocar service role key, tokens de pagamento, secrets ou qualquer credencial sensível no código frontend.
+O repositório é explicitamente dividido em dois diretórios principais para organização modular:
 
-**Backend (Supabase Edge Functions):**
-- Toda lógica que exige privilégios elevados vai em Edge Functions: geração de PDF/DOCX, webhooks de pagamento, operações administrativas.
-- Edge Functions usam a service role key via variável de ambiente do Supabase (não `.env.local`).
+**`frontend/` (browser):**
+- Contém toda a base em React, os arquivos originais do Vite e as tipagens de UI.
+- Faz chamadas ao Supabase utilizando apelas a **anon key**.
+- Toda proteção de dados é feita por **RLS** no banco — não confiar em validações de UI.
+- **Jamais** colocar service role key, tokens de pagamento ou qualquer credencial sensível no código.
+
+**`backend/` (Supabase, Edge Functions e Configs):**
+- Contém a subpasta `supabase/migrations/` responsável por guardar histórico de todos os comandos SQL executados na base via Painel ou por MCPs.
+- Contém lógica para permitir que usuários customizem as definições via tabela `user_interpretations`.
+- Toda lógica que exige privilégios elevados vai em Edge Functions.
+- Edge Functions usam a service role key via variável de ambiente (não a pub-key).
 
 ### 4. Credenciais e variáveis de ambiente
 - Todas as variáveis ficam no arquivo `.env.local` (nunca commitado).
@@ -61,10 +66,12 @@ VITE_SUPABASE_ANON_KEY=sb_publishable_...      # frontend — seguro
 
 ## Comandos
 
+Todos os comandos de client-side devem ser executados dentro da pasta `frontend/`:
+
 ```bash
-npm run dev      # servidor local → http://localhost:5173
-npm run build    # type-check TypeScript + build de produção
-npm run preview  # preview do build de produção
+cd frontend && npm run dev      # servidor local → http://localhost:5173
+cd frontend && npm run build    # type-check TypeScript + build de produção
+cd frontend && npm run preview  # preview do build de produção
 ```
 
 ## Documentação interna

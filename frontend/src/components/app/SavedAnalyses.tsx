@@ -3,11 +3,11 @@ import { t } from '../../lib/tokens'
 import { listAnalyses, deleteAnalysis, type AnalysisRow } from '../../lib/supabase'
 import type { AnalysisData, AnalysisTab } from '../../pages/AppPage'
 
-const typeLabel: Record<AnalysisRow['type'], string> = {
-  pessoal:   'Análise Pessoal',
-  bebe:      'Nome de Bebê',
-  empresa:   'Empresarial',
-  previsoes: 'Previsões',
+const typeLabel: Record<AnalysisTab, string> = {
+  pessoal:   'Mapa Pessoal',
+  bebe:      'Mapa do Bebê',
+  empresa:   'Mapa da Empresa',
+  previsoes: 'Mapa de Previsões',
 }
 
 const typeColor: Record<AnalysisRow['type'], string> = {

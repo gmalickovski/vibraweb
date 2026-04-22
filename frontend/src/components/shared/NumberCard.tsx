@@ -7,6 +7,7 @@ interface Props {
   value: number | null
   accent?: Accent
   large?: boolean
+  onClick?: () => void
 }
 
 const accentGradients: Record<Accent, string | null> = {
@@ -24,7 +25,7 @@ const accentColors: Record<Accent, string> = {
   info:    t.info,
 }
 
-export function NumberCard({ label, value, accent = 'gold', large }: Props) {
+export function NumberCard({ label, value, accent = 'gold', large, onClick }: Props) {
   const grad = accentGradients[accent]
   const color = accentColors[accent]
   const numStyle = grad
@@ -32,13 +33,32 @@ export function NumberCard({ label, value, accent = 'gold', large }: Props) {
     : { color }
 
   return (
-    <div style={{
-      background: 'rgba(42,22,32,.35)',
-      border: `1px solid ${t.pb}`,
-      borderRadius: 16,
-      padding: large ? '18px 14px' : '14px 10px',
-      textAlign: 'center',
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        background: 'rgba(42,22,32,.35)',
+        border: `1px solid ${t.pb}`,
+        borderRadius: 16,
+        padding: large ? '18px 14px' : '14px 10px',
+        textAlign: 'center',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.2s, background 0.2s, box-shadow 0.2s',
+      }}
+      onMouseEnter={e => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'scale(1.02)'
+          e.currentTarget.style.background = 'rgba(42,22,32,.55)'
+          e.currentTarget.style.boxShadow = `0 4px 15px rgba(0,0,0,0.2), 0 0 0 1px ${color}`
+        }
+      }}
+      onMouseLeave={e => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'scale(1)'
+          e.currentTarget.style.background = 'rgba(42,22,32,.35)'
+          e.currentTarget.style.boxShadow = 'none'
+        }
+      }}
+    >
       <div style={{
         fontFamily: t.display,
         fontWeight: 900,

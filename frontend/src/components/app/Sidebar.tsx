@@ -1,21 +1,17 @@
 import { t } from '../../lib/tokens'
-
-type SidebarItem = 'new' | 'saved' | 'templates' | 'brand' | 'settings'
-
-interface Props {
-  active: SidebarItem
-  onChange: (id: SidebarItem) => void
-}
+import { Link, useLocation } from 'react-router-dom'
 
 const items = [
-  { id: 'new' as const,       label: 'Nova Análise',      icon: '✎' },
-  { id: 'saved' as const,     label: 'Análises Salvas',   icon: '❋' },
-  { id: 'templates' as const, label: 'Modelos',            icon: '▣' },
-  { id: 'brand' as const,     label: 'Minha Marca',        icon: '✦', pro: true },
-  { id: 'settings' as const,  label: 'Configurações',      icon: '⚙' },
+  { id: 'novo',       label: 'Novo Mapa',          icon: '✎', path: '/app/novo' },
+  { id: 'salvos',     label: 'Mapas Salvos',       icon: '❋', path: '/app/salvos' },
+  { id: 'templates',  label: 'Modelos',            icon: '▣', path: '/app/modelos' },
+  { id: 'textos',     label: 'Personalizar Textos', icon: '☷', pro: true, path: '/app/textos' },
+  { id: 'brand',      label: 'Minha Marca',        icon: '✦', pro: true, path: '/app/marca' },
+  { id: 'settings',   label: 'Configurações',      icon: '⚙', path: '/app/configuracoes' },
 ]
 
-export function Sidebar({ active, onChange }: Props) {
+export function Sidebar() {
+  const location = useLocation()
   return (
     <aside style={{
       width: 220,
@@ -33,17 +29,18 @@ export function Sidebar({ active, onChange }: Props) {
       </div>
 
       {items.map(it => {
-        const on = it.id === active
+        const on = location.pathname.startsWith(it.path) || (it.path === '/app/novo' && location.pathname === '/app')
         return (
-          <button
+          <Link
             key={it.id}
-            onClick={() => onChange(it.id)}
+            to={it.path}
             style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '10px 12px',
               border: 0,
               background: on ? 'rgba(253,184,19,.08)' : 'transparent',
               color: on ? t.gold : t.fg2,
+              textDecoration: 'none',
               fontFamily: t.body,
               fontSize: 13,
               fontWeight: 500,
@@ -67,7 +64,7 @@ export function Sidebar({ active, onChange }: Props) {
                 color: t.night2,
               }}>PRO</span>
             )}
-          </button>
+          </Link>
         )
       })}
 

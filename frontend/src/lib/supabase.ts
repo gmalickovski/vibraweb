@@ -27,14 +27,73 @@ export async function fetchInterpretation(
   tipo: string
 ): Promise<InterpretationRow | null> {
   if (!numero) return null
+  
+  // 1) First check if user has a custom override
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: customData, error: customErr } = await supabase
+      .from('user_interpretations')
+      .select('numero, tipo, texto')
+      .eq('user_id', user.id)
+      .eq('numero', numero)
+      .eq('tipo', tipo)
+      .single()
+      
+    if (!customErr && customData) {
+      return { ...customData, titulo: `Personalizado: ${tipo}` } as InterpretationRow
+    }
+  }
+
+  // 2) Try the exact tipo in the defaults table
   const { data, error } = await supabase
     .from('interpretacoes')
     .select('numero, tipo, titulo, texto')
     .eq('numero', numero)
     .eq('tipo', tipo)
     .single()
-  if (error) return null
-  return data as InterpretationRow
+  if (!error && data) return data as InterpretationRow
+
+  // 3) Fallback: strip the tab prefix (e.g. "pessoal_destino" → "destino")
+  const baseTipo = tipo.includes('_') ? tipo.split('_').slice(1).join('_') : null
+  if (baseTipo && baseTipo !== tipo) {
+    const { data: fallback, error: fallbackErr } = await supabase
+      .from('interpretacoes')
+      .select('numero, tipo, titulo, texto')
+      .eq('numero', numero)
+      .eq('tipo', baseTipo)
+      .single()
+    if (!fallbackErr && fallback) return fallback as InterpretationRow
+  }
+
+  return null
+}
+
+export async function saveUserInterpretation(
+  numero: number,
+  tipo: string,
+  texto: string | null
+): Promise<boolean> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  if (!texto) {
+    // Drop the custom if user restores default
+    const { error } = await supabase
+      .from('user_interpretations')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('numero', numero)
+      .eq('tipo', tipo)
+    return !error
+  }
+
+  const { error } = await supabase
+    .from('user_interpretations')
+    .upsert(
+      { user_id: user.id, numero, tipo, texto, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id, numero, tipo' }
+    )
+  return !error
 }
 
 // ---------- User profiles (authenticated, own row only via RLS) ----------

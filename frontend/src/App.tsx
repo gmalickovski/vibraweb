@@ -1,25 +1,16 @@
-import { useState } from 'react'
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import { SitePage } from './pages/SitePage'
 import { LoginPage } from './pages/LoginPage'
 import { AppPage } from './pages/AppPage'
 
-type Screen = 'site' | 'login' | 'app'
-
 export function App() {
-  const [screen, setScreen] = useState<Screen>('site')
+  const navigate = useNavigate()
 
-  if (screen === 'login') {
-    return (
-      <LoginPage
-        onSuccess={() => setScreen('app')}
-        onBack={() => setScreen('site')}
-      />
-    )
-  }
-
-  if (screen === 'app') {
-    return <AppPage onLogout={() => setScreen('site')} />
-  }
-
-  return <SitePage onEnter={() => setScreen('login')} />
+  return (
+    <Routes>
+      <Route path="/" element={<SitePage onEnter={() => navigate('/login')} />} />
+      <Route path="/login" element={<LoginPage onSuccess={() => navigate('/app/novo')} onBack={() => navigate('/')} />} />
+      <Route path="/app/*" element={<AppPage onLogout={() => navigate('/')} />} />
+    </Routes>
+  )
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import { t } from '../lib/tokens'
 import { Sidebar } from '../components/app/Sidebar'
 import { TopBar } from '../components/app/TopBar'
@@ -6,6 +7,8 @@ import { InputPanel } from '../components/app/InputPanel'
 import { OutputPanel } from '../components/app/OutputPanel'
 import { ExportModal } from '../components/app/ExportModal'
 import { SavedAnalyses } from '../components/app/SavedAnalyses'
+import { CustomTexts } from '../components/app/CustomTexts'
+import { PreviewPage, savePreviewPayload } from './PreviewPage'
 import {
   fetchUserProfile, saveAnalysis, type UserProfile,
 } from '../lib/supabase'
@@ -41,10 +44,9 @@ interface Props {
 }
 
 export function AppPage({ onLogout }: Props) {
-  const [active, setActive] = useState<'new' | 'saved' | 'templates' | 'brand' | 'settings'>('new')
+  const navigate = useNavigate()
   const [tab, setTab] = useState<AnalysisTab>('pessoal')
   const [data, setData] = useState<AnalysisData>(defaultData)
-  const [showExport, setShowExport] = useState(false)
   const [saving, setSaving] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
@@ -83,6 +85,12 @@ export function AppPage({ onLogout }: Props) {
     setSaving(false)
   }
 
+  function handlePreview() {
+    const dob = tab === 'bebe' ? data.bebeDob : tab === 'empresa' ? data.fundacao : data.dob
+    savePreviewPayload({ map: currentNums, tab, subject: currentSubject, dataNascimento: dob, profile })
+    navigate('/app/preview')
+  }
+
   const consultantName = profile?.consultant_name ?? 'Vibraweb'
   const consultantContact = profile?.consultant_contact ?? 'vibraweb.com.br'
   const roleTag = profile?.role === 'admin' ? '[Admin]' : profile?.role === 'teste' ? '[Teste]' : ''
@@ -96,42 +104,59 @@ export function AppPage({ onLogout }: Props) {
       color: t.fg,
       overflow: 'hidden',
     }}>
-      <Sidebar active={active} onChange={setActive} />
+      <Sidebar />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <TopBar
           consultantName={workspaceName}
           theme={theme}
           onToggleTheme={toggleTheme}
-          onExport={() => setShowExport(true)}
+          onPreview={handlePreview}
           onSave={handleSave}
           saving={saving}
+          profile={profile}
+          previewSubject={`${currentSubject} — Mapa ${tab === 'bebe' ? 'do Bebê' : tab === 'empresa' ? 'da Empresa' : 'Pessoal'}`}
         />
 
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-          {active === 'saved' ? (
-            <SavedAnalyses
-              onLoad={(row) => {
-                setData(row.input_data)
-                setTab(row.type)
-                setActive('new')
-              }}
-            />
-          ) : (
-            <>
-              <InputPanel data={data} setData={setData} tab={tab} setTab={setTab} />
-              <OutputPanel
-                data={data}
-                tab={tab}
-                consultantName={consultantName}
-                consultantContact={consultantContact}
+          <Routes>
+            <Route path="salvos" element={
+              <SavedAnalyses
+                onLoad={(row) => {
+                  setData(row.input_data)
+                  setTab(row.type as AnalysisTab)
+                  navigate('/app/novo')
+                }}
               />
-            </>
-          )}
+            } />
+            <Route path="textos" element={<CustomTexts />} />
+            <Route path="preview" element={<PreviewPage />} />
+            <Route path="novo" element={
+              <>
+                <InputPanel data={data} setData={setData} tab={tab} setTab={setTab} />
+                <OutputPanel
+                  data={data}
+                  tab={tab}
+                  consultantName={consultantName}
+                  consultantContact={consultantContact}
+                />
+              </>
+            } />
+            <Route path="*" element={
+              <>
+                <InputPanel data={data} setData={setData} tab={tab} setTab={setTab} />
+                <OutputPanel
+                  data={data}
+                  tab={tab}
+                  consultantName={consultantName}
+                  consultantContact={consultantContact}
+                />
+              </>
+            } />
+          </Routes>
         </div>
       </div>
 
-      {showExport && <ExportModal onClose={() => setShowExport(false)} />}
     </div>
   )
 }

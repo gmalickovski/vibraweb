@@ -1,18 +1,19 @@
+import { motion } from 'framer-motion'
 import { t } from '../../lib/tokens'
 import { PrimaryBtn, SecondaryBtn } from '../shared/Button'
 
 const freeFeatures = [
-  'Até 3 análises por mês',
-  'Relatório PDF padrão',
-  'Logo da Vibraweb no relatório',
+  '7 dias de teste grátis na plataforma',
+  'Apoio tático em cálculos e resultados na UI',
+  'Geração de relatórios com limites',
+  'Mapa completo padrão (Logomarca Vibraweb)',
 ]
 const proFeatures = [
-  'Análises ilimitadas',
-  'White-label completo (logo, cores, contatos)',
-  'Exportação PDF e DOCX',
-  'Comparação de nomes de bebê (3 variações)',
-  'Modelos personalizáveis',
-  'Suporte prioritário',
+  'Uso ilimitado sem restrições de sistema',
+  'White-label completo (remoção total da marca Vibraweb)',
+  'Acesso ao painel "Personalizar Textos"',
+  'Mude a interpretação padrão de qualquer número e linha',
+  'Exportação PDF e DOCX com suas cores',
 ]
 
 interface Props {
@@ -35,35 +36,49 @@ export function Pricing({ onSignup }: Props) {
         filter: 'blur(100px)', zIndex: 0, pointerEvents: 'none',
       }} />
 
-      <div style={{ position: 'relative', maxWidth: 1120, margin: '0 auto' }}>
+      <motion.div 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.6 }}
+        style={{ position: 'relative', maxWidth: 1120, margin: '0 auto' }}
+      >
         <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 48px' }}>
           <h2 style={{
             fontFamily: t.display, fontWeight: 700, fontSize: 44, color: t.fg,
             letterSpacing: '-.02em', lineHeight: 1.1,
           }}>
-            Planos{' '}
+            Assinaturas{' '}
             <span style={{
               background: t.gradText,
               WebkitBackgroundClip: 'text', backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              Simples.
+              Sob Medida.
             </span>
           </h2>
+          <p style={{ fontFamily: t.body, fontSize: 16, color: t.fg3, marginTop: 12 }}>
+            Todos os novos cadastros ganham automaticamente os 7 dias de Teste Gratuito.
+          </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 780, margin: '0 auto' }}>
-          {/* Free */}
-          <div style={{
-            background: 'rgba(42,22,32,.35)',
-            border: `1px solid ${t.pb}`,
-            borderRadius: 24,
-            padding: 32,
-          }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20, maxWidth: 780, margin: '0 auto' }}>
+          {/* Essencial */}
+          <motion.div 
+            whileHover={{ y: -5 }}
+            style={{
+              background: 'rgba(42,22,32,.35)',
+              border: `1px solid ${t.pb}`,
+              borderRadius: 24,
+              padding: 32,
+            }}
+          >
             <h3 style={{ fontFamily: t.display, fontWeight: 700, fontSize: 22, color: t.fg, margin: 0 }}>Essencial</h3>
-            <p style={{ fontFamily: t.body, fontSize: 13, color: t.fg3, margin: '6px 0 20px' }}>Para começar.</p>
-            <div style={{ fontFamily: t.display, fontWeight: 900, fontSize: 48, color: t.fg, lineHeight: 1 }}>R$ 0</div>
-            <p style={{ fontFamily: t.body, fontSize: 12, color: t.fg4, margin: '2px 0 22px' }}>para sempre</p>
+            <p style={{ fontFamily: t.body, fontSize: 13, color: t.fg3, margin: '6px 0 20px' }}>Para testes ágeis e mapas bloqueados.</p>
+            <div style={{ fontFamily: t.display, fontWeight: 900, fontSize: 48, color: t.fg, lineHeight: 1 }}>
+              R$ 49<span style={{ fontSize: 16, color: t.fg4, fontWeight: 600 }}>/mês</span>
+            </div>
+            <p style={{ fontFamily: t.body, fontSize: 12, color: t.fg4, margin: '2px 0 22px' }}>ou plano anual disponível</p>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {freeFeatures.map(f => (
                 <li key={f} style={{ fontFamily: t.body, fontSize: 13, color: t.fg2 }}>
@@ -72,26 +87,29 @@ export function Pricing({ onSignup }: Props) {
               ))}
             </ul>
             <SecondaryBtn onClick={onSignup} style={{ marginTop: 26, width: '100%', justifyContent: 'center' }}>
-              Criar Conta
+              Testar Grátis
             </SecondaryBtn>
-          </div>
+          </motion.div>
 
           {/* Pro */}
-          <div style={{
-            background: 'rgba(42,22,32,.5)',
-            border: `1px solid ${t.wine}`,
-            borderRadius: 24,
-            padding: 32,
-            position: 'relative',
-            boxShadow: '0 0 40px rgba(253,184,19,.15), 0 0 60px rgba(232,93,4,.08)',
-          }}>
+          <motion.div 
+            whileHover={{ y: -5 }}
+            style={{
+              background: 'rgba(42,22,32,.5)',
+              border: `1px solid ${t.wine}`,
+              borderRadius: 24,
+              padding: 32,
+              position: 'relative',
+              boxShadow: '0 0 40px rgba(253,184,19,.15), 0 0 60px rgba(232,93,4,.08)',
+            }}
+          >
             <span style={{
               position: 'absolute', top: -12, right: 24,
               padding: '4px 12px', borderRadius: 999,
               background: t.gradCta,
               fontFamily: t.display, fontWeight: 700, fontSize: 10, color: t.night2,
               letterSpacing: '.08em',
-            }}>POPULAR</span>
+            }}>PREMIUM</span>
 
             <h3 style={{ fontFamily: t.display, fontWeight: 700, fontSize: 22, margin: 0 }}>
               <span style={{
@@ -100,11 +118,11 @@ export function Pricing({ onSignup }: Props) {
                 WebkitTextFillColor: 'transparent',
               }}>Pro</span>
             </h3>
-            <p style={{ fontFamily: t.body, fontSize: 13, color: t.fg3, margin: '6px 0 20px' }}>Para consultores profissionais.</p>
+            <p style={{ fontFamily: t.body, fontSize: 13, color: t.fg3, margin: '6px 0 20px' }}>Para quem leva a personalização a sério.</p>
             <div style={{ fontFamily: t.display, fontWeight: 900, fontSize: 48, color: t.fg, lineHeight: 1 }}>
-              R$ 79<span style={{ fontSize: 16, color: t.fg3, fontWeight: 600 }}>/mês</span>
+              R$ 97<span style={{ fontSize: 16, color: t.fg3, fontWeight: 600 }}>/mês</span>
             </div>
-            <p style={{ fontFamily: t.body, fontSize: 12, color: t.fg4, margin: '2px 0 22px' }}>ou R$ 790/ano</p>
+            <p style={{ fontFamily: t.body, fontSize: 12, color: t.fg4, margin: '2px 0 22px' }}>ou plano anual disponível</p>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {proFeatures.map(f => (
                 <li key={f} style={{ fontFamily: t.body, fontSize: 13, color: t.fg2 }}>
@@ -113,11 +131,11 @@ export function Pricing({ onSignup }: Props) {
               ))}
             </ul>
             <PrimaryBtn onClick={onSignup} style={{ marginTop: 26, width: '100%', justifyContent: 'center' }}>
-              Assinar Pro
+              Assinar Premium
             </PrimaryBtn>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </section>
   )
 }
