@@ -1,0 +1,279 @@
+// block-order.ts — shared config for "Blocos do Relatório" (Item 1, Fase 1).
+// Defines which of the 5 top-level report blocks — and which 2 sub-blocos de
+// "O Caminho e os Desafios" (Lições Cármicas, Débitos Cármicos) — o consultor
+// pode reordenar/ocultar em /app/blocos, e o valor padrão usado quando o perfil
+// ainda não tem `block_order` salvo (compatibilidade com perfis existentes).
+//
+// Decisão de produto (Guilherme, 2026-07-11 — ver Produto/docs/vibra-web/requisitos.md,
+// seção 1): os sub-blocos de "Caminho e Desafios" ganham controle individual de
+// ordem/visibilidade, não só o bloco pai.
+
+export interface ChildBlockOrder {
+  order: string[]
+  hidden: string[]
+}
+
+export interface BlockOrderConfig {
+  order: string[]
+  hidden: string[]
+  children?: Record<string, ChildBlockOrder>
+}
+
+export const DEFAULT_BLOCK_ORDER: BlockOrderConfig = {
+  order: [
+    'capa',
+    'orientacao',
+    'importante',
+    'os_seus_numeros',
+    'essencia',
+    'caminho',
+    'ciclos_tempo',
+    'relacionamentos',
+    'conclusao',
+  ],
+  hidden: [],
+  children: {
+    essencia: {
+      order: ['motivacao', 'impressao', 'expressao', 'talento_oculto', 'aptidoes'],
+      hidden: [],
+    },
+    caminho: {
+      order: ['dia_natalicio', 'psiquico', 'destino', 'missao', 'licao_carmica', 'debito_carmica', 'tendencia_oculta', 'resposta_subconsciente'],
+      hidden: [],
+    },
+    ciclos_tempo: {
+      order: ['ciclos_vida', 'desafios', 'momentos_decisivos', 'ano_pessoal', 'mes_pessoal', 'dia_pessoal'],
+      hidden: [],
+    },
+    relacionamentos: {
+      order: ['harmonia_conjugal', 'triangulo_vida'],
+      hidden: [],
+    },
+  },
+}
+
+export interface BlockDef {
+  id: string
+  label: string
+  description: string
+  /** true if this block can never be hidden (only reordered) */
+  lockedVisible?: boolean
+  children?: BlockDef[]
+}
+
+export const BLOCK_DEFS: BlockDef[] = [
+  {
+    id: 'capa',
+    label: 'Capa',
+    description: 'Capa do documento — sempre a 1ª página, não é reordenável nem pode ser ocultada.',
+    lockedVisible: true,
+  },
+  {
+    id: 'orientacao',
+    label: 'Orientação',
+    description: 'Texto de abertura, logo após a capa.',
+  },
+  {
+    id: 'importante',
+    label: 'Importante',
+    description: 'Explicação de como ler o mapa.',
+  },
+  {
+    id: 'os_seus_numeros',
+    label: 'Os Seus Números',
+    description: 'Resumo com todos os números calculados do cliente.',
+  },
+  {
+    id: 'essencia',
+    label: 'A Essência',
+    description: 'Traços de Personalidade',
+    children: [
+      { id: 'motivacao', label: 'Motivação', description: 'Número de Motivação' },
+      { id: 'impressao', label: 'Impressão', description: 'Número de Impressão' },
+      { id: 'expressao', label: 'Expressão', description: 'Número de Expressão' },
+      { id: 'talento_oculto', label: 'Talento Oculto', description: 'Talento Oculto' },
+      { id: 'aptidoes', label: 'Aptidões Profissionais', description: 'Aptidões baseadas na Expressão' },
+    ]
+  },
+  {
+    id: 'caminho',
+    label: 'O Caminho',
+    description: 'O Caminho e os Desafios de vida',
+    children: [
+      { id: 'dia_natalicio', label: 'Dia Natalício', description: 'Dia de Nascimento' },
+      { id: 'psiquico', label: 'Número Psíquico', description: 'Número Psíquico' },
+      { id: 'destino', label: 'Destino', description: 'Número de Destino' },
+      { id: 'missao', label: 'Missão', description: 'Número de Missão' },
+      { id: 'licao_carmica', label: 'Lições Cármicas', description: 'Números ausentes no nome' },
+      { id: 'debito_carmica', label: 'Débitos Cármicos', description: 'Débitos Cármicos' },
+      { id: 'tendencia_oculta', label: 'Tendências Ocultas', description: 'Números repetidos no nome' },
+      { id: 'resposta_subconsciente', label: 'Resposta Subconsciente', description: 'Número de Resposta Subconsciente' },
+    ]
+  },
+  {
+    id: 'ciclos_tempo',
+    label: 'Ciclos de Tempo',
+    description: 'Previsões e Ciclos',
+    children: [
+      { id: 'ciclos_vida', label: 'Ciclos de Vida', description: 'Ciclos de Vida' },
+      { id: 'desafios', label: 'Desafios', description: 'Desafios temporários e principal' },
+      { id: 'momentos_decisivos', label: 'Momentos Decisivos', description: 'Momentos Decisivos' },
+      { id: 'ano_pessoal', label: 'Ano Pessoal', description: 'Ano Pessoal corrente' },
+      { id: 'mes_pessoal', label: 'Mês Pessoal', description: 'Meses Pessoais' },
+      { id: 'dia_pessoal', label: 'Dia Pessoal', description: 'Dia Pessoal' },
+    ]
+  },
+  {
+    id: 'relacionamentos',
+    label: 'Relacionamentos e Cabalística',
+    description: 'Parcerias e Arcanos',
+    children: [
+      { id: 'harmonia_conjugal', label: 'Harmonia Conjugal', description: 'Tabela de harmonia baseada na Missão' },
+      { id: 'triangulo_vida', label: 'Triângulo da Vida', description: 'Triângulo da Vida (Arcanos)' },
+    ]
+  },
+  {
+    id: 'conclusao',
+    label: 'Conclusão',
+    description: 'Fecha o relatório. Texto ainda não configurado no sistema (conteúdo é Fase 2).',
+  },
+]
+
+// Mapeia os ids "externos" (usados em block_order, na UI) para os ids internos
+// de DocumentBlock produzidos por document-builder.ts.
+export const BLOCK_ID_MAP: Record<string, string> = {
+  capa: 'bloco-capa',
+  orientacao: 'bloco-orientacao',
+  importante: 'bloco-importante',
+  os_seus_numeros: 'bloco-numeros',
+  essencia: 'bloco-essencia',
+  caminho: 'bloco-caminho',
+  ciclos_tempo: 'bloco-ciclos',
+  relacionamentos: 'bloco-relacionamentos',
+  conclusao: 'bloco-conclusao',
+}
+
+// Mapeia chaves de sub-blocos (externos) para seus IDs internos correspondentes
+export const GROUP_CHILD_ID_MAP: Record<string, Record<string, string>> = {
+  essencia: {
+    motivacao: 'num-motivacao',
+    impressao: 'num-impressao',
+    expressao: 'num-expressao',
+    talento_oculto: 'num-talento',
+    aptidoes: 'num-aptidoes',
+  },
+  caminho: {
+    dia_natalicio: 'num-dia-natalicio',
+    psiquico: 'num-psiquico',
+    destino: 'num-destino',
+    missao: 'num-missao',
+    licao_carmica: 'licoes',
+    debito_carmica: 'debitos',
+    tendencia_oculta: 'tendencias',
+    resposta_subconsciente: 'num-resposta',
+  },
+  ciclos_tempo: {
+    ciclos_vida: 'ciclos',
+    desafios: 'desafios',
+    momentos_decisivos: 'momentos',
+    ano_pessoal: 'num-ano',
+    mes_pessoal: 'meses-pessoais',
+    dia_pessoal: 'num-dia',
+  },
+  relacionamentos: {
+    harmonia_conjugal: 'conjugal',
+    triangulo_vida: 'triangulo',
+  },
+}
+
+// Reconcilia uma ordem salva (possivelmente antiga, de antes de um bloco novo
+// existir) com a ordem padrão atual. Qualquer id que exista em `defaultOrder`
+// mas não em `saved` é inserido na MESMA posição relativa do padrão.
+function mergeWithDefaultOrder(saved: string[], defaultOrder: string[]): string[] {
+  const missing = defaultOrder.filter(id => !saved.includes(id))
+  if (missing.length === 0) return saved
+
+  const result = [...saved]
+  for (const id of missing) {
+    const defaultIdx = defaultOrder.indexOf(id)
+    let insertBeforeId: string | undefined
+    for (let i = defaultIdx + 1; i < defaultOrder.length; i++) {
+      if (result.includes(defaultOrder[i])) { insertBeforeId = defaultOrder[i]; break }
+    }
+    if (insertBeforeId) {
+      result.splice(result.indexOf(insertBeforeId), 0, id)
+    } else {
+      result.push(id)
+    }
+  }
+  return result
+}
+
+/** Garante um BlockOrderConfig válido a partir do valor (possivelmente nulo/antigo) salvo no perfil. */
+export function normalizeBlockOrder(raw: unknown): BlockOrderConfig {
+  if (!raw || typeof raw !== 'object') return DEFAULT_BLOCK_ORDER
+
+  const cfg = raw as Partial<BlockOrderConfig>
+  let savedOrder = Array.isArray(cfg.order) && cfg.order.length > 0 ? cfg.order : DEFAULT_BLOCK_ORDER.order
+  let savedHidden = Array.isArray(cfg.hidden) ? cfg.hidden : []
+
+  // Inicializa a estrutura de filhos a partir do padrão ou copia do perfil
+  const children: Record<string, ChildBlockOrder> = {}
+  for (const [groupKey, defaultVal] of Object.entries(DEFAULT_BLOCK_ORDER.children || {})) {
+    const userVal = cfg.children?.[groupKey]
+    children[groupKey] = {
+      order: userVal && Array.isArray(userVal.order) ? [...userVal.order] : [...defaultVal.order],
+      hidden: userVal && Array.isArray(userVal.hidden) ? [...userVal.hidden] : [...defaultVal.hidden],
+    }
+  }
+
+  // 1. Mapeia nomes antigos de grupos para o novo grupo "caminho"
+  savedOrder = savedOrder.map(id => {
+    if (id === 'caminho_desafios' || id === 'caminho_destino') return 'caminho'
+    return id
+  })
+  savedHidden = savedHidden.map(id => {
+    if (id === 'caminho_desafios' || id === 'caminho_destino') return 'caminho'
+    return id
+  })
+
+  // 2. Se vier de uma estrutura achatada recente, migra a visibilidade dos blocos de karma individuais
+  const karmicFlatIds = ['licoes_carmicas', 'debitos_carmicos', 'tendencias_ocultas']
+  const karmicChildIds: Record<string, string> = {
+    licoes_carmicas: 'licao_carmica',
+    debitos_carmicos: 'debito_carmica',
+    tendencias_ocultas: 'tendencia_oculta',
+  }
+
+  karmicFlatIds.forEach(flatId => {
+    const childId = karmicChildIds[flatId]
+    if (savedHidden.includes(flatId)) {
+      if (!children.caminho.hidden.includes(childId)) {
+        children.caminho.hidden.push(childId)
+      }
+    }
+  })
+
+  // Migra visibilidade de sub-blocos antigos de caminho_desafios se existirem
+  if (cfg.children && typeof cfg.children === 'object') {
+    const oldCaminhoDesafios = cfg.children['caminho_desafios'] as Partial<ChildBlockOrder> | undefined
+    if (oldCaminhoDesafios && Array.isArray(oldCaminhoDesafios.hidden)) {
+      oldCaminhoDesafios.hidden.forEach(h => {
+        const mapped = h === 'licoes_carmicas' ? 'licao_carmica' : (h === 'debitos_carmicos' ? 'debito_carmica' : h)
+        if (!children.caminho.hidden.includes(mapped)) {
+          children.caminho.hidden.push(mapped)
+        }
+      })
+    }
+  }
+
+  // 3. Remove chaves que agora pertencem a sub-blocos ou que são redundantes
+  const validTopLevelIds = new Set(DEFAULT_BLOCK_ORDER.order)
+  const order = mergeWithDefaultOrder(
+    savedOrder.filter(id => validTopLevelIds.has(id)),
+    DEFAULT_BLOCK_ORDER.order
+  )
+  const hidden = savedHidden.filter(id => validTopLevelIds.has(id))
+
+  return { order, hidden, children }
+}

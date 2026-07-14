@@ -18,17 +18,22 @@
 | `empresa` | Razão Social, Fantasia, Fundação, Sócio | `calcEmpresa` |
 | `previsoes` | Nome, DOB, Ano de Referência | `calcPrevisoes` |
 
-## NumerologyMap exibido
+## NumerologyMap exibido — Layout do OutputPanel
 
-Campos mostrados no `OutputPanel`:
+### A Essência (Traços de Personalidade)
+5 cards flex (min 90px, max 200px, `justifyContent: center` → órfãos centralizados):
+Motivação · Impressão · Expressão · Talento Oculto · Aptidões Profissionais
 
-**Cards (4×2 grid)**: Destino, Expressão, Motivação, Impressão, Missão, Talento Oculto, Psíquico, Ano Pessoal.
+### O Caminho e os Desafios
+- **Linha 1** (2 cards, grid 1fr 1fr): Destino · Missão
+- **Linha 2** (3 cards, grid 1fr 1fr 1fr): Dia Natalício · Número Psíquico · Resposta Subconsciente
+- **Linha 3** (condicional): Lições Cármicas · Débitos Cármicos · Tendências Ocultas
 
-**Chips**: Débitos Cármicos, Lições Cármicas.
+### Ciclos de Tempo (Previsões) — seção condicional
+Ciclos de Vida · Desafios · Momentos Decisivos · Ano Pessoal / Mês / Dia · Meses Pessoais
 
-**Desafios**: Desafio 1, Desafio 2, Desafio Principal.
-
-**Ciclos de Vida**: 3 ciclos com regente e período.
+### Relacionamentos e Cabalística — seção condicional
+Harmonia Conjugal · Triângulo da Vida · **Dias e Números Harmônicos** (subtítulo próprio)
 
 ## Baby Comparison
 
@@ -46,7 +51,15 @@ OutputPanel → useMemo(calc...) → NumberCards + BabyComparison + ReportPrevie
 
 ## Salvar análise
 
-Botão "Salvar" no TopBar → `saveAnalysis()` → `analyses` table (RLS: somente usuário autenticado).
+Botão "Salvar" no OutputPanel (`/app/novo`) → `saveAnalysis()` → `analyses` table → abre `SaveSuccessModal` com duas ações:
+- **"Editar Mapa Salvo"**: navega para `/app/salvos` com o mapa recém-salvo já carregado no painel.
+- **"Iniciar Nova Análise"**: limpa o formulário e fecha o modal.
+
+O botão "Prévia do Documento" **não aparece** em `/app/novo`. Aparece apenas em `/app/salvos` quando um mapa está carregado (`savedMode=true`).
+
+## Estado vazio do OutputPanel
+
+Quando não há nome nem data de nascimento preenchidos (`!hasData`), o OutputPanel exibe apenas um placeholder orientando o usuário. Seções e cards são ocultados para não poluir a tela.
 
 ## Perfil do consultor
 

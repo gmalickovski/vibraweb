@@ -1,0 +1,150 @@
+// block-order.ts — shared config for "Blocos do Relatório" (Item 1, Fase 1).
+// Defines which of the 5 top-level report blocks — and which 2 sub-blocos de
+// "O Caminho e os Desafios" (Lições Cármicas, Débitos Cármicos) — o consultor
+// pode reordenar/ocultar em /app/blocos, e o valor padrão usado quando o perfil
+// ainda não tem `block_order` salvo (compatibilidade com perfis existentes).
+//
+// Decisão de produto (Guilherme, 2026-07-11 — ver Produto/docs/vibra-web/requisitos.md,
+// seção 1): os sub-blocos de "Caminho e Desafios" ganham controle individual de
+// ordem/visibilidade, não só o bloco pai.
+
+export interface ChildBlockOrder {
+  order: string[]
+  hidden: string[]
+}
+
+export interface BlockOrderConfig {
+  order: string[]
+  hidden: string[]
+  children?: Record<string, ChildBlockOrder>
+}
+
+export const DEFAULT_BLOCK_ORDER: BlockOrderConfig = {
+  order: [
+    'capa',
+    'orientacao',
+    'importante',
+    'os_seus_numeros',
+    'essencia',
+    'caminho_desafios',
+    'ciclos_tempo',
+    'relacionamentos',
+    'conclusao',
+  ],
+  hidden: [],
+  children: {
+    caminho_desafios: {
+      order: ['licoes_carmicas', 'debitos_carmicos'],
+      hidden: [],
+    },
+  },
+}
+
+export interface BlockDef {
+  id: string
+  label: string
+  description: string
+  /** true if this block can never be hidden (only reordered) */
+  lockedVisible?: boolean
+  children?: BlockDef[]
+}
+
+export const BLOCK_DEFS: BlockDef[] = [
+  {
+    id: 'capa',
+    label: 'Capa',
+    description: 'Capa do documento — sempre a 1ª página, não é reordenável nem pode ser ocultada.',
+    lockedVisible: true,
+  },
+  {
+    id: 'orientacao',
+    label: 'Orientação',
+    description: 'Texto de abertura, logo após a capa.',
+  },
+  {
+    id: 'importante',
+    label: 'Importante',
+    description: 'Explicação de como ler o mapa.',
+  },
+  {
+    id: 'os_seus_numeros',
+    label: 'Os Seus Números',
+    description: 'Resumo com todos os números calculados do cliente.',
+  },
+  {
+    id: 'essencia',
+    label: 'A Essência',
+    description: 'Motivação · Impressão · Expressão · Talento Oculto · Aptidões',
+  },
+  {
+    id: 'caminho_desafios',
+    label: 'O Caminho e os Desafios',
+    description: 'Dia Natalício · Número Psíquico · Destino · Missão · Tendências · Resposta Subconsciente',
+    children: [
+      {
+        id: 'licoes_carmicas',
+        label: 'Lições Cármicas',
+        description: 'Só aparece no documento se o mapa do cliente tiver lições cármicas.',
+      },
+      {
+        id: 'debitos_carmicos',
+        label: 'Débitos Cármicos',
+        description: 'Só aparece no documento se o mapa do cliente tiver débitos cármicos.',
+      },
+    ],
+  },
+  {
+    id: 'ciclos_tempo',
+    label: 'Ciclos de Tempo',
+    description: 'Ciclos de Vida · Desafios · Momentos Decisivos · Ano/Mês/Dia Pessoal',
+  },
+  {
+    id: 'relacionamentos',
+    label: 'Relacionamentos e Cabalística',
+    description: 'Harmonia Conjugal · Triângulo da Vida',
+  },
+  {
+    id: 'conclusao',
+    label: 'Conclusão',
+    description: 'Fecha o relatório. Texto ainda não configurado no sistema (conteúdo é Fase 2).',
+  },
+]
+
+// Mapeia os ids "externos" (usados em block_order, na UI) para os ids internos
+// de DocumentBlock produzidos por document-builder.ts.
+export const BLOCK_ID_MAP: Record<string, string> = {
+  capa: 'bloco-capa',
+  orientacao: 'bloco-orientacao',
+  importante: 'bloco-importante',
+  os_seus_numeros: 'bloco-numeros',
+  essencia: 'bloco-essencia',
+  caminho_desafios: 'bloco-caminho',
+  ciclos_tempo: 'bloco-ciclos',
+  relacionamentos: 'bloco-relacionamentos',
+  conclusao: 'bloco-conclusao',
+}
+
+// Mapeia os 2 sub-blocos reordenáveis de "Caminho e Desafios" para os ids
+// internos usados dentro do array filhosCaminho em document-builder.ts.
+export const CHILD_ID_MAP: Record<string, string> = {
+  licoes_carmicas: 'licoes',
+  debitos_carmicos: 'debitos',
+}
+
+// Reconcilia uma ordem salva (possivelmente antiga, de antes de um bloco novo
+// existir — ex: perfis salvos antes da separação de Orientação/Importante/Os
+// Seus Números em blocos próprios) com a ordem padrão atual. Qualquer id que
+// exista em `defaultOrder` mas não em `saved` é inserido na MESMA posição
+// relativa do padrão (antes do próximo id conhecido), em vez de simplesmente
+// cair no fim da lista — que era o bug: blocos novos apareciam depois de
+// Conclusão ao invés de logo após a Capa. Guilherme, 2026-07-12.
+function mergeWithDefaultOrder(saved: string[], defaultOrder: string[]): string[] {
+  const missing = defaultOrder.filter(id => !saved.includes(id))
+  if (missing.length === 0) return saved
+
+  const result = [...saved]
+  for (const id of missing) {
+    const defaultIdx = defaultOrder.indexOf(id)
+    let insertBeforeId: string | undefined
+    for (let i = defaultIdx + 1; i < defaultOrder.length; i++) {
+      if (result.includes(defaultOrder[i])) { insertBe

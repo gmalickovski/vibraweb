@@ -1,6 +1,13 @@
+// InputPanel.tsx — coluna de entrada de dados do "Novo Mapa" (/app/novo).
+// Redesenho (2026-07-12): título solto (h1 + parágrafo) virou o mesmo header
+// fixo com PageTitle (título + ícone de info) usado em Blocos/Templates/
+// Personalizar Textos — mesmo padrão de design em toda a área de edição do
+// app. Estrutura agora é header fixo / meio rolável (campos) / rodapé fixo
+// (aviso de auto-save), igual às outras páginas.
+
 import { t } from '../../lib/tokens'
 import { Field } from '../shared/Field'
-import { TabBar } from '../shared/TabBar'
+import { PageTitle } from '../shared/PageTitle'
 import type { AnalysisData, AnalysisTab } from '../../pages/AppPage'
 
 interface Props {
@@ -10,119 +17,56 @@ interface Props {
   setTab: (tab: AnalysisTab) => void
 }
 
-const TABS = [
-  { id: 'pessoal',   label: 'Pessoal' },
-  { id: 'bebe',      label: 'Bebê' },
-  { id: 'empresa',   label: 'Empresa' },
-  { id: 'previsoes', label: 'Previsões' },
-]
-
-export function InputPanel({ data, setData, tab, setTab }: Props) {
+export function InputPanel({ data, setData }: Props) {
   const set = (k: keyof AnalysisData) => (val: string) => setData({ ...data, [k]: val })
+
+  const handleDobChange = (val: string) => {
+    let v = val.replace(/\D/g, '')
+    if (v.length > 8) v = v.slice(0, 8)
+    if (v.length > 4) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4)
+    else if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2)
+    setData({ ...data, dob: v })
+  }
 
   return (
     <div style={{
       flex: '0 0 420px',
       background: t.night2,
       borderRight: `1px solid ${t.pb}`,
-      padding: 28,
       display: 'flex',
       flexDirection: 'column',
-      gap: 22,
-      overflowY: 'auto',
+      overflow: 'hidden',
     }}>
-      <div style={{ padding: '32px 32px 24px' }}>
-        <h1 style={{
-          fontFamily: t.display, fontWeight: 700, fontSize: 24, margin: 0,
-          color: t.fg,
-        }}>Novo Mapa Numerológico</h1>
-        <p style={{ color: t.fg3, fontSize: 13, margin: '6px 0 0', fontFamily: t.body }}>
-          Insira os dados do seu cliente para gerar os cálculos instantaneamente.
-        </p>
+      <div style={{ padding: 20, borderBottom: `1px solid ${t.pb}`, flexShrink: 0 }}>
+        <PageTitle
+          title="Mapa Pessoal"
+          info="Mapa numerológico pessoal. Preencha os campos abaixo com os dados do seu cliente para realizar a análise e gerar o relatório em PDF."
+          size={16}
+        />
       </div>
 
-      <TabBar tabs={TABS} value={tab} onChange={v => setTab(v as AnalysisTab)} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {tab === 'pessoal' && (
-          <>
-            <Field label="Nome Completo de Nascimento" value={data.nome} onChange={set('nome')} placeholder="Digite seu nome completo" />
-            <Field label="Data de Nascimento" value={data.dob} onChange={set('dob')} placeholder="DD/MM/AAAA" />
-            <Field label="Nome Social" value={data.social} onChange={set('social')} optional placeholder="Nome que você usa hoje" />
-          </>
-        )}
-
-        {tab === 'bebe' && (
-          <>
-            <Field label="Nome Sugerido para o Bebê" value={data.bebeNome} onChange={set('bebeNome')} placeholder="Digite o nome pretendido" />
-            <Field label="Sobrenome(s) da Família" value={data.bebeSobrenome} onChange={set('bebeSobrenome')} placeholder="Sobrenomes completos" />
-            <Field label="Data Prevista de Nascimento" value={data.bebeDob} onChange={set('bebeDob')} placeholder="DD/MM/AAAA" />
-            <div style={{
-              padding: 10, borderRadius: 10,
-              background: 'rgba(253,184,19,.06)',
-              border: `1px dashed ${t.pb}`,
-              fontFamily: t.body, fontSize: 11, color: t.fg3, lineHeight: 1.5,
-            }}>
-              Teste até <strong style={{ color: t.gold }}>3 variações</strong> de nome para comparar vibrações antes de decidir.
-              Use a aba de comparação abaixo.
-            </div>
-
-            <CompareBebeSection data={data} setData={setData} />
-          </>
-        )}
-
-        {tab === 'empresa' && (
-          <>
-            <Field label="Razão Social" value={data.empresa} onChange={set('empresa')} placeholder="Ex.: Studio MLK Ltda." />
-            <Field label="Nome Fantasia" value={data.fantasia} onChange={set('fantasia')} optional placeholder="Como a empresa é conhecida" />
-            <Field label="Data de Fundação" value={data.fundacao} onChange={set('fundacao')} placeholder="DD/MM/AAAA" />
-            <Field label="Sócio Principal" value={data.socio} onChange={set('socio')} optional placeholder="Nome completo do sócio" />
-          </>
-        )}
-
-        {tab === 'previsoes' && (
-          <>
-            <Field label="Nome Completo" value={data.nome} onChange={set('nome')} placeholder="Digite seu nome completo" />
-            <Field label="Data de Nascimento" value={data.dob} onChange={set('dob')} placeholder="DD/MM/AAAA" />
-            <Field label="Ano de Referência" value={data.anoRef || String(new Date().getFullYear())} onChange={set('anoRef')} placeholder="2026" />
-          </>
-        )}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Field label="Nome Completo de Nascimento" value={data.nome} onChange={set('nome')} placeholder="Digite o nome completo" />
+        <Field label="Data de Nascimento" value={data.dob} onChange={handleDobChange} placeholder="DD/MM/AAAA" />
       </div>
 
-      <div style={{
-        padding: 14, borderRadius: 12,
-        border: `1px dashed ${t.pb}`,
-        background: 'rgba(46,163,106,.05)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: t.success, fontWeight: 700 }}>✓</span>
-          <span style={{ fontFamily: t.body, fontSize: 12, color: t.success, fontWeight: 600 }}>
-            Cálculo em tempo real · auto-save
-          </span>
+      <div style={{ padding: 20, flexShrink: 0 }}>
+        <div style={{
+          padding: 14, borderRadius: 12,
+          border: `1px dashed ${t.pb}`,
+          background: 'rgba(46,163,106,.05)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: t.success, fontWeight: 700 }}>✓</span>
+            <span style={{ fontFamily: t.body, fontSize: 12, color: t.success, fontWeight: 600 }}>
+              Cálculo em tempo real · auto-save
+            </span>
+          </div>
+          <p style={{ fontFamily: t.body, fontSize: 11, color: t.fg3, margin: '6px 0 0', lineHeight: 1.5 }}>
+            Os números atualizam a cada toque. Exportação libera após todos os campos válidos.
+          </p>
         </div>
-        <p style={{ fontFamily: t.body, fontSize: 11, color: t.fg3, margin: '6px 0 0', lineHeight: 1.5 }}>
-          Os números atualizam a cada toque. Exportação libera após todos os campos válidos.
-        </p>
       </div>
-    </div>
-  )
-}
-
-function CompareBebeSection({ data, setData }: { data: AnalysisData; setData: (d: AnalysisData) => void }) {
-  const set = (k: keyof AnalysisData) => (val: string) => setData({ ...data, [k]: val })
-  return (
-    <div style={{
-      borderTop: `1px solid ${t.pb}`,
-      paddingTop: 16,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-    }}>
-      <div style={{ fontFamily: t.body, fontWeight: 600, fontSize: 11, color: t.fg3, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-        Comparar Variações (opcional)
-      </div>
-      <Field label="Variação 2" value={data.bebeNome2} onChange={set('bebeNome2')} optional placeholder="Segunda opção de nome" />
-      <Field label="Variação 3" value={data.bebeNome3} onChange={set('bebeNome3')} optional placeholder="Terceira opção de nome" />
     </div>
   )
 }

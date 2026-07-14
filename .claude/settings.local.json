@@ -9,7 +9,18 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "mcp__claude_ai_Supabase__apply_migration",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "mcp__7ddba85f-4e84-4af9-b9be-a6971fd6d812__list_projects",
+      "mcp__7ddba85f-4e84-4af9-b9be-a6971fd6d812__execute_sql",
+      "Bash(echo \"=== EXIT $? ===\")",
+      "Bash(rm -f /tmp/test_triangulo.mjs)",
+      "Bash(awk '{print length}' src/backend/numerology/interpretations.ts)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "mcp__7ddba85f-4e84-4af9-b9be-a6971fd6d812__apply_migration",
+      "Bash(node \"/c/Users/gmali/AppData/Local/Temp/claude/C--Dev-vibraweb/2d15659f-e11a-4d0c-989f-c99c22ab484d/scratchpad/verify.mjs\")",
+      "Bash(node \"/c/Users/gmali/AppData/Local/Temp/claude/C--Dev-vibraweb/2d15659f-e11a-4d0c-989f-c99c22ab484d/scratchpad/verify-tendencias.mjs\")",
+      "Bash(node \"/c/Users/gmali/AppData/Local/Temp/claude/C--Dev-vibraweb/2d15659f-e11a-4d0c-989f-c99c22ab484d/scratchpad/verify-tendencias2.mjs\")"
     ]
   }
 }

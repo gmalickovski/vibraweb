@@ -1,42 +1,31 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { t } from '../lib/tokens'
 import { Sidebar } from '../components/app/Sidebar'
-import { TopBar } from '../components/app/TopBar'
 import { InputPanel } from '../components/app/InputPanel'
 import { OutputPanel } from '../components/app/OutputPanel'
 import { ExportModal } from '../components/app/ExportModal'
+import { SaveSuccessModal } from '../components/app/SaveSuccessModal'
 import { SavedAnalyses } from '../components/app/SavedAnalyses'
 import { CustomTexts } from '../components/app/CustomTexts'
 import { PreviewPage, savePreviewPayload } from './PreviewPage'
 import {
-  fetchUserProfile, saveAnalysis, type UserProfile,
+  fetchUserProfile, saveAnalysis, updateAnalysis, type UserProfile, type TextOverrides,
 } from '../lib/supabase'
-import { calcPessoal, calcEmpresa, calcBebe, calcPrevisoes } from '../lib/numerology'
+import { calcPessoal } from '../lib/numerology'
+import type { BlockOrderConfig } from '../lib/block-order'
+import { VIBRAWEB_DEFAULTS } from '../lib/theme-resolver'
 
-export type AnalysisTab = 'pessoal' | 'bebe' | 'empresa' | 'previsoes'
+export type AnalysisTab = 'pessoal'
 
 export interface AnalysisData {
   nome: string
   dob: string
   social: string
-  empresa: string
-  fantasia: string
-  fundacao: string
-  socio: string
-  bebeNome: string
-  bebeNome2: string
-  bebeNome3: string
-  bebeSobrenome: string
-  bebeDob: string
-  anoRef: string
 }
 
 const defaultData: AnalysisData = {
   nome: '', dob: '', social: '',
-  empresa: '', fantasia: '', fundacao: '', socio: '',
-  bebeNome: '', bebeNome2: '', bebeNome3: '', bebeSobrenome: '', bebeDob: '',
-  anoRef: '',
 }
 
 interface Props {
@@ -45,118 +34,281 @@ interface Props {
 
 export function AppPage({ onLogout }: Props) {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<AnalysisTab>('pessoal')
   const [data, setData] = useState<AnalysisData>(defaultData)
   const [saving, setSaving] = useState(false)
+  const [savedMode, setSavedMode] = useState(false) // true when viewing a saved analysis
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [lastSavedId, setLastSavedId] = useState<string | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
-    (localStorage.getItem('vw-theme') as 'dark' | 'light') || 'dark'
-  )
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
+
+  // Ajuste específico deste cliente (Fase 2, 2026-07-11) — texto por número,
+  // ordem de blocos e (2026-07-12) template de marca. Seedado a partir do
+  // padrão global do consultor; persistido em analyses.text_overrides /
+  // analyses.block_order / analyses.template_id só quando este cliente é
+  // salvo, nunca altera o padrão global (user_interpretations / user_profiles).
+  const [analysisId, setAnalysisId] = useState<string | null>(null)
+  const [textOverrides, setTextOverrides] = useState<TextOverrides>({})
+  const [clientBlockOrder, setClientBlockOrder] = useState<BlockOrderConfig | null>(null)
+  const [clientTemplateId, setClientTemplateId] = useState<string | null>(null)
+
+  const location = useLocation()
+
+  // Reset form when navigating to /app/novo
+  useEffect(() => {
+    if (location.pathname === '/app/novo' || location.pathname === '/app') {
+      setData(defaultData)
+      setSavedMode(false)
+      setSelectedSavedId(null)
+      setAnalysisId(null)
+      setTextOverrides({})
+      setClientBlockOrder(null)
+      setClientTemplateId(null)
+    }
+  }, [location.pathname])
 
   // Load consultant profile on mount
   useEffect(() => {
     fetchUserProfile().then(setProfile)
   }, [])
 
-  function toggleTheme() {
-    const next = theme === 'light' ? 'dark' : 'light'
-    setTheme(next)
-    localStorage.setItem('vw-theme', next)
+  const currentNums = useMemo(() => calcPessoal(data.nome, data.dob), [data])
+
+  const currentSubject = useMemo(() => data.nome || '', [data])
+
+  const isPro = profile?.plan === 'pro' || profile?.role === 'admin'
+
+  // Lista de templates do consultor (mesma fonte que BrandPage.tsx) — usada
+  // pelo seletor de template específico desta análise, em OutputPanel. O
+  // gradient (mesma fórmula de BrandPage.tsx) alimenta a barra de cor do
+  // seletor em formato card.
+  const consultantTemplates = useMemo(
+    () => ((profile?.brand_config?.templates ?? []) as any[]).map(tpl => ({
+      id: tpl.id as string,
+      name: tpl.name as string,
+      gradient: `linear-gradient(to bottom, ${tpl.config?.primaryColor || VIBRAWEB_DEFAULTS.primaryColor}, ${tpl.config?.accentColor || VIBRAWEB_DEFAULTS.accentColor})`,
+    })),
+    [profile]
+  )
+
+  function templateName(id: string | null | undefined): string {
+    if (!id || id === 'default') return 'Padrão Vibraweb'
+    return consultantTemplates.find(tpl => tpl.id === id)?.name ?? 'Padrão Vibraweb'
   }
 
-  // Compute current nums for save action
-  const currentNums = useMemo(() => {
-    if (tab === 'empresa')   return calcEmpresa(data.empresa, data.fundacao)
-    if (tab === 'bebe')      return calcBebe(data.bebeNome, data.bebeSobrenome, data.bebeDob)
-    if (tab === 'previsoes') return calcPrevisoes(data.nome, data.dob, data.anoRef)
-    return calcPessoal(data.nome, data.dob)
-  }, [data, tab])
+  // Nome do template ativo GLOBALMENTE (definido em /app/marca) — usado como
+  // rótulo da opção "seguir padrão do sistema" no seletor.
+  const globalTemplateName = templateName(profile?.brand_config?.activeTemplateId)
 
-  const currentSubject = useMemo(() => {
-    if (tab === 'empresa') return data.fantasia || data.empresa || ''
-    if (tab === 'bebe')    return [data.bebeNome, data.bebeSobrenome].filter(Boolean).join(' ')
-    return data.social || data.nome || ''
-  }, [data, tab])
+  // Nome do template que está EFETIVAMENTE valendo pra esta análise agora:
+  // o override específico do cliente, se houver, senão o global.
+  const effectiveTemplateName = clientTemplateId ? templateName(clientTemplateId) : globalTemplateName
+
+  function handleTextOverrideChange(numero: number, tipo: string, texto: string) {
+    setTextOverrides(prev => ({
+      ...prev,
+      [numero]: { ...prev[numero], [tipo]: texto },
+    }))
+  }
 
   async function handleSave() {
     if (saving || !currentSubject) return
     setSaving(true)
-    await saveAnalysis(tab, currentSubject, data, currentNums)
+    let id: string | null
+    if (analysisId) {
+      await updateAnalysis(analysisId, { text_overrides: textOverrides, template_id: clientTemplateId })
+      id = analysisId
+    } else {
+      id = await saveAnalysis('pessoal', currentSubject, data, currentNums, textOverrides, clientBlockOrder, clientTemplateId)
+    }
     setSaving(false)
+    if (id) {
+      setAnalysisId(id)
+      setLastSavedId(id)
+      setShowSaveModal(true)
+    }
   }
 
-  function handlePreview() {
-    const dob = tab === 'bebe' ? data.bebeDob : tab === 'empresa' ? data.fundacao : data.dob
-    savePreviewPayload({ map: currentNums, tab, subject: currentSubject, dataNascimento: dob, profile })
-    navigate('/app/preview')
+  function handleEditSaved() {
+    if (lastSavedId) {
+      setSelectedSavedId(lastSavedId)
+      setSavedMode(true)
+      navigate('/app/salvos')
+    }
+    setShowSaveModal(false)
   }
+
+  function handleNewAnalysis() {
+    setData(defaultData)
+    setSavedMode(false)
+    setSelectedSavedId(null)
+    setAnalysisId(null)
+    setTextOverrides({})
+    setClientBlockOrder(null)
+    setClientTemplateId(null)
+    setShowSaveModal(false)
+  }
+
+  // Passo unificado de preview (Fase 2, 2026-07-11; dividido em 2 destinos em
+  // 2026-07-12): garante que a análise esteja salva/atualizada (cria se ainda
+  // não existe, atualiza se já existe) antes de navegar, pra não perder os
+  // ajustes de texto/ordem/template feitos até aqui.
+  //   - "Reordenar Blocos" (target 'preview') → tela combinada de preview +
+  //     organização de blocos (painel lateral, plano Pro).
+  //   - "Gerar Análise" (target 'gerar') → tela cheia só de preview, com o
+  //     botão flutuante "Gerar PDF" — sem painel de organização.
+  async function goToPreview(target: 'preview' | 'gerar') {
+    if (!currentSubject) return
+    setSaving(true)
+    let id = analysisId
+    if (!id) {
+      id = await saveAnalysis('pessoal', currentSubject, data, currentNums, textOverrides, clientBlockOrder, clientTemplateId)
+      if (id) setAnalysisId(id)
+    } else {
+      await updateAnalysis(id, { text_overrides: textOverrides, template_id: clientTemplateId })
+    }
+    setSaving(false)
+
+    savePreviewPayload({
+      map: currentNums,
+      tab: 'pessoal',
+      subject: currentSubject,
+      dataNascimento: data.dob,
+      profile,
+      analysisId: id,
+      textOverrides,
+      blockOrder: clientBlockOrder,
+      templateId: clientTemplateId,
+    })
+    navigate(`/app/${target}`)
+  }
+
+  async function handlePreview() { await goToPreview('preview') }
+  async function handleGenerate() { await goToPreview('gerar') }
 
   const consultantName = profile?.consultant_name ?? 'Vibraweb'
   const consultantContact = profile?.consultant_contact ?? 'vibraweb.com.br'
-  const roleTag = profile?.role === 'admin' ? '[Admin]' : profile?.role === 'teste' ? '[Teste]' : ''
-  const workspaceName = `${consultantName} · ${profile?.plan === 'pro' ? 'Pro' : 'Essencial'} ${roleTag}`.trim()
 
   return (
-    <div style={{
-      height: '100vh',
-      display: 'flex',
-      background: t.night,
-      color: t.fg,
-      overflow: 'hidden',
-    }}>
-      <Sidebar />
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <TopBar
-          consultantName={workspaceName}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onPreview={handlePreview}
-          onSave={handleSave}
-          saving={saving}
-          profile={profile}
-          previewSubject={`${currentSubject} — Mapa ${tab === 'bebe' ? 'do Bebê' : tab === 'empresa' ? 'da Empresa' : 'Pessoal'}`}
+    <>
+      {showSaveModal && (
+        <SaveSuccessModal
+          onEditSaved={handleEditSaved}
+          onNewAnalysis={handleNewAnalysis}
         />
-
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      )}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           <Routes>
             <Route path="salvos" element={
-              <SavedAnalyses
-                onLoad={(row) => {
-                  setData(row.input_data)
-                  setTab(row.type as AnalysisTab)
-                  navigate('/app/novo')
-                }}
-              />
+              <div style={{ flex: 1, display: 'flex', minWidth: 0, overflow: 'hidden' }}>
+                <div style={{
+                  width: savedMode ? 400 : '100%',
+                  flexShrink: 0,
+                  transition: 'width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                  borderRight: savedMode ? `1px solid ${t.pb}` : 'none',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  <SavedAnalyses
+                    selectedId={selectedSavedId}
+                    onLoad={(row) => {
+                      setData(row.input_data)
+                      setSelectedSavedId(row.id)
+                      setSavedMode(true)
+                      setAnalysisId(row.id)
+                      setTextOverrides(row.text_overrides ?? {})
+                      setClientBlockOrder(row.block_order ?? null)
+                      setClientTemplateId(row.template_id ?? null)
+                    }}
+                  />
+                </div>
+                <div style={{
+                  flex: savedMode ? 1 : 0,
+                  width: savedMode ? 'auto' : 0,
+                  transition: 'flex 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s',
+                  opacity: savedMode ? 1 : 0,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  background: t.night
+                }}>
+                  <div style={{ width: '100%', minWidth: 700, display: 'flex' }}>
+                    <OutputPanel
+                      data={data}
+                      consultantName={consultantName}
+                      consultantContact={consultantContact}
+                      savedMode={savedMode}
+                      onNewAnalysis={() => { setSavedMode(false); setData(defaultData); navigate('/app/novo') }}
+                      onDismiss={() => { setSavedMode(false); setSelectedSavedId(null); }}
+                      onSave={undefined}
+                      saving={false}
+                      onPreview={handlePreview}
+                      onGenerate={handleGenerate}
+                      textOverrides={textOverrides}
+                      onTextOverrideChange={handleTextOverrideChange}
+                      isPro={isPro}
+                      templateOptions={consultantTemplates}
+                      templateOverride={clientTemplateId}
+                      onTemplateOverrideChange={setClientTemplateId}
+                      effectiveTemplateName={effectiveTemplateName}
+                      globalTemplateName={globalTemplateName}
+                    />
+                  </div>
+                </div>
+              </div>
             } />
             <Route path="textos" element={<CustomTexts />} />
             <Route path="preview" element={<PreviewPage />} />
+            <Route path="gerar" element={<PreviewPage mode="gerar" />} />
             <Route path="novo" element={
               <>
-                <InputPanel data={data} setData={setData} tab={tab} setTab={setTab} />
+                <InputPanel data={data} setData={setData} tab="pessoal" setTab={() => {}} />
                 <OutputPanel
                   data={data}
-                  tab={tab}
                   consultantName={consultantName}
                   consultantContact={consultantContact}
+                  savedMode={false}
+                  onNewAnalysis={undefined}
+                  onSave={handleSave}
+                  saving={saving}
+                  onPreview={handlePreview}
+                  onGenerate={handleGenerate}
+                  textOverrides={textOverrides}
+                  onTextOverrideChange={handleTextOverrideChange}
+                  isPro={isPro}
+                  templateOptions={consultantTemplates}
+                  templateOverride={clientTemplateId}
+                  onTemplateOverrideChange={setClientTemplateId}
+                  effectiveTemplateName={effectiveTemplateName}
+                  globalTemplateName={globalTemplateName}
                 />
               </>
             } />
             <Route path="*" element={
               <>
-                <InputPanel data={data} setData={setData} tab={tab} setTab={setTab} />
+                <InputPanel data={data} setData={setData} tab="pessoal" setTab={() => {}} />
                 <OutputPanel
                   data={data}
-                  tab={tab}
                   consultantName={consultantName}
                   consultantContact={consultantContact}
+                  savedMode={false}
+                  onNewAnalysis={undefined}
+                  onSave={handleSave}
+                  saving={saving}
+                  onPreview={handlePreview}
+                  onGenerate={handleGenerate}
+                  textOverrides={textOverrides}
+                  onTextOverrideChange={handleTextOverrideChange}
+                  isPro={isPro}
+                  templateOptions={consultantTemplates}
+                  templateOverride={clientTemplateId}
+                  onTemplateOverrideChange={setClientTemplateId}
+                  effectiveTemplateName={effectiveTemplateName}
+                  globalTemplateName={globalTemplateName}
                 />
               </>
             } />
           </Routes>
         </div>
-      </div>
-
-    </div>
+    </>
   )
 }

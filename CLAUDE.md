@@ -81,6 +81,21 @@ Toda a documentação técnica fica em `.claude/docs/`:
 | Arquivo | Conteúdo |
 |---------|----------|
 | `feature-numerology-engine.md` | Algoritmo Caldaico, funções, NumerologyMap |
-| `feature-analysis-app.md` | Workspace SaaS, fluxo de dados, componentes |
+| `feature-analysis-app.md` | Workspace SaaS, fluxo de dados, componentes, layout de cards |
+| `feature-preview-document.md` | **Estrutura de blocos do documento**, renderização, impressão, textos do Supabase |
 | `feature-marketing-site.md` | Landing page, seções, CTAs |
 | `feature-supabase.md` | Schema do banco, RLS, funções client, roadmap Edge Functions |
+
+## Estrutura do Documento Numerológico
+
+O arquivo gerado segue uma hierarquia de **5 blocos principais**, cada um começando em nova página:
+
+1. **Capa e Apresentação** — Cover · Orientação · Resumo "Os Seus Números"
+2. **A Essência** — Motivação · Impressão · Expressão · Talento Oculto · Aptidões
+3. **O Caminho e os Desafios** — Dia Natalício · Número Psíquico · Destino · Missão · Lições · Débitos · Tendências · Resposta Subconsciente
+4. **Ciclos de Tempo** — Ciclos de Vida · Desafios · Momentos Decisivos · Ano/Mês/Dia Pessoal
+5. **Relacionamentos e Cabalística** — Harmonia Conjugal · Triângulo da Vida
+
+**Regra de renderização**: blocos condicionais (que dependem de dados calculados) aparecem automaticamente conforme os dados existem. Textos são adicionados no Supabase; o sistema cria as páginas automaticamente.
+
+Ver `feature-preview-document.md` para detalhes completos.

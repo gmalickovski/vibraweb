@@ -18,6 +18,7 @@ export const t = {
   ink2:     '#4A2F3B',
   success:  '#2EA36A',
   info:     '#8E7DDB',
+  indigo:   '#6366F1',
   gradCta:  'linear-gradient(90deg,#FDB813,#E85D04)',
   gradText: 'linear-gradient(90deg,#FDB813,#C0397B)',
   gradSun:  'linear-gradient(90deg,#FDB813,#E85D04 55%,#C0397B)',

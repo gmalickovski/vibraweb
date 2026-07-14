@@ -1,10 +1,10 @@
 import { t } from '../../lib/tokens'
 
-type Accent = 'gold' | 'coral' | 'magenta' | 'wine' | 'info'
+type Accent = 'gold' | 'coral' | 'magenta' | 'wine' | 'info' | 'success' | 'indigo'
 
 interface Props {
   label: string
-  value: number | null
+  value: number | string | null
   accent?: Accent
   large?: boolean
   onClick?: () => void
@@ -16,6 +16,8 @@ const accentGradients: Record<Accent, string | null> = {
   magenta: null,
   wine:    null,
   info:    null,
+  success: null,
+  indigo:  null,
 }
 const accentColors: Record<Accent, string> = {
   gold:    t.gold,
@@ -23,6 +25,8 @@ const accentColors: Record<Accent, string> = {
   magenta: t.magenta,
   wine:    t.wine,
   info:    t.info,
+  success: t.success,
+  indigo:  t.indigo,
 }
 
 export function NumberCard({ label, value, accent = 'gold', large, onClick }: Props) {
@@ -43,6 +47,12 @@ export function NumberCard({ label, value, accent = 'gold', large, onClick }: Pr
         textAlign: 'center',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'transform 0.2s, background 0.2s, box-shadow 0.2s',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        boxSizing: 'border-box',
       }}
       onMouseEnter={e => {
         if (onClick) {
@@ -76,6 +86,9 @@ export function NumberCard({ label, value, accent = 'gold', large, onClick }: Pr
         letterSpacing: '.08em',
         fontWeight: 600,
         marginTop: 4,
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word',
+        maxWidth: '100%',
       }}>
         {label}
       </div>

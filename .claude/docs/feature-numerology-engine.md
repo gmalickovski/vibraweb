@@ -57,7 +57,7 @@ interface NumerologyMap {
   psiquico:      number | null
   anoPessoal:    number | null
 
-  // Kármico / desafios
+  // Cármico / desafios
   debitosCarmicos:   number[]
   desafios:          Desafios | null       // { desafio1, desafio2, desafioPrincipal }
   licoesCarmicas:    number[]

@@ -135,6 +135,23 @@ button { cursor: pointer; font-family: inherit; }
   justify-content: center;
 }
 
+/* Content sections — grow with content, never clip text ─────────────── */
+/* Each section = one major document block rendered in the preview.       */
+/* For print: page-break-before forces a new A4 page per block.          */
+.content-section {
+  width: 210mm;
+  min-height: 297mm;        /* looks like an A4 page; grows if content overflows */
+  margin: 0 auto 32px;
+  background: #fff;
+  color: #1C1016;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  border-radius: 4px;
+  position: relative;
+  overflow: visible;        /* content is never clipped — sections grow as needed */
+  font-family: 'Inter', sans-serif;
+  flex-shrink: 0;
+}
+
 .doc-footer {
   margin-top: auto;
   padding-top: 12mm;

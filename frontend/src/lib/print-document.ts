@@ -1,38 +1,11 @@
 // print-document.ts
-// Opens a clean print window with the captured A4 page HTML.
-// Each .a4-page already contains its own header/footer from the React preview.
-// No position:fixed tricks — the HTML is a 1:1 copy of the screen preview.
+// Opens a clean print window with captured preview HTML.
+// Screen uses flexible content-section divs (grow with content, no clipping).
+// Print uses CSS page-break rules + break-inside:avoid so browser handles pagination.
 
 import type { DocTheme } from './theme-resolver'
 
-export interface BrandConfig {
-  primaryColor: string
-  accentColor: string
-  h1Color: string
-  h2Color: string
-  h3Color: string
-  bodyColor: string
-  bodyFontSize: number
-
-  showHeader: boolean
-  headerHeight: number
-  headerLogoUrl: string | null
-  headerRightText: string
-  headerFontSize: number
-
-  showFooter: boolean
-  footerHeight: number
-  footerLeft: string
-  footerCenter: string
-  footerRight: string
-
-  companyName: string
-  companyContact: string
-  logoUrl: string | null
-  showVibrawebBranding: boolean
-}
-
-export function printDocument(subject: string, theme: DocTheme, _brandConfig?: BrandConfig) {
+export function printDocument(subject: string, theme: DocTheme) {
   const previewEl = document.querySelector('.preview-scroll')
   if (!previewEl) return
 
@@ -47,9 +20,15 @@ export function printDocument(subject: string, theme: DocTheme, _brandConfig?: B
 
     *, *::before, *::after { box-sizing: border-box; }
 
+    /*
+     * Page setup — margins reserve room for header (top) and footer (bottom).
+     * Constants (match PreviewPage.tsx):
+     *   SAFE = 8mm  SIDE = 12mm
+     *   PAD_TOP_CONTENT = 22mm  PAD_BOT = 20mm
+     */
     @page {
       size: A4;
-      margin: 0; /* safe area handled by position:absolute header/footer at 8mm */
+      margin: 0;
     }
 
     html, body {
@@ -57,24 +36,19 @@ export function printDocument(subject: string, theme: DocTheme, _brandConfig?: B
       background: #fff;
       font-family: 'Inter', sans-serif;
       font-size: 11px;
-      color: #333;
+      color: ${theme.bodyColor};
     }
 
-    /*
-     * Constants (must match PreviewPage.tsx):
-     * SAFE = 8mm, SIDE = 12mm
-     * PAD_TOP_COVER = 10mm, PAD_TOP_CONTENT = 22mm, PAD_BOT = 20mm
-     */
-
-    /* Base page */
-    .a4-page {
+    /* ── Cover page — fixed A4 height, centered content ──────────── */
+    .a4-page.doc-cover {
       width: 210mm;
       height: 297mm;
       margin: 0 auto;
       background: #fff;
-      color: #1C1016;
       display: flex;
       flex-direction: column;
+      align-items: center;
+      padding: 10mm 12mm 20mm;
       position: relative;
       overflow: hidden;
       box-shadow: none !important;
@@ -83,23 +57,25 @@ export function printDocument(subject: string, theme: DocTheme, _brandConfig?: B
       break-after: page;
     }
 
-    .a4-page:last-child {
-      page-break-after: avoid;
-      break-after: avoid;
-    }
-
-    /* Cover: no header — smaller top padding */
-    .a4-page.doc-cover {
-      padding: 10mm 12mm 20mm;
-      align-items: center;
-    }
-
-    /* Content pages */
-    .a4-page.content-page {
+    /* ── Content sections — flexible height, break-before each ───── */
+    /* Each section = one major document block (Bloco 2, 3, 4, 5).   */
+    /* Content flows naturally; browser splits across pages if needed. */
+    .content-section {
+      width: 210mm;
+      margin: 0 auto;
+      background: #fff;
+      position: relative;
       padding: 22mm 12mm 20mm;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      /* Force a new page before each major block */
+      page-break-before: always;
+      break-before: page;
+      /* Allow content to flow across pages without hard clipping */
+      overflow: visible;
     }
 
-    /* Header — absolutely pinned to top */
+    /* ── Header — absolutely pinned to top of each section ────────── */
     .doc-page-header {
       position: absolute !important;
       top: 8mm !important;
@@ -112,7 +88,7 @@ export function printDocument(subject: string, theme: DocTheme, _brandConfig?: B
       border-bottom: 1px solid ${pc}22;
     }
 
-    /* Footer — absolutely pinned to bottom (same on all pages) */
+    /* ── Footer — absolutely pinned to bottom of each section ─────── */
     .doc-page-footer {
       position: absolute !important;
       bottom: 8mm !important;
@@ -125,7 +101,7 @@ export function printDocument(subject: string, theme: DocTheme, _brandConfig?: B
       gap: 4px;
     }
 
-    /* Watermark */
+    /* ── Watermark ──────────────────────────────────────────────────── */
     .watermark {
       position: absolute;
       top: 50%; left: 50%;
@@ -139,55 +115,50 @@ export function printDocument(subject: string, theme: DocTheme, _brandConfig?: B
       z-index: 0;
     }
 
-    /* Typography */
-    h1, h2, h3, h4 { font-family: 'Poppins', sans-serif; margin: 0; }
-    p { margin: 0; }
+    /* ── Typography ──────────────────────────────────────────────────── */
+    h1 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h1Color}; }
+    h2 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h2Color}; }
+    h3 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h3Color}; }
+    h4 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h3Color}; }
+    p  { margin: 0; color: ${theme.bodyColor}; }
 
-    /* Section heading */
-    div[style*="text-transform: uppercase"] h2,
-    h2 { color: ${pc}; }
-
-    /* Number entry grid */
+    /* ── Prevent individual blocks from being cut in half ───────────── */
+    /* number-entry: the grid container with the large number box */
     div[style*="grid-template-columns: 72px"] {
       display: grid !important;
       grid-template-columns: 72px 1fr !important;
-      page-break-inside: avoid;
       break-inside: avoid;
+      page-break-inside: avoid;
     }
 
-    /* Summary cards */
-    div[style*="repeat(4, 1fr)"] {
-      display: grid !important;
-      grid-template-columns: repeat(4, 1fr) !important;
+    /* Keep each number-entry (title + blockquote + grid) together */
+    .content-section > div > div {
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
-    /* Cycles grid */
-    div[style*="repeat(3, 1fr)"] {
-      display: grid !important;
-      grid-template-columns: repeat(3, 1fr) !important;
-    }
-
-    /* Footer grid */
-    div[style*="repeat(2, 1fr)"],
-    div[style*="repeat(3, 1fr)"] {
+    /* Cycles / summary grids */
+    div[style*="repeat(3, 1fr)"],
+    div[style*="repeat(4, 1fr)"],
+    div[style*="repeat(2, 1fr)"] {
       display: grid !important;
     }
 
-    /* Avoid cutting a single block in half */
-    .a4-page > div > div { page-break-inside: avoid; break-inside: avoid; }
-
-    /* Content inner div — must NOT clip in print */
-    .a4-page.content-page > div[style] {
-      overflow: visible !important;
-    }
-
-    /* preview-scroll wrapper: reset to plain block flow for print */
+    /* ── Zoom / scroll wrapper — reset for print ─────────────────────── */
     .preview-scroll {
       background: #fff !important;
       display: block !important;
       padding: 0 !important;
       align-items: unset !important;
     }
+
+    .zoom-wrapper {
+      transform: none !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* ── Hide screen-only toolbar ────────────────────────────────────── */
+    .preview-toolbar { display: none !important; }
   `
 
   const printWindow = window.open('', '_blank', 'width=900,height=700')

@@ -67,7 +67,7 @@ ON CONFLICT (numero, tipo) DO NOTHING;
 -- pessoal_desafio (Desafios de vida)
 -- ============================================================
 INSERT INTO public.interpretacoes (numero, tipo, titulo, texto) VALUES
-(0, 'pessoal_desafio', 'Desafio 0 — Maestria Total', 'O desafio zero é o mais raro e indica que você veio com domínio sobre todas as áreas da vida. Isso não significa ausência de dificuldades, mas sim a capacidade inata de superá-las em qualquer frente.'),
+(10, 'pessoal_desafio', 'Desafio 0 — Maestria Total', 'O desafio zero é o mais raro e indica que você veio com domínio sobre todas as áreas da vida. Isso não significa ausência de dificuldades, mas sim a capacidade inata de superá-las em qualquer frente.'),
 (1, 'pessoal_desafio', 'Desafio 1 — Construir Independência', 'Seu desafio é desenvolver autonomia e superar a tendência de seguir caminhos alheios por medo de falhar. Aprenda a confiar no seu próprio julgamento e aja mesmo sem a certeza do resultado.'),
 (2, 'pessoal_desafio', 'Desafio 2 — Superar a Sensibilidade Excessiva', 'Você tende a absorver as emoções ao redor de forma intensa, o que pode paralisar suas decisões. O desafio é manter sua sensibilidade como um dom sem deixá-la se tornar uma vulnerabilidade.'),
 (3, 'pessoal_desafio', 'Desafio 3 — Desenvolver Foco', 'Sua criatividade é abundante, mas a dispersão pode impedir que projetos cheguem ao fim. O desafio é escolher um caminho, aprofundar-se nele e concluir o que começa.'),
@@ -146,7 +146,7 @@ ON CONFLICT (numero, tipo) DO NOTHING;
 -- pessoal_respostaSubconsciente (9 - licoesCarmicas.length)
 -- ============================================================
 INSERT INTO public.interpretacoes (numero, tipo, titulo, texto) VALUES
-(0, 'pessoal_respostaSubconsciente', 'Resposta Subconsciente 0 — Vulnerabilidade Total', 'Todos os 9 números estão ausentes no seu nome, indicando uma jornada de aprendizado amplo nesta vida. Você reage ao mundo de forma imprevisível, pois ainda está desenvolvendo seus recursos internos.'),
+(10, 'pessoal_respostaSubconsciente', 'Resposta Subconsciente 0 — Vulnerabilidade Total', 'Todos os 9 números estão ausentes no seu nome, indicando uma jornada de aprendizado amplo nesta vida. Você reage ao mundo de forma imprevisível, pois ainda está desenvolvendo seus recursos internos.'),
 (1, 'pessoal_respostaSubconsciente', 'Resposta Subconsciente 1 — Recursos Escassos', 'Apenas 1 número está presente no seu nome. Diante de situações desafiadoras, você conta com poucos mecanismos internos automáticos. O desenvolvimento consciente das suas habilidades é fundamental.'),
 (2, 'pessoal_respostaSubconsciente', 'Resposta Subconsciente 2 — Base em Construção', 'Com poucos números presentes no nome, você reage aos desafios de forma ainda incerta. Esta é uma jornada de construção de recursos e autoconhecimento.'),
 (3, 'pessoal_respostaSubconsciente', 'Resposta Subconsciente 3 — Equilíbrio em Desenvolvimento', 'Você já possui alguns recursos internos consolidados, mas ainda há muito a desenvolver. Sua resposta às situações difíceis vai amadurecendo ao longo das experiências.'),
