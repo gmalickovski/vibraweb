@@ -3,6 +3,12 @@
 // Blocos do Relatório e Templates de Marca (Item 1/2, ajuste de 2026-07-11):
 // "arrumar os previews para imitar as mesmas proporções do preview de geração do PDF".
 // Qualquer ajuste visual no documento real deve ser feito aqui — nunca duplicado.
+//
+// Ajuste 2026-07-18: PageFooter agora aceita `pageNumber` — numeração de
+// páginas seguindo ABNT NBR 14724 (capa não é contada nem numerada; conteúdo
+// a partir da 1ª seção é numerado em arábicos). O número fica no canto
+// inferior direito como campo fixo; o restante do rodapé continua com os
+// dados dinâmicos do consultor.
 
 import type { DocTheme } from '../../lib/theme-resolver'
 
@@ -48,12 +54,26 @@ export function PageHeader({ theme, subject }: { theme: DocTheme; subject: strin
   )
 }
 
-export function PageFooter({ theme }: { theme: DocTheme }) {
+interface PageFooterProps {
+  theme: DocTheme
+  /** Número da página a exibir no canto inferior direito.
+   *  null = não exibe número (capa, índice futuro).
+   *  undefined = não exibe número (compatibilidade com chamadas antigas). */
+  pageNumber?: number | null
+}
+
+export function PageFooter({ theme, pageNumber }: PageFooterProps) {
   if (!theme.showFooter) return null
-  const cols = []
+
+  // Monta as colunas dinâmicas do consultor (configuráveis via template)
+  const cols: string[] = []
   if (theme.footerColumns >= 1) cols.push(theme.footerLeft)
   if (theme.footerColumns >= 3) cols.push(theme.footerCenter)
   if (theme.footerColumns >= 2) cols.push(theme.footerRight)
+
+  // Layout: [colunas dinâmicas (flex:1)] + [número fixo à direita]
+  // Quando não há número (capa/índice), o grid de colunas ocupa toda a largura.
+  const showNumber = pageNumber !== null && pageNumber !== undefined
 
   return (
     <div className="doc-page-footer" style={{
@@ -61,20 +81,45 @@ export function PageFooter({ theme }: { theme: DocTheme }) {
       bottom: SAFE, left: SIDE, right: SIDE,
       paddingTop: '3mm',
       borderTop: borderColor(theme.primaryColor),
-      display: 'grid',
-      gridTemplateColumns: `repeat(${theme.footerColumns}, 1fr)`,
-      gap: 4,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
     }}>
-      {cols.map((col, i) => (
-        <div key={i} style={{
-          fontSize: 8, color: '#999',
+      {/* Colunas dinâmicas do consultor */}
+      <div style={{
+        flex: 1,
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cols.length}, 1fr)`,
+        gap: 4,
+        minWidth: 0,
+      }}>
+        {cols.map((col, i) => (
+          <div key={i} style={{
+            fontSize: 8, color: '#999',
+            fontFamily: "'Inter', sans-serif",
+            textAlign: i === 0 && cols.length > 1 ? 'left' : i === cols.length - 1 && cols.length > 1 ? 'right' : 'center',
+            lineHeight: 1.4,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {col}
+          </div>
+        ))}
+      </div>
+
+      {/* Número fixo da página — canto inferior direito */}
+      {showNumber && (
+        <div className="page-number-display" style={{
+          flexShrink: 0,
+          fontSize: 8,
+          color: '#999',
           fontFamily: "'Inter', sans-serif",
-          textAlign: i === 0 && theme.footerColumns > 1 ? 'left' : i === cols.length - 1 && theme.footerColumns > 1 ? 'right' : 'center',
-          lineHeight: 1.4,
+          whiteSpace: 'nowrap',
+          paddingLeft: 8,
+          borderLeft: `1px solid ${theme.primaryColor}18`,
         }}>
-          {col}
+          Página {pageNumber}
         </div>
-      ))}
+      )}
     </div>
   )
 }
@@ -130,7 +175,11 @@ export function CoverPage({ theme, tabLabel, subject, dataNascimento, isPro }: {
         </div>
       </div>
 
-      <PageFooter theme={theme} />
+      {/* Capa: footer SEM numeração (ABNT: capa não é contada nem numerada) */}
+      <PageFooter theme={theme} pageNumber={null} />
     </div>
   )
 }
+
+
+

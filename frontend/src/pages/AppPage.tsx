@@ -11,6 +11,7 @@ import { CustomTexts } from '../components/app/CustomTexts'
 import { PreviewPage, savePreviewPayload } from './PreviewPage'
 import {
   fetchUserProfile, saveAnalysis, updateAnalysis, type UserProfile, type TextOverrides,
+  overrideTexto, overrideVersoes, overrideData, TEXT_OVERRIDE_VERSION_CAP,
 } from '../lib/supabase'
 import { calcPessoal } from '../lib/numerology'
 import type { BlockOrderConfig } from '../lib/block-order'
@@ -104,11 +105,35 @@ export function AppPage({ onLogout }: Props) {
   // o override específico do cliente, se houver, senão o global.
   const effectiveTemplateName = clientTemplateId ? templateName(clientTemplateId) : globalTemplateName
 
-  function handleTextOverrideChange(numero: number, tipo: string, texto: string) {
-    setTextOverrides(prev => ({
-      ...prev,
-      [numero]: { ...prev[numero], [tipo]: texto },
-    }))
+  // Único escritor de text_overrides — todo Salvar/Restaurar do modal de
+  // edição por análise passa aqui, que cuida do empilhamento de versões
+  // (restauração não-destrutiva, estilo WordPress/Notion: o texto atual vai
+  // pro histórico ANTES de ser substituído, nada se perde nunca).
+  //   mode 'save'    → grava `texto` como override desta análise
+  //   mode 'global'  → limpa o override (cascata revela o texto global do
+  //                    consultor, senão o padrão do sistema)
+  //   mode 'sistema' → limpa o override E força o padrão do sistema,
+  //                    pulando o texto global (marcador `sistema: true`)
+  function handleTextOverrideChange(numero: number, tipo: string, texto: string, mode: 'save' | 'global' | 'sistema' = 'save') {
+    setTextOverrides(prev => {
+      const cur = prev[numero]?.[tipo]
+      const curTexto = overrideTexto(cur)
+      const versoes = overrideVersoes(cur)
+      const newTexto = mode === 'save' ? texto : ''
+      // Empilha a versão atual só se havia texto próprio e ele de fato muda —
+      // salvar o mesmo texto duas vezes não gera revisão duplicada.
+      const newVersoes = (curTexto.trim() && curTexto !== newTexto
+        ? [{ texto: curTexto, data: overrideData(cur) ?? new Date().toISOString() }, ...versoes]
+        : versoes
+      ).slice(0, TEXT_OVERRIDE_VERSION_CAP)
+      return {
+        ...prev,
+        [numero]: {
+          ...prev[numero],
+          [tipo]: { texto: newTexto, data: new Date().toISOString(), sistema: mode === 'sistema', versoes: newVersoes },
+        },
+      }
+    })
   }
 
   async function handleSave() {

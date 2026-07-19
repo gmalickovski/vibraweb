@@ -20,7 +20,31 @@
       "mcp__7ddba85f-4e84-4af9-b9be-a6971fd6d812__apply_migration",
       "Bash(node \"/c/Users/gmali/AppData/Local/Temp/claude/C--Dev-vibraweb/2d15659f-e11a-4d0c-989f-c99c22ab484d/scratchpad/verify.mjs\")",
       "Bash(node \"/c/Users/gmali/AppData/Local/Temp/claude/C--Dev-vibraweb/2d15659f-e11a-4d0c-989f-c99c22ab484d/scratchpad/verify-tendencias.mjs\")",
-      "Bash(node \"/c/Users/gmali/AppData/Local/Temp/claude/C--Dev-vibraweb/2d15659f-e11a-4d0c-989f-c99c22ab484d/scratchpad/verify-tendencias2.mjs\")"
+      "Bash(node \"/c/Users/gmali/AppData/Local/Temp/claude/C--Dev-vibraweb/2d15659f-e11a-4d0c-989f-c99c22ab484d/scratchpad/verify-tendencias2.mjs\")",
+      "Read(//c/.claude/**)",
+      "Read(//c/backend/supabase/**)",
+      "Bash(python -c ' *)",
+      "Bash(where py *)",
+      "Read(//c/Users/gmali/AppData/Local/Programs/**)",
+      "Bash(pdftotext -layout \"Emmanuelle Cristini Guedes - NumWeb.rtf.pdf\" -)",
+      "Bash(awk '/CICLOS DE VIDA, DESAFIOS/,/ANO PESSOAL|MESES PESSOAIS|TRIÂNGULO/')",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__navigate",
+      "mcp__claude-in-chrome__computer",
+      "Bash(pdftotext -layout \"Emmanuelle Cristini Guedes - NumWeb.rtf.pdf\" \"C:\\\\Users\\\\gmali\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Dev-vibraweb\\\\27804d6c-5734-4738-9809-984a69cc5389\\\\scratchpad\\\\numweb.txt\")",
+      "Bash(grep -n -E '^[A-ZÀ-Ü][A-ZÀ-Ü ,–—-]{4,}$|^\\\\S.*\\(Bloqueio|BLOQUEIO\\)' numweb.txt)",
+      "Bash(awk 'NF && /^[[:upper:]ÀÁÂÃÉÊÍÓÔÕÚÇ]/ && $0 !~ /[[:lower:]]/' numweb.txt)",
+      "Bash(grep -n -E '^[^ ].{0,60}$' numweb.txt)",
+      "Bash(grep -vE '^\\\\s*$')",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__read_page",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173/ --max-time 5)",
+      "mcp__claude-in-chrome__javascript_tool",
+      "mcp__claude-in-chrome__find",
+      "mcp__claude-in-chrome__resize_window",
+      "mcp__claude-in-chrome__read_console_messages",
+      "mcp__claude-in-chrome__read_network_requests",
+      "mcp__claude-in-chrome__browser_batch"
     ]
   }
 }

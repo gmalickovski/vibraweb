@@ -140,16 +140,18 @@ button { cursor: pointer; font-family: inherit; }
 /* For print: page-break-before forces a new A4 page per block.          */
 .content-section {
   width: 210mm;
-  min-height: 297mm;        /* looks like an A4 page; grows if content overflows */
+  height: 297mm;            /* exact A4 sheet height — identical to print */
+  max-height: 297mm;
   margin: 0 auto 32px;
   background: #fff;
   color: #1C1016;
   box-shadow: 0 8px 40px rgba(0,0,0,0.5);
   border-radius: 4px;
   position: relative;
-  overflow: visible;        /* content is never clipped — sections grow as needed */
+  overflow: hidden;
   font-family: 'Inter', sans-serif;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .doc-footer {
@@ -189,11 +191,13 @@ button { cursor: pointer; font-family: inherit; }
 /* ── Print Media ─────────────────────────────────────────────────────── */
 /*
  * NOTE: Actual print styles are embedded in print-document.ts
- * which opens an isolated window with clean CSS.
+ * which opens an isolated window with clean CSS + position:fixed
+ * header/footer + CSS counter(page) for page numbering.
  * This block is a fallback only (e.g. if user hits Ctrl+P directly).
  */
 @media print {
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 28mm 12mm 22mm 12mm; }
+  @page :first { margin: 0; }
 
   body * { visibility: hidden !important; }
 
@@ -218,7 +222,6 @@ button { cursor: pointer; font-family: inherit; }
     height: 297mm !important;
     min-height: unset !important;
     margin: 0 auto !important;
-    padding: 20mm 15mm !important;
     box-shadow: none !important;
     border-radius: 0 !important;
     overflow: hidden !important;
@@ -229,6 +232,41 @@ button { cursor: pointer; font-family: inherit; }
   .a4-page:last-child {
     page-break-after: avoid !important;
     break-after: avoid !important;
+  }
+
+  .content-section {
+    width: auto !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Per-section headers/footers: hide in print — the fixed ones handle it */
+  .doc-page-header,
+  .doc-page-footer {
+    display: none !important;
+  }
+
+  /* Prevent individual blocks from being cut in half */
+  div[style*="grid-template-columns: 72px"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .content-section > div > div {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Zoom wrapper: reset transform */
+  .zoom-wrapper {
+    transform: none !important;
+    margin-bottom: 0 !important;
   }
 }
 

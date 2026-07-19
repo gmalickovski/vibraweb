@@ -45,6 +45,15 @@ export function CloseIcon({ size = 16 }: { size?: number }) {
   )
 }
 
+/** Check (✓) — usado pra sinalizar ausência positiva (ex: "sem débitos cármicos"), nunca erro. */
+export function CheckIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="4 12.5 9.5 18 20 6" />
+    </svg>
+  )
+}
+
 /** Chevron simples (linhas), gira 180° quando `open`. Padrão pra qualquer accordion. */
 export function ChevronIcon({ open, size = 12 }: { open: boolean; size?: number }) {
   return (
@@ -124,6 +133,71 @@ export function AlignJustifyIcon({ size = 14 }: { size?: number }) {
       <line x1="4" y1="6" x2="20" y2="6" />
       <line x1="4" y1="12" x2="20" y2="12" />
       <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  )
+}
+
+/** "H" — ícone padrão de mercado pra título/heading (Google Docs, Notion, WordPress etc. usam H/H1). Só "H" simples porque este editor tem um único nível de título, ao contrário de H1/H2/H3 — usar "H1" sugeriria níveis que não existem aqui. */
+export function HeadingIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="4" x2="5" y2="20" />
+      <line x1="19" y1="4" x2="19" y2="20" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )
+}
+
+export function ListBulletIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none" />
+      <line x1="9" y1="6" x2="20" y2="6" />
+      <line x1="9" y1="12" x2="20" y2="12" />
+      <line x1="9" y1="18" x2="20" y2="18" />
+    </svg>
+  )
+}
+
+// ── Alternar tela cheia do editor (CustomTexts) ─────────────────────────────
+// Par de ícones dinâmico: "cantos abrindo" pra entrar em foco, "cantos
+// fechando" pra voltar ao padrão — mesmo par usado por players de vídeo,
+// VS Code ("Toggle Panel") e editores em geral pra expandir/recolher um
+// painel (equivalente ao Maximize2/Minimize2 do Lucide).
+
+export function ExpandIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+      <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+      <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  )
+}
+
+export function CollapseIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+      <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+      <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+      <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+    </svg>
+  )
+}
+
+export function ListNumberedIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <text x="0.5" y="8.5" fontSize="7.5" fill="currentColor" stroke="none" fontFamily="'Inter', sans-serif" fontWeight="700">1</text>
+      <text x="0.5" y="14.5" fontSize="7.5" fill="currentColor" stroke="none" fontFamily="'Inter', sans-serif" fontWeight="700">2</text>
+      <text x="0.5" y="20.5" fontSize="7.5" fill="currentColor" stroke="none" fontFamily="'Inter', sans-serif" fontWeight="700">3</text>
+      <line x1="9" y1="6" x2="20" y2="6" />
+      <line x1="9" y1="12" x2="20" y2="12" />
+      <line x1="9" y1="18" x2="20" y2="18" />
     </svg>
   )
 }

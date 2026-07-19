@@ -5,6 +5,9 @@
 // Blocos do Relatório e Templates de Marca tenham as MESMAS proporções do
 // documento gerado de verdade — só muda a escala (zoom), nunca o CSS.
 // Ver Produto/docs/vibra-web/requisitos.md (ajuste de 2026-07-11).
+//
+// Ajuste 2026-07-18: numeração de páginas — cada content-section recebe
+// pageNumber sequencial (1, 2, 3…). Capa não é contada nem numerada (ABNT).
 
 import { splitIntoPages, type DocumentBlock } from '../../lib/document-builder'
 import type { DocTheme } from '../../lib/theme-resolver'
@@ -40,16 +43,23 @@ export function DocumentPreviewStack({
 
       {pages.map((pageBlocks, pageIdx) => (
         <div key={pageIdx} className="content-section" style={{
-          ...contentStyle, position: 'relative', minHeight: '297mm', overflow: 'visible',
+          ...contentStyle,
+          position: 'relative',
+          width: '210mm',
+          height: '297mm',
+          maxHeight: '297mm',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
         }}>
           {isPro ? null : <div className="watermark">Vibraweb</div>}
           <PageHeader theme={theme} subject={docSubject} />
-          <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ position: 'relative', zIndex: 1, height: '100%', overflow: 'hidden' }}>
             {pageBlocks.map((block: DocumentBlock) => (
               <DocumentBlockRenderer key={block.id} block={block} theme={theme} />
             ))}
           </div>
-          <PageFooter theme={theme} />
+          {/* Numeração ABNT: capa = não contada/numerada; content pages = 1, 2, 3… */}
+          <PageFooter theme={theme} pageNumber={pageIdx + 1} />
         </div>
       ))}
     </div>

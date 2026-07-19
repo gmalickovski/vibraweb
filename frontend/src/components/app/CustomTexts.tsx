@@ -25,8 +25,9 @@ import { fetchInterpretation, saveUserInterpretation, listUserInterpretations, d
 import { PrimaryBtn, SecondaryBtn } from '../shared/Button'
 import { TabBar } from '../shared/TabBar'
 import { PageTitle } from '../shared/PageTitle'
-import { ChevronIcon, CloseIcon } from '../shared/icons'
+import { ChevronIcon, CloseIcon, CheckIcon, ExpandIcon, CollapseIcon } from '../shared/icons'
 import { MarkdownEditor } from '../shared/MarkdownEditor'
+import { useConfirm } from '../shared/ConfirmDialog'
 import { useIsMobile } from '../../lib/useIsMobile'
 
 // Ids SEM acento — viram `pessoal_${id}` e precisam bater exatamente com o
@@ -57,26 +58,43 @@ const CATEGORIES: { id: string; label: string }[] = [
   { id: 'mesPessoal', label: 'Mês Pessoal' },
   { id: 'diaPessoal', label: 'Dia Pessoal' },
 ]
-// Categorias que não cabem na grade CATEGORIES × NUMBERS (0-9/11/22): cada
-// uma tem seu próprio conjunto de números válidos, renderizado como uma
-// linha extra logo abaixo da grade principal, na mesma tabela/estilo de
-// quadradinhos (ver EXTRA_ROWS / extraRowsView) — não como uma linha comum
-// da grade, que ficaria permanentemente "sem texto" em quase todas as colunas.
+// Categorias que NÃO seguem a numerologia padrão 1-9/11-22 (números mestres)
+// da grade CATEGORIES × NUMBERS: cada uma tem seu próprio conjunto de
+// números válidos fora desse range. Viram sua própria aba "Débitos e Dias
+// Favoráveis" (ver EXTRA_ROWS / extraRowsView), do mesmo jeito que Arcanos
+// tem a aba própria — não entram na grade principal, onde ficariam
+// permanentemente "sem texto" em quase todas as colunas.
 const DEBITOS_CARMICOS_NUMEROS = [13, 14, 16, 19]
 // Dias Favoráveis do mês (calcDiasFavoraveis em numerology.ts) variam de 1 a
 // 31 — nenhum texto padrão existe ainda pra esses números (0 de 31,
 // aparecem todos como "sem texto" até serem escritos em Textos).
 const DIAS_FAVORAVEIS_NUMEROS = Array.from({ length: 31 }, (_, i) => i + 1)
-const EXTRA_ROWS: { label: string; tipo: string; numeros: number[] }[] = [
-  { label: 'Débitos Cármicos', tipo: 'pessoal_debito_carmico', numeros: DEBITOS_CARMICOS_NUMEROS },
+// Bloqueios do Triângulo da Vida (sequências de 3+ dígitos iguais) — numero
+// no banco é a própria sequência (111-999, migration 032).
+const BLOQUEIOS_NUMEROS = [111, 222, 333, 444, 555, 666, 777, 888, 999]
+// `absence`: texto exibido no documento quando o mapa NÃO tem nenhum item
+// desta linha (ex: nenhum débito cármico) — caso perfeitamente possível e,
+// nesse caso, positivo. Vive na MESMA linha da grade, como mais uma célula
+// no fim (mesmo formato 36×30), em vez de um card separado abaixo — o
+// símbolo (check) já comunica "ausência = bom sinal", sem precisar de um
+// bloco de texto à parte pra explicar isso na UI. Dias Favoráveis não tem
+// `absence`: todo mapa sempre tem pelo menos 2 dias favoráveis calculados.
+const EXTRA_ROWS: { label: string; tipo: string; numeros: number[]; absence?: { id: string; label: string } }[] = [
+  { label: 'Débitos Cármicos', tipo: 'pessoal_debito_carmico', numeros: DEBITOS_CARMICOS_NUMEROS, absence: { id: 'estatico_sem_debitos', label: 'Quando não há Débitos Cármicos' } },
   { label: 'Dias Favoráveis', tipo: 'pessoal_dia_favoravel', numeros: DIAS_FAVORAVEIS_NUMEROS },
+  { label: 'Bloqueios do Triângulo', tipo: 'pessoal_bloqueio', numeros: BLOQUEIOS_NUMEROS, absence: { id: 'estatico_sem_bloqueios', label: 'Quando não há Bloqueios no Triângulo' } },
 ]
+const EXTRA_ROWS_ABSENCE = EXTRA_ROWS.map(r => r.absence).filter((a): a is { id: string; label: string } => !!a)
+const EXTRA_ROWS_TOTAL = EXTRA_ROWS.reduce((sum, r) => sum + r.numeros.length, 0) + EXTRA_ROWS_ABSENCE.length
 // "0" entra como coluna real (não mais um workaround de numero=10) desde a
 // migration 021 — é resultado numerológico válido pra Desafio e Resposta
 // Subconsciente; nas demais categorias simplesmente não existe texto padrão
-// pra ele, e a grade mostra "sem texto" normalmente.
+// pra ele, e a grade mostra "sem texto" normalmente. Dia Pessoal também usa
+// essas mesmas colunas (1-9/11/22) — segue o padrão normal, por isso fica na
+// grade principal (confirmado: pdf-dia-pessoal.pdf, "varia de 1 a 9 e
+// considera-se o 11 e o 22").
 const NUMBERS = [0, ...Array.from({ length: 9 }, (_, i) => i + 1), 11, 22]
-const TOTAL_CELLS = CATEGORIES.length * NUMBERS.length + EXTRA_ROWS.reduce((sum, r) => sum + r.numeros.length, 0)
+const TOTAL_CELLS = CATEGORIES.length * NUMBERS.length
 
 // Categorias com introdução real (defKey lido em document-builder.ts,
 // numEntry()/list-entry/cycles-entry/conjugal-entry/timeline-entry) — todas
@@ -95,13 +113,24 @@ const CATEGORY_DEFS: { id: string; label: string }[] = [
   { id: 'missao', label: 'Missão' },
   { id: 'licao_carmica', label: 'Lição Cármica' },
   { id: 'debito_carmico', label: 'Débito Cármico' },
+  { id: 'tendencia_oculta', label: 'Tendência Oculta' },
   { id: 'desafio', label: 'Desafio' },
+  { id: 'momento_decisivo', label: 'Momento Decisivo' },
   { id: 'ciclo', label: 'Ciclo' },
   { id: 'resposta_subconsciente', label: 'Resposta Subconsciente' },
   { id: 'harmonia_conjugal', label: 'Harmonia Conjugal' },
   { id: 'ano_pessoal', label: 'Ano Pessoal' },
   { id: 'mes_pessoal', label: 'Mês Pessoal' },
   { id: 'dia_pessoal', label: 'Dia Pessoal' },
+  { id: 'ciclos_intro', label: 'Ciclos de Vida, Desafios e Momentos Decisivos (Introdução)' },
+  { id: 'triangulo_intro', label: 'Triângulo da Vida (Introdução)' },
+  { id: 'dias_favoraveis', label: 'Dias Favoráveis' },
+  // Introduções de grupo — abertura de "capítulo" abaixo do título da seção
+  { id: 'personalidade_intro', label: 'Personalidade (Introdução)' },
+  { id: 'proposito_vida_intro', label: 'Propósito de Vida (Introdução)' },
+  { id: 'aspectos_carmicos_intro', label: 'Aspectos Cármicos (Introdução)' },
+  { id: 'previsoes_intro', label: 'Previsões Temporais (Introdução)' },
+  { id: 'relacionamentos_intro', label: 'Relacionamentos (Introdução)' },
 ]
 
 // Textos gerais do relatório — chave própria fixa (não depende de categoria
@@ -112,6 +141,18 @@ const GENERAL_TEXTS: { id: string; label: string }[] = [
   { id: 'estatico_importante', label: 'Importante' },
   { id: 'estatico_importante_resumo', label: 'Importante — Resumo (Os Seus Números)' },
   { id: 'estatico_conclusao', label: 'Conclusão' },
+]
+
+// Textos de INSTRUÇÃO de cálculo — ensinam o cliente a calcular sozinho o
+// Ano/Mês/Dia Pessoal de qualquer data (mapeados do documento de referência
+// NumWeb: "Para calcular o Ano Pessoal...", "Para calcular o Mês Pessoal...",
+// "Para calcular o Dia Pessoal..."). Renderizados no documento com o
+// destaque visual próprio de instrução (InstructionCallout, DocumentBlock.tsx).
+const INSTRUCTION_TEXTS: { id: string; label: string }[] = [
+  { id: 'estatico_instrucao_ano_pessoal', label: 'Como calcular o Ano Pessoal' },
+  { id: 'estatico_instrucao_mes_pessoal', label: 'Como calcular o Mês Pessoal' },
+  { id: 'estatico_instrucao_dia_pessoal', label: 'Como calcular o Dia Pessoal' },
+  { id: 'estatico_instrucao_dias_favoraveis', label: 'Como usar os Dias Favoráveis' },
 ]
 
 // Os 99 arcanos (tipo fixo 'pessoal_arcano', numero = o próprio arcano) —
@@ -155,9 +196,18 @@ const LEFT_TABS = [
   { id: 'categorias', label: 'Introduções de Categoria' },
   { id: 'gerais', label: 'Textos Gerais' },
   { id: 'arcanos', label: 'Arcanos' },
+  { id: 'especiais', label: 'Débitos, Dias e Bloqueios' },
+  { id: 'instrucoes', label: 'Instruções' },
 ]
 
-type LeftView = 'numeros' | 'categorias' | 'gerais' | 'arcanos'
+type LeftView = 'numeros' | 'categorias' | 'gerais' | 'arcanos' | 'especiais' | 'instrucoes'
+
+// Título do editor pros itens da aba "Débitos, Dias e Bloqueios" — Dias
+// Favoráveis usa "Dia N" (o número É o dia do mês, 1-31), não "— Número N".
+function extraRowTitle(row: { label: string; tipo: string }, n: number): string {
+  if (row.tipo === 'pessoal_dia_favoravel') return `Dia ${n}`
+  return `${row.label} — Número ${n}`
+}
 
 interface Selection {
   tipo: string
@@ -171,6 +221,7 @@ function keyOf(tipo: string, numero: number) {
 
 export function CustomTexts() {
   const isMobile = useIsMobile()
+  const confirm = useConfirm()
   const [leftView, setLeftView] = useState<LeftView>('numeros')
   const [selected, setSelected] = useState<Selection | null>(
     isMobile ? null : { tipo: `pessoal_${CATEGORIES[0].id}`, numero: NUMBERS[0], title: `${CATEGORIES[0].label} — Número ${NUMBERS[0]}` }
@@ -181,6 +232,11 @@ export function CustomTexts() {
   const [defaultsLoaded, setDefaultsLoaded] = useState(false)
   const [expandedCategory, setExpandedCategory] = useState<string | null>(CATEGORIES[0].id)
 
+  // Modo foco (desktop): o editor toma a largura inteira e o painel esquerdo
+  // se recolhe com animação sutil — alternado pelo botão Expandir/Recolher no
+  // header do editor. Sidebar e header principal do app continuam visíveis
+  // (o modo só mexe nos DOIS painéis internos desta tela, nada de overlay).
+  const [focusMode, setFocusMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [resettingAll, setResettingAll] = useState(false)
@@ -228,6 +284,11 @@ export function CustomTexts() {
       setSelected({ tipo: `estatico_def_${CATEGORY_DEFS[0].id}`, numero: 1, title: `Introdução — ${CATEGORY_DEFS[0].label}` })
     } else if (next === 'arcanos') {
       setSelected({ tipo: 'pessoal_arcano', numero: ARCANOS_LIST[0].numero, title: `Arcano ${ARCANOS_LIST[0].numero} — ${ARCANOS_LIST[0].nome}` })
+    } else if (next === 'especiais') {
+      const first = EXTRA_ROWS[0]
+      setSelected({ tipo: first.tipo, numero: first.numeros[0], title: extraRowTitle(first, first.numeros[0]) })
+    } else if (next === 'instrucoes') {
+      setSelected({ tipo: INSTRUCTION_TEXTS[0].id, numero: 1, title: `Instrução — ${INSTRUCTION_TEXTS[0].label}` })
     } else {
       setSelected({ tipo: GENERAL_TEXTS[0].id, numero: 1, title: `Texto Geral — ${GENERAL_TEXTS[0].label}` })
     }
@@ -282,7 +343,13 @@ export function CustomTexts() {
   async function handleResetAll() {
     const total = customKeys.size
     if (!total) return
-    if (!confirm(`Isso vai apagar as ${total} personalizações salvas e restaurar todos os textos ao padrão do Vibraweb. Essa ação não pode ser desfeita. Continuar?`)) return
+    const ok = await confirm({
+      title: 'Redefinir todos os textos',
+      message: `Isso vai apagar as ${total} personalizações salvas e restaurar todos os textos ao padrão do Vibraweb. Essa ação não pode ser desfeita.`,
+      confirmLabel: 'Redefinir Tudo',
+      danger: true,
+    })
+    if (!ok) return
     setResettingAll(true)
     await deleteAllUserInterpretations()
     setCustomKeys(new Set())
@@ -298,7 +365,13 @@ export function CustomTexts() {
 
   async function handleRestore() {
     if (!selected) return
-    if (!confirm('Deseja apagar sua versão e restaurar o texto padrão do Vibraweb?')) return
+    const ok = await confirm({
+      title: 'Restaurar padrão',
+      message: 'Deseja apagar sua versão personalizada e restaurar o texto padrão do Vibraweb?',
+      confirmLabel: 'Restaurar',
+      danger: true,
+    })
+    if (!ok) return
     setSaving(true)
     await saveUserInterpretation(selected.numero, selected.tipo, null)
     const res = await fetchInterpretation(selected.numero, selected.tipo)
@@ -314,8 +387,20 @@ export function CustomTexts() {
     if (!customLoaded) return 0
     let count = 0
     CATEGORIES.forEach(cat => NUMBERS.forEach(n => { if (customKeys.has(keyOf(`pessoal_${cat.id}`, n))) count++ }))
-    EXTRA_ROWS.forEach(row => row.numeros.forEach(n => { if (customKeys.has(keyOf(row.tipo, n))) count++ }))
     return count
+  }, [customKeys, customLoaded])
+
+  const especiaisCount = useMemo(() => {
+    if (!customLoaded) return 0
+    let count = 0
+    EXTRA_ROWS.forEach(row => row.numeros.forEach(n => { if (customKeys.has(keyOf(row.tipo, n))) count++ }))
+    EXTRA_ROWS_ABSENCE.forEach(a => { if (customKeys.has(keyOf(a.id, 1))) count++ })
+    return count
+  }, [customKeys, customLoaded])
+
+  const instrucoesCount = useMemo(() => {
+    if (!customLoaded) return 0
+    return INSTRUCTION_TEXTS.filter(i => customKeys.has(keyOf(i.id, 1))).length
   }, [customKeys, customLoaded])
 
   const categoriasCount = useMemo(() => {
@@ -357,6 +442,26 @@ export function CustomTexts() {
             Texto Personalizado Ativo
           </span>
         )}
+        {/* Expandir/Recolher (desktop): alterna o modo foco — ícone dinâmico
+            (cantos abrindo = expandir, cantos fechando = voltar ao padrão),
+            mesmo par visual de players de vídeo/VS Code. Sutil de propósito:
+            mesmo formato do "✕" mobile abaixo. */}
+        {!isMobile && (
+          <button
+            onClick={() => setFocusMode(f => !f)}
+            title={focusMode ? 'Voltar ao layout padrão' : 'Expandir editor (ocupa a tela toda)'}
+            style={{
+              width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+              background: focusMode ? 'rgba(253,184,19,.12)' : 'transparent',
+              border: `1px solid ${focusMode ? 'rgba(253,184,19,.4)' : t.pb}`,
+              color: focusMode ? t.gold : t.fg3,
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background 0.2s ease, border-color 0.2s ease, color 0.2s ease',
+            }}
+          >
+            {focusMode ? <CollapseIcon size={14} /> : <ExpandIcon size={14} />}
+          </button>
+        )}
         {/* "✕" só existe no mobile, onde o editor cobre a tela inteira e
             precisa de uma saída — no desktop o painel do editor é sempre
             visível ao lado da lista, sem função de fechar (Guilherme,
@@ -393,7 +498,7 @@ export function CustomTexts() {
           }}
         />
         <div style={{ fontSize: 11, color: t.fg4, fontFamily: t.body, marginTop: 6, flexShrink: 0 }}>
-          Selecione um trecho pra formatar (negrito, itálico, sublinhado, alinhamento). Reflete no preview e no PDF gerado.
+          Use a barra acima da caixa pra formatar (negrito, itálico, título, listas, alinhamento). Reflete no preview e no PDF gerado.
         </div>
       </div>
 
@@ -450,53 +555,92 @@ export function CustomTexts() {
   // no container do meio (ver abaixo), pra barra de rolagem ficar coladinha
   // na borda inferior do painel em vez de flutuar no meio do conteúdo.
   // Débitos Cármicos e Dias Favoráveis: números fora do range 0-9/11/22 da
-  // grade principal (13-19 e 1-31 respectivamente) — cada um vira uma linha
-  // extra logo abaixo, na MESMA marcação de célula/botão da grade principal
+  // grade principal (13-19 e 1-31 respectivamente) — aba própria "Débitos e
+  // Dias Favoráveis", na MESMA marcação de célula/botão da grade principal
   // (mesma <td padding:3> + <button 36×30>), só que numa tabela própria sem
   // cabeçalho — garante os quadradinhos ficarem visualmente idênticos aos
-  // da grade em vez de uma lista de chips solta (ver EXTRA_ROWS acima).
+  // da grade principal em vez de uma lista de chips solta (ver EXTRA_ROWS acima).
   const extraRowsView = (
-    <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 720, marginTop: 16 }}>
-      <tbody>
-        {EXTRA_ROWS.map(row => (
-          <tr key={row.tipo}>
-            <td style={{
-              position: 'sticky', left: 0, zIndex: 1, background: t.night,
-              padding: '6px 8px', fontSize: 12, color: t.fg2, fontFamily: t.body, whiteSpace: 'nowrap',
-            }}>
-              {row.label}
-            </td>
-            {row.numeros.map(n => {
-              const custom = customKeys.has(keyOf(row.tipo, n))
-              const empty = defaultsLoaded && !custom && !hasDefaultText(row.tipo, n)
-              const active = selected?.tipo === row.tipo && selected?.numero === n
-              return (
-                <td key={n} style={{ padding: 3 }}>
+    <>
+      <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 720 }}>
+        <tbody>
+          {EXTRA_ROWS.map(row => (
+            <tr key={row.tipo}>
+              <td style={{
+                position: 'sticky', left: 0, zIndex: 1, background: t.night,
+                padding: '6px 8px', fontSize: 12, color: t.fg2, fontFamily: t.body, whiteSpace: 'nowrap',
+              }}>
+                {row.label}
+              </td>
+              {row.numeros.map(n => {
+                const custom = customKeys.has(keyOf(row.tipo, n))
+                const empty = defaultsLoaded && !custom && !hasDefaultText(row.tipo, n)
+                const active = selected?.tipo === row.tipo && selected?.numero === n
+                return (
+                  <td key={n} style={{ padding: 3 }}>
+                    <button
+                      onClick={() => setSelected({ tipo: row.tipo, numero: n, title: extraRowTitle(row, n) })}
+                      title={`${extraRowTitle(row, n)}${empty ? ' (sem texto)' : ''}`}
+                      style={{
+                        width: 36, height: 30, borderRadius: 6,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        border: active ? `2px solid ${t.gold}` : `1px solid ${t.pb}`,
+                        background: custom ? 'rgba(192,57,123,.35)' : 'rgba(255,255,255,0.03)',
+                        color: custom ? t.fg : t.fg4,
+                        cursor: 'pointer', fontSize: 11, fontFamily: t.body,
+                      }}
+                    >
+                      {empty ? <CloseIcon size={10} /> : n}
+                    </button>
+                  </td>
+                )
+              })}
+              {/* Célula de ausência — mesma linha, mesmo formato 36×30 da
+                  grade, mas com ícone de check e cor de destaque (verde):
+                  ausência aqui é positiva (ex: nenhum débito cármico), não
+                  "sem texto" — por isso não usa o X vermelho/cinza. */}
+              {row.absence && (
+                <td style={{ padding: 3 }}>
                   <button
-                    onClick={() => setSelected({ tipo: row.tipo, numero: n, title: `${row.label} — Número ${n}` })}
-                    title={`${row.label} — Número ${n}${empty ? ' (sem texto)' : ''}`}
+                    onClick={() => setSelected({ tipo: row.absence!.id, numero: 1, title: row.absence!.label })}
+                    title={row.absence.label}
                     style={{
                       width: 36, height: 30, borderRadius: 6,
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      border: active ? `2px solid ${t.gold}` : `1px solid ${t.pb}`,
-                      background: custom ? 'rgba(192,57,123,.35)' : 'rgba(255,255,255,0.03)',
-                      color: custom ? t.fg : t.fg4,
-                      cursor: 'pointer', fontSize: 11, fontFamily: t.body,
+                      border: selected?.tipo === row.absence.id
+                        ? `2px solid ${t.gold}`
+                        : `1px solid ${customKeys.has(keyOf(row.absence.id, 1)) ? 'rgba(46,163,106,.5)' : 'rgba(46,163,106,.25)'}`,
+                      background: customKeys.has(keyOf(row.absence.id, 1)) ? 'rgba(46,163,106,.22)' : 'rgba(46,163,106,.08)',
+                      color: t.success,
+                      cursor: 'pointer',
                     }}
                   >
-                    {empty ? <CloseIcon size={10} /> : n}
+                    <CheckIcon size={14} />
                   </button>
                 </td>
-              )
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )
+
+  const instrucoesListView = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {INSTRUCTION_TEXTS.map(i => (
+        <ListRow
+          key={i.id}
+          label={i.label}
+          active={selected?.tipo === i.id}
+          custom={customKeys.has(keyOf(i.id, 1))}
+          onClick={() => setSelected({ tipo: i.id, numero: 1, title: `Instrução — ${i.label}` })}
+        />
+      ))}
+    </div>
   )
 
   const numerosGridView = (
-    <>
     <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 720 }}>
       <thead>
         <tr>
@@ -553,8 +697,6 @@ export function CustomTexts() {
         ))}
       </tbody>
     </table>
-    {extraRowsView}
-    </>
   )
 
   const categoriasListView = (
@@ -666,6 +808,14 @@ export function CustomTexts() {
               </div>
             )
           })}
+        </div>
+      )}
+      {leftView === 'categorias' && categoriasListView}
+      {leftView === 'gerais' && geraisListView}
+      {leftView === 'arcanos' && arcanosListView}
+      {leftView === 'instrucoes' && instrucoesListView}
+      {leftView === 'especiais' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {EXTRA_ROWS.map(row => (
             <div key={row.tipo} style={{ border: `1px solid ${t.pb}`, borderRadius: 10, overflow: 'hidden' }}>
               <button
@@ -687,7 +837,7 @@ export function CustomTexts() {
                     return (
                       <button
                         key={n}
-                        onClick={() => setSelected({ tipo: row.tipo, numero: n, title: `${row.label} — Número ${n}` })}
+                        onClick={() => setSelected({ tipo: row.tipo, numero: n, title: extraRowTitle(row, n) })}
                         style={{
                           padding: '8px 14px', borderRadius: 999,
                           display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -701,25 +851,40 @@ export function CustomTexts() {
                       </button>
                     )
                   })}
+                  {/* Chip de ausência — mesmo grupo/linha do número, cor
+                      verde + check: ausência aqui é positiva, não "sem texto". */}
+                  {row.absence && (
+                    <button
+                      onClick={() => setSelected({ tipo: row.absence!.id, numero: 1, title: row.absence!.label })}
+                      title={row.absence.label}
+                      style={{
+                        padding: '8px 14px', borderRadius: 999,
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        border: `1px solid rgba(46,163,106,.5)`,
+                        background: customKeys.has(keyOf(row.absence.id, 1)) ? 'rgba(46,163,106,.25)' : 'rgba(46,163,106,.08)',
+                        color: t.success, fontFamily: t.body, fontSize: 13, cursor: 'pointer',
+                      }}
+                    >
+                      <CheckIcon size={13} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           ))}
         </div>
       )}
-      {leftView === 'categorias' && categoriasListView}
-      {leftView === 'gerais' && geraisListView}
-      {leftView === 'arcanos' && arcanosListView}
     </>
   )
 
   // ── Rodapé fixo do painel esquerdo — sem linha divisória (Guilherme,
   // 2026-07-12: "tire a linha de divisão... só deixe o texto abaixo da
-  // legenda de marcações"). Legenda primeiro (só existe no modo Números),
-  // contador sempre por último, embaixo dela.
+  // legenda de marcações"). Legenda primeiro (só existe nos modos com grade
+  // de quadradinhos — Números e Débitos e Dias Favoráveis), contador sempre
+  // por último, embaixo dela.
   const footerContent = (
     <div style={{ padding: '10px 20px 16px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {leftView === 'numeros' && (
+      {(leftView === 'numeros' || leftView === 'especiais') && (
         <div style={{ display: 'flex', gap: 16, fontSize: 11, color: t.fg3, fontFamily: t.body }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(192,57,123,.35)', display: 'inline-block' }} />
@@ -738,24 +903,40 @@ export function CustomTexts() {
             </span>
             Sem texto
           </span>
+          {leftView === 'especiais' && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                width: 12, height: 12, borderRadius: 3, background: 'rgba(46,163,106,.15)', border: '1px solid rgba(46,163,106,.5)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: t.success,
+              }}>
+                <CheckIcon size={7} />
+              </span>
+              Texto de ausência (positivo)
+            </span>
+          )}
         </div>
       )}
-      <span style={{ fontSize: 12, color: t.fg2, fontFamily: t.body }}>
-        {leftView === 'numeros' && `${customLoaded ? numerosCount : '…'} de ${TOTAL_CELLS} personalizados`}
-        {leftView === 'categorias' && `${customLoaded ? categoriasCount : '…'} de ${CATEGORY_DEFS.length} configuradas`}
-        {leftView === 'gerais' && `${customLoaded ? geraisCount : '…'} de ${GENERAL_TEXTS.length} configurados`}
-        {leftView === 'arcanos' && `${customLoaded ? arcanosCount : '…'} de ${ARCANOS_LIST.length} personalizados`}
-      </span>
-      {/* Reset global — apaga toda personalização do consultor de uma vez, em
-          todos os modos (Números, Categorias, Gerais e Arcanos), não só a
-          aba aberta. Fica no rodapé do painel esquerdo, junto do contador. */}
-      <SecondaryBtn
-        onClick={handleResetAll}
-        disabled={resettingAll || !customKeys.size}
-        style={{ padding: '8px 10px', fontSize: 11, alignSelf: 'flex-start' }}
-      >
-        {resettingAll ? 'Redefinindo...' : 'Redefinir Todos os Textos'}
-      </SecondaryBtn>
+      {/* Contador à esquerda + reset global à direita, na mesma linha — melhor
+          aproveitamento do espaço horizontal do painel (Guilherme, 2026-07-17).
+          Reset apaga toda personalização do consultor de uma vez, em todos os
+          modos (Números, Categorias, Gerais e Arcanos), não só a aba aberta. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <span style={{ fontSize: 12, color: t.fg2, fontFamily: t.body }}>
+          {leftView === 'numeros' && `${customLoaded ? numerosCount : '…'} de ${TOTAL_CELLS} personalizados`}
+          {leftView === 'categorias' && `${customLoaded ? categoriasCount : '…'} de ${CATEGORY_DEFS.length} configuradas`}
+          {leftView === 'gerais' && `${customLoaded ? geraisCount : '…'} de ${GENERAL_TEXTS.length} configurados`}
+          {leftView === 'arcanos' && `${customLoaded ? arcanosCount : '…'} de ${ARCANOS_LIST.length} personalizados`}
+          {leftView === 'especiais' && `${customLoaded ? especiaisCount : '…'} de ${EXTRA_ROWS_TOTAL} personalizados`}
+          {leftView === 'instrucoes' && `${customLoaded ? instrucoesCount : '…'} de ${INSTRUCTION_TEXTS.length} configuradas`}
+        </span>
+        <SecondaryBtn
+          onClick={handleResetAll}
+          disabled={resettingAll || !customKeys.size}
+          style={{ padding: '8px 10px', fontSize: 11, flexShrink: 0 }}
+        >
+          {resettingAll ? 'Redefinindo...' : 'Redefinir Todos os Textos'}
+        </SecondaryBtn>
+      </div>
     </div>
   )
 
@@ -778,13 +959,21 @@ export function CustomTexts() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0, overflow: 'hidden' }}>
-      {/* Painel esquerdo: header fixo / meio rolável (a "caixa") / rodapé fixo */}
+      {/* Painel esquerdo: header fixo / meio rolável (a "caixa") / rodapé fixo.
+          Modo foco (desktop): continua MONTADO (estado de abas/scroll/seleção
+          preservado) mas colapsa a 0 de largura com fade — flex-basis/grow e
+          opacity são animáveis, então a transição é um deslize sutil; o
+          conteúdo interno é clipado pelo overflow:hidden enquanto encolhe. O
+          fade (0.2s) termina antes do colapso (0.3s) de propósito: o conteúdo
+          some ANTES de começar a espremer, escondendo o reflow do texto. */}
       {(!isMobile || !selected) && (
         <div style={{
-          flex: isMobile ? undefined : 1, minWidth: 0,
+          flex: isMobile ? undefined : (focusMode ? '0 0 0%' : '1 1 0%'), minWidth: 0,
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          borderRight: isMobile ? 'none' : `1px solid ${t.pb}`,
+          borderRight: isMobile ? 'none' : `1px solid ${focusMode ? 'transparent' : t.pb}`,
           background: t.night,
+          opacity: !isMobile && focusMode ? 0 : 1,
+          transition: isMobile ? undefined : 'flex 0.3s ease, opacity 0.2s ease, border-color 0.3s ease',
         }}>
           {headerContent}
           {/* Scroll horizontal da grade (modo Números) acontece aqui, coladinho
@@ -792,8 +981,8 @@ export function CustomTexts() {
               wrapper próprio com espaço sobrando abaixo dele. */}
           <div style={{
             flex: 1, overflowY: 'auto',
-            overflowX: (!isMobile && leftView === 'numeros') ? 'auto' : 'hidden',
-            padding: (!isMobile && leftView === 'numeros') ? '16px 16px 6px' : 16,
+            overflowX: (!isMobile && (leftView === 'numeros' || leftView === 'especiais')) ? 'auto' : 'hidden',
+            padding: (!isMobile && (leftView === 'numeros' || leftView === 'especiais')) ? '16px 16px 6px' : 16,
           }}>
             {isMobile ? mobileListView : (
               <>
@@ -801,6 +990,8 @@ export function CustomTexts() {
                 {leftView === 'categorias' && categoriasListView}
                 {leftView === 'gerais' && geraisListView}
                 {leftView === 'arcanos' && arcanosListView}
+                {leftView === 'especiais' && extraRowsView}
+                {leftView === 'instrucoes' && instrucoesListView}
               </>
             )}
           </div>
@@ -841,11 +1032,12 @@ function ListRow({ label, active, custom, onClick }: {
       <span>{label}</span>
       <span style={{
         fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
-        background: custom ? 'rgba(46,163,106,.15)' : 'rgba(255,255,255,0.06)',
-        color: custom ? t.success : t.fg3, fontFamily: t.body, textTransform: 'uppercase', letterSpacing: '.03em',
+        background: custom ? 'rgba(192,57,123,.2)' : 'rgba(255,255,255,0.03)',
+        border: custom ? '1px solid rgba(192,57,123,.5)' : `1px solid ${t.pb}`,
+        color: custom ? '#e08fc0' : t.fg3, fontFamily: t.body, textTransform: 'uppercase', letterSpacing: '.03em',
         flexShrink: 0,
       }}>
-        {custom ? 'Configurado' : 'Não configurado'}
+        {custom ? 'Personalizado' : 'Padrão do Sistema'}
       </span>
     </button>
   )

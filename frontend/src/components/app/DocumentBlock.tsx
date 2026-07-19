@@ -1,25 +1,12 @@
 // DocumentBlock.tsx — renders a single block of the numerology document.
 
-import type { DocumentBlock as Block, BlockType } from '../../lib/document-builder'
+import type { DocumentBlock as Block, BlockType, ArcanoInfo } from '../../lib/document-builder'
 import type { DocTheme } from '../../lib/theme-resolver'
 import { MarkdownParagraphs, MarkdownInline } from '../shared/Markdown'
-import { ARCANOS } from '../../lib/arcanos'
 
 interface Props {
   block: Block
   theme: DocTheme
-}
-
-const HARMONIA_TABLE: Record<number, { vibra: number[]; atrai: number[]; oposto?: number[]; passivo?: number[] }> = {
-  1: { vibra: [9], atrai: [4, 8], oposto: [6, 7], passivo: [2, 3, 5] },
-  2: { vibra: [8], atrai: [7, 9], oposto: [5],    passivo: [1, 3, 4, 6] },
-  3: { vibra: [7], atrai: [5, 6, 9], oposto: [4, 8], passivo: [1, 2] },
-  4: { vibra: [6], atrai: [1, 8], oposto: [3, 5], passivo: [2, 7, 9] },
-  5: { vibra: [5], atrai: [3, 9], oposto: [2, 4, 6], passivo: [1, 7, 8] },
-  6: { vibra: [4], atrai: [3, 7, 9], oposto: [1, 5, 8], passivo: [2] },
-  7: { vibra: [3], atrai: [2, 6], oposto: [1, 9], passivo: [4, 5, 8] },
-  8: { vibra: [2], atrai: [1, 4], oposto: [3, 6], passivo: [5, 7, 9] },
-  9: { vibra: [1], atrai: [2, 3, 5, 6], passivo: [4, 8] },
 }
 
 const accentHex: Record<string, string> = {
@@ -39,22 +26,56 @@ function getAccentColor(accent: string, theme: DocTheme): string {
 // Categoria, estatico_def_<id>) — mesmo tratamento visual em todo tipo de
 // bloco que tenha uma (number-entry, list-entry, cycles-entry, timeline-entry,
 // conjugal-entry). Não renderiza nada se o consultor não configurou o texto.
+// O template NÃO impõe mais itálico: a formatação (itálico/negrito/sublinhado/
+// subtítulo) vem exclusivamente dos marcadores markdown escritos no editor de
+// Textos — o editor é a fonte da verdade da formatação.
 function IntroBlockquote({ text, theme }: { text?: string; theme: DocTheme }) {
   if (!text) return null
   return (
     <blockquote style={{
-      fontSize: 11,
-      lineHeight: 1.9,
-      color: theme.bodyColor,
       margin: '0 0 12px',
-      fontStyle: 'italic',
       padding: theme.quoteStyle === 'minimal' ? '0' : '12px 16px',
       background: theme.quoteStyle === 'minimal' ? 'transparent' : `${theme.primaryColor}0D`,
       borderLeft: theme.quoteStyle === 'accented' ? `4px solid ${theme.primaryColor}` : 'none',
       borderRadius: theme.quoteStyle === 'accented' ? '0 8px 8px 0' : (theme.quoteStyle === 'subtle' ? '8px' : '0')
     }}>
-      <MarkdownInline text={text} />
+      <MarkdownParagraphs
+        text={text}
+        style={{ fontSize: 11, lineHeight: 1.9, color: theme.bodyColor, margin: '0 0 8px' }}
+      />
     </blockquote>
+  )
+}
+
+// Destaque visual de INSTRUÇÃO — texto que ensina o cliente a calcular algo
+// sozinho (aba "Instruções" em Textos, chaves `estatico_instrucao_*`). Design
+// próprio, diferente da introdução de categoria: caixa com borda tracejada na
+// cor de destaque + selo com ícone de calculadora, sinalizando ao leitor que
+// aquilo é um passo a passo que ele pode aplicar em qualquer data.
+function InstructionCallout({ text, theme }: { text?: string; theme: DocTheme }) {
+  if (!text) return null
+  return (
+    <div style={{
+      margin: '0 0 20px',
+      padding: '12px 16px',
+      border: `1.5px dashed ${theme.accentColor}88`,
+      borderRadius: 10,
+      background: `${theme.accentColor}0A`,
+      breakInside: 'avoid',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={theme.accentColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="2" width="16" height="20" rx="2" />
+          <line x1="8" y1="7" x2="16" y2="7" />
+          <line x1="8" y1="12" x2="8.01" y2="12" /><line x1="12" y1="12" x2="12.01" y2="12" /><line x1="16" y1="12" x2="16.01" y2="12" />
+          <line x1="8" y1="16" x2="8.01" y2="16" /><line x1="12" y1="16" x2="12.01" y2="16" /><line x1="16" y1="16" x2="16.01" y2="16" />
+        </svg>
+        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: theme.accentColor }}>
+          Instrução — calcule você mesmo
+        </span>
+      </div>
+      <MarkdownParagraphs text={text} style={{ fontSize: 10.5, lineHeight: 1.8, color: theme.bodyColor, margin: '0 0 8px' }} />
+    </div>
   )
 }
 
@@ -74,7 +95,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
       return <div style={{ pageBreakBefore: 'always', height: 0 }} />
 
     case 'section-heading': {
-      const { label } = block.data as { label: string }
+      const { label, introTexto } = block.data as { label: string; introTexto?: string }
       return (
         <div
           className={block.pageBreakBefore ? 'doc-page-break' : ''}
@@ -90,16 +111,45 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
           }}>
             {label}
           </h2>
-          <div style={{ height: 2, width: 48, background: theme.accentColor, borderRadius: 2 }} />
+          <div style={{ height: 2, width: 48, background: theme.accentColor, borderRadius: 2, marginBottom: introTexto ? 16 : 0 }} />
+          <IntroBlockquote text={introTexto} theme={theme} />
         </div>
       )
     }
 
     case 'number-entry': {
-      const { label, value, accent, titulo, texto, definicaoTexto } = block.data as {
-        label: string; value: number | null; accent: string; titulo: string; texto: string; definicaoTexto?: string
+      const { label, value, accent, titulo, texto, definicaoTexto, instrucaoTexto, isHeaderOnly, isContinuation } = block.data as any
+      const color = getAccentColor(accent || 'coral', theme)
+
+      if (isHeaderOnly) {
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 20, alignItems: 'start', marginBottom: 12, breakInside: 'avoid' }}>
+            <div style={{
+              fontFamily: "'Poppins', sans-serif", fontWeight: 900, fontSize: 52, lineHeight: 1,
+              color, textAlign: 'center', border: `2px solid ${color}22`, borderRadius: 12, padding: '12px 0'
+            }}>
+              {value ?? '—'}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.1em', color: theme.h3Color, fontWeight: 700, marginBottom: 4 }}>
+                {titulo}
+              </div>
+            </div>
+          </div>
+        )
       }
-      const color = getAccentColor(accent, theme)
+
+      if (isContinuation) {
+        return (
+          <div style={{ marginBottom: 20, fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+            <MarkdownParagraphs
+              text={texto}
+              style={{ margin: '0 0 10px' }}
+            />
+          </div>
+        )
+      }
+
       return (
         <div className={block.pageBreakBefore ? 'doc-page-break' : ''} style={{ breakInside: 'avoid', marginBottom: 36 }}>
           {definicaoTexto && (
@@ -108,20 +158,20 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                 {label}
               </h2>
               <blockquote style={{
-                fontSize: 11,
-                lineHeight: 1.9,
-                color: theme.bodyColor,
                 margin: '0 0 24px',
-                fontStyle: 'italic',
                 padding: theme.quoteStyle === 'minimal' ? '0' : '12px 16px',
                 background: theme.quoteStyle === 'minimal' ? 'transparent' : `${theme.primaryColor}0D`,
                 borderLeft: theme.quoteStyle === 'accented' ? `4px solid ${theme.primaryColor}` : 'none',
                 borderRadius: theme.quoteStyle === 'accented' ? '0 8px 8px 0' : (theme.quoteStyle === 'subtle' ? '8px' : '0')
               }}>
-                <MarkdownInline text={definicaoTexto} />
+                <MarkdownParagraphs
+                  text={definicaoTexto}
+                  style={{ fontSize: 11, lineHeight: 1.9, color: theme.bodyColor, margin: '0 0 8px' }}
+                />
               </blockquote>
             </>
           )}
+          <InstructionCallout text={instrucaoTexto} theme={theme} />
 
           <div style={{
             display: 'grid',
@@ -160,18 +210,21 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
     }
 
     case 'multi-number-entry': {
-      const { label, accent, definicaoTexto, items } = block.data as {
+      const { label, accent, definicaoTexto, items, semTexto, isContinuation } = block.data as {
         label: string
         accent: string
         definicaoTexto?: string
         items: { value: number; titulo: string; texto: string }[]
+        /** Texto de ausência (ex.: estatico_sem_debitos) — exibido quando o mapa não tem nenhum item desta categoria */
+        semTexto?: string
+        isContinuation?: boolean
       }
       const color = getAccentColor(accent, theme)
 
       const getSingularLabel = (lbl: string) => {
-        if (lbl === 'Lições Cármicas') return 'Lição Cármica'
-        if (lbl === 'Débitos Cármicos') return 'Débito Cármico'
-        if (lbl === 'Tendências Ocultas') return 'Tendência Oculta'
+        if (lbl.includes('Lições')) return 'Lição Cármica'
+        if (lbl.includes('Débitos')) return 'Débito Cármico'
+        if (lbl.includes('Tendências')) return 'Tendência Oculta'
         return lbl
       }
 
@@ -182,17 +235,16 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
           </h2>
           {definicaoTexto && (
             <blockquote style={{
-              fontSize: 11,
-              lineHeight: 1.9,
-              color: theme.bodyColor,
               margin: '0 0 24px',
-              fontStyle: 'italic',
               padding: theme.quoteStyle === 'minimal' ? '0' : '12px 16px',
               background: theme.quoteStyle === 'minimal' ? 'transparent' : `${theme.primaryColor}0D`,
               borderLeft: theme.quoteStyle === 'accented' ? `4px solid ${theme.primaryColor}` : 'none',
               borderRadius: theme.quoteStyle === 'accented' ? '0 8px 8px 0' : (theme.quoteStyle === 'subtle' ? '8px' : '0')
             }}>
-              <MarkdownInline text={definicaoTexto} />
+              <MarkdownParagraphs
+                text={definicaoTexto}
+                style={{ fontSize: 11, lineHeight: 1.9, color: theme.bodyColor, margin: '0 0 8px' }}
+              />
             </blockquote>
           )}
 
@@ -234,6 +286,10 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                 </div>
               ))}
             </div>
+          ) : semTexto ? (
+            <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+              <MarkdownParagraphs text={semTexto} style={{ margin: '0 0 8px' }} />
+            </div>
           ) : null}
         </div>
       )
@@ -270,24 +326,27 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
               )
             })}
           </div>
-          <p style={{ fontSize: 11, color: theme.bodyColor, margin: 0, fontStyle: 'italic' }}><MarkdownInline text={description} /></p>
+          <p style={{ fontSize: 11, color: theme.bodyColor, margin: 0 }}><MarkdownInline text={description} /></p>
         </div>
       )
     }
 
     case 'timeline-entry': {
-      const { label, items, definicaoTexto } = block.data as {
+      const { label, items, definicaoTexto, instrucaoTexto } = block.data as {
         label: string
-        items: { title: string; subtitle: string; value: number }[]
+        items: { title: string; subtitle: string; value: number; texto?: string }[]
         definicaoTexto?: string
+        instrucaoTexto?: string
       }
       return (
-        <div style={{ marginBottom: 24, breakInside: 'avoid' }}>
-          <h3 style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: theme.primaryColor, fontWeight: 700, margin: '0 0 12px' }}>
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 15, textTransform: 'uppercase', letterSpacing: '.08em', color: theme.h2Color, fontWeight: 800, margin: '0 0 16px' }}>
             {label}
-          </h3>
+          </h2>
           <IntroBlockquote text={definicaoTexto} theme={theme} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+          <InstructionCallout text={instrucaoTexto} theme={theme} />
+          {/* Visão geral dos 12 meses de relance */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, marginBottom: 20 }}>
             {items.map((item, i) => (
               <div key={i} style={{ border: `1px solid ${theme.primaryColor}22`, borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff' }}>
                 <div>
@@ -298,6 +357,58 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
               </div>
             ))}
           </div>
+          {/* Explicação de cada mês */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {items.map((item, i) => item.texto ? (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: 14, alignItems: 'start', breakInside: 'avoid' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: theme.h3Color, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                  {item.title} <span style={{ color: theme.primaryColor, fontWeight: 900 }}>{item.value}</span>
+                </div>
+                <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+                  <MarkdownParagraphs text={item.texto} style={{ margin: '0 0 8px' }} />
+                </div>
+              </div>
+            ) : null)}
+          </div>
+        </div>
+      )
+    }
+
+    case 'cycles-intro': {
+      // Definições gerais de Ciclos de Vida, Desafios e Momentos Decisivos —
+      // apresentadas juntas logo após o título da seção, ANTES da sequência
+      // cronológica dos ciclos (estrutura do documento de referência). Cada
+      // texto é configurável em "Textos" → Introduções de Categoria.
+      const { definicaoCiclo, definicaoDesafio, definicaoMomento } = block.data as {
+        definicaoCiclo?: string; definicaoDesafio?: string; definicaoMomento?: string
+      }
+      const sections = [
+        { label: 'Ciclos de Vida', texto: definicaoCiclo },
+        { label: 'Desafios', texto: definicaoDesafio },
+        { label: 'Momentos Decisivos', texto: definicaoMomento },
+      ].filter(s => s.texto)
+      if (sections.length === 0) return null
+      return (
+        <div style={{ marginBottom: 32, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {sections.map(s => (
+            <div key={s.label} style={{ breakInside: 'avoid' }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: theme.h3Color, margin: '0 0 8px', fontFamily: "'Poppins', sans-serif" }}>
+                {s.label}
+              </h3>
+              <blockquote style={{
+                margin: 0,
+                padding: theme.quoteStyle === 'minimal' ? '0' : '12px 16px',
+                background: theme.quoteStyle === 'minimal' ? 'transparent' : `${theme.primaryColor}0D`,
+                borderLeft: theme.quoteStyle === 'accented' ? `4px solid ${theme.primaryColor}` : 'none',
+                borderRadius: theme.quoteStyle === 'accented' ? '0 8px 8px 0' : (theme.quoteStyle === 'subtle' ? '8px' : '0')
+              }}>
+                <MarkdownParagraphs
+                  text={s.texto}
+                  style={{ fontSize: 11, lineHeight: 1.9, color: theme.bodyColor, margin: '0 0 8px' }}
+                />
+              </blockquote>
+            </div>
+          ))}
         </div>
       )
     }
@@ -379,7 +490,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                   Regente do Ciclo: {regenteCiclo} — {tituloCiclo}
                 </div>
                 <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                  <MarkdownInline text={textoCiclo} />
+                  <MarkdownParagraphs text={textoCiclo} style={{ margin: '0 0 8px' }} />
                 </div>
               </div>
             </div>
@@ -411,7 +522,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                     Desafio do Período: {data.regenteDesafio} — {data.tituloDesafio}
                   </div>
                   <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                    <MarkdownInline text={data.textoDesafio} />
+                    <MarkdownParagraphs text={data.textoDesafio} style={{ margin: '0 0 8px' }} />
                   </div>
                 </div>
               </div>
@@ -443,7 +554,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                     Desafio do Período: {data.regenteDesafio} — {data.tituloDesafio}
                   </div>
                   <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                    <MarkdownInline text={data.textoDesafio} />
+                    <MarkdownParagraphs text={data.textoDesafio} style={{ margin: '0 0 8px' }} />
                   </div>
                 </div>
               </div>
@@ -475,7 +586,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                     Desafio Principal (Atua a vida toda): {data.regenteDesafioPrincipal} — {data.tituloDesafioPrincipal}
                   </div>
                   <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                    <MarkdownInline text={data.textoDesafioPrincipal} />
+                    <MarkdownParagraphs text={data.textoDesafioPrincipal} style={{ margin: '0 0 8px' }} />
                   </div>
                 </div>
               </div>
@@ -508,7 +619,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                     Momento Decisivo do Período: {data.regenteMomento} — {data.tituloMomento}
                   </div>
                   <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                    <MarkdownInline text={data.textoMomento} />
+                    <MarkdownParagraphs text={data.textoMomento} style={{ margin: '0 0 8px' }} />
                   </div>
                 </div>
               </div>
@@ -545,7 +656,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                       </span>
                     </div>
                     <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                      <MarkdownInline text={data.textoMomento2} />
+                      <MarkdownParagraphs text={data.textoMomento2} style={{ margin: '0 0 8px' }} />
                     </div>
                   </div>
                 </div>
@@ -579,7 +690,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                       </span>
                     </div>
                     <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                      <MarkdownInline text={data.textoMomento3} />
+                      <MarkdownParagraphs text={data.textoMomento3} style={{ margin: '0 0 8px' }} />
                     </div>
                   </div>
                 </div>
@@ -615,7 +726,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                     </span>
                   </div>
                   <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                    <MarkdownInline text={data.textoMomento4} />
+                    <MarkdownParagraphs text={data.textoMomento4} style={{ margin: '0 0 8px' }} />
                   </div>
                 </div>
               </div>
@@ -626,28 +737,54 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
     }
 
     case 'conjugal-entry': {
-      const { numeroAmor, definicaoTexto } = block.data as { numeroAmor: number; definicaoTexto?: string }
-      const h = HARMONIA_TABLE[numeroAmor]
-      if (!h) return null
+      const { numeroAmor, definicaoTexto, vibra, atrai, oposto, passivo, numerosInfo } = block.data as {
+        numeroAmor: number
+        definicaoTexto?: string
+        vibra: number[]; atrai: number[]; oposto: number[]; passivo: number[]
+        numerosInfo?: Record<number, { titulo: string; texto: string } | null>
+      }
+      if (!vibra) return null
       return (
-        <div style={{ marginBottom: 24, breakInside: 'avoid' }}>
-          <h3 style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: theme.h3Color, fontWeight: 700, margin: '0 0 12px' }}>
-            Harmonia Conjugal — Número {numeroAmor}
-          </h3>
+        <div style={{ marginBottom: 36, breakInside: 'avoid' }}>
+          <h2 style={{ fontSize: 15, textTransform: 'uppercase', letterSpacing: '.08em', color: theme.h2Color, fontWeight: 800, margin: '0 0 16px', fontFamily: "'Poppins', sans-serif" }}>
+            Harmonia Conjugal
+          </h2>
           <IntroBlockquote text={definicaoTexto} theme={theme} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.1em', color: theme.h3Color, fontWeight: 700, margin: '0 0 16px' }}>
+            Harmonia Conjugal: {numeroAmor}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {([
-              { label: 'Vibra com', values: h.vibra },
-              { label: 'Atrai', values: h.atrai },
-              { label: 'Oposto', values: h.oposto ?? [] },
-              { label: 'Passivo', values: h.passivo ?? [] },
-            ] as const).map(row => (
-              <div key={row.label} style={{ padding: '8px 12px', border: `1px solid ${theme.accentColor}33`, borderRadius: 8 }}>
-                <span style={{ fontSize: 9, textTransform: 'uppercase', color: '#888', letterSpacing: '.06em' }}>{row.label}</span>
-                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                  {row.values.map(v => (
-                    <span key={v} style={{ fontWeight: 700, color: theme.primaryColor, fontSize: 14 }}>{v}</span>
-                  ))}
+              { label: 'Vibra com', values: vibra },
+              { label: 'Atrai', values: atrai },
+              { label: 'Oposto', values: oposto },
+              { label: 'Passivo', values: passivo },
+            ] as const).map(row => row.values.length === 0 ? null : (
+              <div key={row.label} style={{ breakInside: 'avoid' }}>
+                <div style={{
+                  fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em',
+                  color: theme.primaryColor, fontWeight: 700, marginBottom: 8,
+                }}>
+                  {row.label} {row.values.join(', ')}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {row.values.map(v => {
+                    const info = numerosInfo?.[v]
+                    if (!info?.texto) return null
+                    return (
+                      <div key={v} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 12, alignItems: 'start' }}>
+                        <div style={{
+                          fontFamily: "'Poppins', sans-serif", fontWeight: 900, fontSize: 16,
+                          color: theme.primaryColor, textAlign: 'center',
+                        }}>
+                          {v}
+                        </div>
+                        <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+                          <MarkdownParagraphs text={info.texto} style={{ margin: '0 0 8px' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ))}
@@ -657,10 +794,11 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
     }
 
     case 'triangulo-piramide': {
-      const { trianguloDaVida } = block.data as any
+      const { trianguloDaVida, bloqueiosInfo, semBloqueiosTexto } = block.data as any
       if (!trianguloDaVida) return null
 
       const linhas: number[][] = trianguloDaVida.linhas ?? []
+      const letras: string[] = trianguloDaVida.letras ?? []
 
       // Detecta posições de bloqueio (3+ iguais consecutivos em qualquer linha)
       const bloqueioSet = new Set<string>()
@@ -683,7 +821,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
       const fontSize = Math.max(6, Math.floor(cellSize * 0.65))
 
       return (
-        <div style={{ marginBottom: 24, breakInside: 'avoid' }}>
+        <div style={{ marginBottom: 24 }}>
           <h3 style={{
             fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em',
             color: theme.h3Color, fontWeight: 700, margin: '0 0 16px',
@@ -700,70 +838,108 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
               const isBase = li === 0
               const isApex = li === linhas.length - 1
               return (
-                <div key={li} style={{
-                  display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 3,
-                }}>
-                  {linha.map((num, ni) => {
-                    const isBloq = bloqueioSet.has(`${li}:${ni}`)
-                    const isRegent = isApex
+                <div key={li}>
+                  {/* Linha de letras do nome acima da base da pirâmide (linha 0) */}
+                  {isBase && letras.length > 0 && (
+                    <div style={{
+                      display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 4,
+                      breakInside: 'avoid', pageBreakInside: 'avoid',
+                    }}>
+                      {letras.map((char, ni) => (
+                        <div key={ni} style={{
+                          width: cellSize, height: Math.max(12, Math.floor(cellSize * 0.8)), flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: Math.max(7, Math.floor(cellSize * 0.55)), fontWeight: 700,
+                          color: theme.primaryColor,
+                          fontFamily: "'Poppins', sans-serif",
+                        }}>
+                          {char}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                    let bg = '#F3F4F6'
-                    let border = '#D1D5DB'
-                    let color = '#1F2937'
+                  {/* Linha de números da pirâmide */}
+                  <div style={{
+                    display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 3,
+                    breakInside: 'avoid', pageBreakInside: 'avoid',
+                  }}>
+                    {linha.map((num, ni) => {
+                      const isBloq = bloqueioSet.has(`${li}:${ni}`)
+                      const isRegent = isApex
 
-                    if (isBloq) {
-                      bg = '#DC2626'
-                      border = '#B91C1C'
-                      color = '#FFFFFF'
-                    } else if (isRegent) {
-                      bg = '#3B0764'
-                      border = '#6D28D9'
-                      color = '#EDE9FE'
-                    } else if (isBase) {
-                      color = '#D4AF37'
-                    }
+                      let bg = '#F3F4F6'
+                      let border = '#D1D5DB'
+                      let color = '#1F2937'
 
-                    return (
-                      <div key={ni} style={{
-                        width: cellSize, height: cellSize, flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: `1.5px solid ${border}`, borderRadius: 4,
-                        background: bg,
-                        fontSize, fontWeight: 700, color,
-                        fontFamily: "'Inter', sans-serif",
-                        boxShadow: isRegent && !isBloq ? `0 0 6px rgba(109, 40, 217, 0.4)` : undefined,
-                      }}>
-                        {num}
-                      </div>
-                    )
-                  })}
+                      if (isBloq) {
+                        bg = '#DC2626'
+                        border = '#B91C1C'
+                        color = '#FFFFFF'
+                      } else if (isRegent) {
+                        bg = theme.primaryColor
+                        border = theme.primaryColor
+                        color = '#FFFFFF'
+                      } else if (isBase) {
+                        color = theme.accentColor
+                      }
+
+                      return (
+                        <div key={ni} style={{
+                          width: cellSize, height: cellSize, flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          border: `1.5px solid ${border}`, borderRadius: 4,
+                          background: bg,
+                          fontSize, fontWeight: 700, color,
+                          fontFamily: "'Inter', sans-serif",
+                          boxShadow: isRegent && !isBloq ? `0 0 6px ${theme.primaryColor}66` : undefined,
+                        }}>
+                          {num}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}
           </div>
 
-          {/* Bloqueios encontrados */}
+          {/* Bloqueios encontrados — texto vem do banco (tipo 'pessoal_bloqueio',
+              editável em Textos → Débitos, Dias e Bloqueios); o mapa embutido
+              de numerology.ts é só fallback. Formatação (itálico etc.) vem dos
+              marcadores markdown do próprio texto. */}
           {trianguloDaVida.bloqueios?.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {trianguloDaVida.bloqueios.map((b: { codigo: string; titulo: string; descricao: string; aspectoSaude: string }) => (
-                <div key={b.codigo} style={{
-                  padding: '12px 16px',
-                  border: `1px solid #fca5a5`,
-                  borderLeft: `4px solid #dc2626`,
-                  borderRadius: 8,
-                  background: '#fff5f5',
-                }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>
-                    {b.titulo}
+              {trianguloDaVida.bloqueios.map((b: { codigo: string; titulo: string; descricao: string; aspectoSaude: string }) => {
+                const info = bloqueiosInfo?.[b.codigo] as { titulo: string; texto: string } | null | undefined
+                const titulo = info?.titulo ?? b.titulo
+                const texto = info?.texto ?? `${b.descricao}\n\nAspecto de saúde: ${b.aspectoSaude}`
+                return (
+                  <div key={b.codigo} style={{
+                    padding: '12px 16px',
+                    border: `1px solid #fca5a5`,
+                    borderLeft: `4px solid #dc2626`,
+                    borderRadius: 8,
+                    background: '#fff5f5',
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>
+                      {titulo}
+                    </div>
+                    <MarkdownParagraphs
+                      text={texto}
+                      style={{ fontSize: 11, lineHeight: 1.7, color: theme.bodyColor, margin: '0 0 6px' }}
+                    />
                   </div>
-                  <p style={{ fontSize: 11, lineHeight: 1.7, color: theme.bodyColor, margin: '0 0 6px' }}>
-                    <MarkdownInline text={b.descricao} />
-                  </p>
-                  <p style={{ fontSize: 10, lineHeight: 1.6, color: '#6B7280', margin: 0, fontStyle: 'italic' }}>
-                    Aspecto de saúde: <MarkdownInline text={b.aspectoSaude} />
-                  </p>
-                </div>
-              ))}
+                )
+              })}
+            </div>
+          )}
+
+          {/* Sem bloqueios — texto de ausência (estatico_sem_bloqueios,
+              editável em Textos → Débitos, Dias e Bloqueios) */}
+          {!(trianguloDaVida.bloqueios?.length > 0) && semBloqueiosTexto && (
+            <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+              <MarkdownParagraphs text={semBloqueiosTexto} style={{ margin: '0 0 8px' }} />
             </div>
           )}
         </div>
@@ -771,10 +947,8 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
     }
 
     case 'triangulo-arcano-regente': {
-      const { arcanoRegente } = block.data as any
+      const { arcanoRegente, arcanoInfo } = block.data as { arcanoRegente: number; arcanoInfo: ArcanoInfo | null }
       if (arcanoRegente === undefined || arcanoRegente === null) return null
-
-      const arcanoInfo = ARCANOS[arcanoRegente]
 
       return (
         <div style={{ marginBottom: 24, breakInside: 'avoid' }}>
@@ -800,18 +974,13 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
             <div>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.1em', color: theme.h3Color, fontWeight: 700, marginBottom: 8 }}>
                 Arcano Regente {arcanoRegente}: {arcanoInfo ? arcanoInfo.nome : `Arcano ${arcanoRegente}`}
-                {arcanoInfo?.palavraChave && (
-                  <span style={{ display: 'block', fontSize: 9.5, color: theme.accentColor, textTransform: 'none', letterSpacing: 'normal', marginTop: 2, fontWeight: 600 }}>
-                    Frequência: {arcanoInfo.palavraChave}
-                  </span>
-                )}
               </div>
               {arcanoInfo && (
                 <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                  <p style={{ margin: '0 0 8px' }}>{arcanoInfo.descricao}</p>
+                  <MarkdownParagraphs text={arcanoInfo.descricao} style={{ margin: '0 0 8px' }} />
                   {arcanoInfo.desafio && (
-                    <p style={{ margin: 0, padding: '8px 12px', background: `${theme.primaryColor}06`, borderRadius: 6, borderLeft: `3px solid ${theme.primaryColor}`, fontSize: 10.5, fontStyle: 'italic', color: theme.bodyColor }}>
-                      <strong>Desafio:</strong> {arcanoInfo.desafio}
+                    <p style={{ margin: 0 }}>
+                      <strong>Desafio:</strong> <MarkdownInline text={arcanoInfo.desafio} />
                     </p>
                   )}
                 </div>
@@ -823,10 +992,9 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
     }
 
     case 'triangulo-arcano-vigente': {
-      const { arcanoAtual, sequenciaCompleta } = block.data as any
+      const { arcanoAtual, sequenciaCompleta, arcanoInfo } = block.data as any
       if (!arcanoAtual || arcanoAtual.numero === null) return null
 
-      const arcanoInfo = ARCANOS[arcanoAtual.numero]
       const duracaoTotal = arcanoAtual.duracaoCiclo ?? (90 / (sequenciaCompleta?.length || 1))
 
       return (
@@ -859,10 +1027,10 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
               </div>
               {arcanoInfo && (
                 <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                  <p style={{ margin: '0 0 8px' }}>{arcanoInfo.descricao}</p>
+                  <MarkdownParagraphs text={arcanoInfo.descricao} style={{ margin: '0 0 8px' }} />
                   {arcanoInfo.desafio && (
-                    <p style={{ margin: 0, padding: '8px 12px', background: `${theme.primaryColor}06`, borderRadius: 6, borderLeft: `3px solid ${theme.primaryColor}`, fontSize: 10.5, fontStyle: 'italic', color: theme.bodyColor }}>
-                      <strong>Desafio:</strong> {arcanoInfo.desafio}
+                    <p style={{ margin: 0 }}>
+                      <strong>Desafio:</strong> <MarkdownInline text={arcanoInfo.desafio} />
                     </p>
                   )}
                 </div>
@@ -874,7 +1042,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
     }
 
     case 'triangulo-arcanos-lista': {
-      const { sequenciaCompleta, arcanoAtual } = block.data as any
+      const { sequenciaCompleta, arcanoAtual, arcanosInfo } = block.data as any
       if (!sequenciaCompleta || sequenciaCompleta.length === 0) return null
 
       // Obter lista única de arcanos para renderizar as interpretações detalhadas abaixo
@@ -892,12 +1060,12 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
 
           <div style={{
             padding: '16px 20px',
-            border: '1px solid #E5E7EB',
+            border: `1px solid ${theme.primaryColor}22`,
             borderRadius: 8,
-            background: '#FAFAFA',
+            background: `${theme.primaryColor}08`,
             marginBottom: 28
           }}>
-            <p style={{ fontSize: 11, color: '#4B5563', lineHeight: 1.6, margin: '0 0 14px' }}>
+            <p style={{ fontSize: 11, color: theme.bodyColor, lineHeight: 1.6, margin: '0 0 14px' }}>
               Os Arcanos de Passagem mapeiam o tempo e a evolução ao longo de sua existência. Cada esfera abaixo representa um ciclo de passagem. A cor indica sua posição no tempo:
             </p>
 
@@ -910,9 +1078,9 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                   else if (idx === currentIdx) state = 'present'
                 }
 
-                let bgColor = '#FFFDF0'
-                let borderColor = '#D4AF37'
-                let textColor = '#8A661C'
+                let bgColor = `${theme.accentColor}11`
+                let borderColor = theme.accentColor
+                let textColor = theme.accentColor
 
                 if (state === 'past') {
                   bgColor = '#F3F4F6'
@@ -949,7 +1117,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                 <span>Ciclo atual (Presente)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#6B7280' }}>
-                <div style={{ width: 8, height: 8, borderRadius: 4, background: '#FFFDF0', border: '1.5px solid #D4AF37' }} />
+                <div style={{ width: 8, height: 8, borderRadius: 4, background: `${theme.accentColor}11`, border: `1.5px solid ${theme.accentColor}` }} />
                 <span>Ciclos futuros</span>
               </div>
             </div>
@@ -968,7 +1136,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {arcanosUnicos.map((arcNum) => {
-              const arc = ARCANOS[arcNum]
+              const arc: ArcanoInfo | null = arcanosInfo?.[arcNum] ?? null
               if (!arc) return null
               const isCurrent = arcNum === arcanoAtual?.numero
 
@@ -985,16 +1153,142 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
                     Arcano {arcNum}: {arc.nome} {isCurrent && <span style={{ fontSize: 9.5, color: theme.primaryColor, fontWeight: 600, textTransform: 'none', letterSpacing: 'normal', marginLeft: 6 }}>(Ativo no Presente)</span>}
                   </div>
                   <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
-                    <p style={{ margin: '0 0 6px' }}>{arc.descricao}</p>
+                    <MarkdownParagraphs text={arc.descricao} style={{ margin: '0 0 6px' }} />
                     {arc.desafio && (
-                      <p style={{ margin: 0, padding: '8px 12px', background: `${theme.primaryColor}06`, borderRadius: 6, borderLeft: `3px solid ${isCurrent ? theme.primaryColor : theme.h3Color}`, fontSize: 10, fontStyle: 'italic', color: theme.bodyColor }}>
-                        <strong>Desafio:</strong> {arc.desafio}
+                      <p style={{ margin: 0 }}>
+                        <strong>Desafio:</strong> <MarkdownInline text={arc.desafio} />
                       </p>
                     )}
                   </div>
                 </div>
               )
             })}
+          </div>
+        </div>
+      )
+    }
+
+    case 'dia-pessoal-entry': {
+      const { hoje, tituloHoje, textoHoje, definicaoTexto, instrucaoTexto, guia } = block.data as {
+        hoje: number
+        tituloHoje: string
+        textoHoje: string
+        definicaoTexto?: string
+        instrucaoTexto?: string
+        guia: { numero: number; titulo: string; texto: string }[]
+      }
+      return (
+        <div style={{ marginBottom: 36, breakInside: 'avoid' }}>
+          {definicaoTexto && (
+            <>
+              <h2 style={{ fontSize: 15, textTransform: 'uppercase', letterSpacing: '.08em', color: theme.h2Color, fontWeight: 800, margin: '0 0 16px' }}>
+                Dia Pessoal
+              </h2>
+              <IntroBlockquote text={definicaoTexto} theme={theme} />
+            </>
+          )}
+
+          {/* Hoje, em destaque */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '72px 1fr', gap: 20, alignItems: 'start', marginBottom: 24,
+          }}>
+            <div style={{
+              fontFamily: "'Poppins', sans-serif", fontWeight: 900, fontSize: 52, lineHeight: 1,
+              color: theme.primaryColor, textAlign: 'center',
+              border: `2px solid ${theme.primaryColor}22`, borderRadius: 12, padding: '12px 0',
+            }}>
+              {hoje}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.1em', color: theme.h3Color, fontWeight: 700, marginBottom: 8 }}>
+                Hoje: Dia Pessoal {hoje} — {tituloHoje}
+              </div>
+              <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+                <MarkdownParagraphs text={textoHoje} style={{ margin: '0 0 10px' }} emptyFallback="Consulte um numerólogo para uma leitura personalizada deste número." />
+              </div>
+            </div>
+          </div>
+
+          {/* Guia de referência — vale pra qualquer dia, não só hoje. A
+              instrução de cálculo é editável (Textos → Instruções); o texto
+              fixo antigo fica como fallback se o consultor apagar o dela. */}
+          <h3 style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: theme.primaryColor, fontWeight: 700, margin: '0 0 10px' }}>
+            Guia de Dias Pessoais
+          </h3>
+          {instrucaoTexto ? (
+            <InstructionCallout text={instrucaoTexto} theme={theme} />
+          ) : (
+            <p style={{ fontSize: 10, color: theme.bodyColor, margin: '0 0 14px' }}>
+              Some o Mês Pessoal com o dia do calendário para saber o Dia Pessoal de qualquer data e consulte o significado abaixo.
+            </p>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {guia.map(g => (
+              <div key={g.numero} style={{
+                display: 'grid', gridTemplateColumns: '28px 1fr', gap: 12, alignItems: 'start', breakInside: 'avoid',
+                padding: g.numero === hoje ? '6px 8px' : 0,
+                background: g.numero === hoje ? `${theme.primaryColor}0D` : 'transparent',
+                borderRadius: g.numero === hoje ? 6 : 0,
+              }}>
+                <div style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 900, fontSize: 16, color: theme.primaryColor, textAlign: 'center' }}>
+                  {g.numero}
+                </div>
+                <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+                  <MarkdownParagraphs text={g.texto} style={{ margin: '0 0 8px' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    case 'dias-favoraveis-entry': {
+      // Dias do mês favoráveis — FIXOS pra pessoa (dia+mês de nascimento) e
+      // idênticos em todos os meses do ano. Chips com os dias + texto de cada
+      // dia (tipo 'pessoal_dia_favoravel', editável em Textos → Débitos, Dias
+      // e Bloqueios) + instrução explicando que valem pra qualquer mês.
+      const { dias, definicaoTexto, instrucaoTexto, textos } = block.data as {
+        dias: number[]
+        definicaoTexto?: string
+        instrucaoTexto?: string
+        textos?: Record<number, { titulo: string; texto: string } | null>
+      }
+      if (!dias || dias.length === 0) return null
+      return (
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 15, textTransform: 'uppercase', letterSpacing: '.08em', color: theme.h2Color, fontWeight: 800, margin: '0 0 16px' }}>
+            Dias Favoráveis do Mês
+          </h2>
+          <IntroBlockquote text={definicaoTexto} theme={theme} />
+          <InstructionCallout text={instrucaoTexto} theme={theme} />
+
+          {/* Os dias, de relance */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+            {dias.map(d => (
+              <span key={d} style={{
+                display: 'inline-flex', flexDirection: 'column', alignItems: 'center',
+                minWidth: 52, padding: '6px 10px',
+                border: `1px solid ${theme.accentColor}55`, borderRadius: 10,
+              }}>
+                <span style={{ fontSize: 8.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em', color: '#888' }}>Dia</span>
+                <span style={{ fontSize: 18, fontWeight: 900, color: theme.primaryColor, fontFamily: "'Poppins', sans-serif", lineHeight: 1.2 }}>{d}</span>
+              </span>
+            ))}
+          </div>
+
+          {/* Vibração de cada dia favorável */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {dias.map(d => textos?.[d]?.texto ? (
+              <div key={d} style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: 14, alignItems: 'start', breakInside: 'avoid' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: theme.h3Color, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                  Dia <span style={{ color: theme.primaryColor, fontWeight: 900 }}>{d}</span>
+                </div>
+                <div style={{ fontSize: 11, lineHeight: 1.8, color: theme.bodyColor }}>
+                  <MarkdownParagraphs text={textos[d]!.texto} style={{ margin: '0 0 8px' }} />
+                </div>
+              </div>
+            ) : null)}
           </div>
         </div>
       )
@@ -1119,7 +1413,7 @@ export function DocumentBlockRenderer({ block, theme }: Props) {
           </h2>
           <MarkdownParagraphs
             text={data.textoImportante as string}
-            style={{ fontSize: 11, lineHeight: 1.9, color: theme.bodyColor, margin: '0 0 8px', fontStyle: 'italic' }}
+            style={{ fontSize: 11, lineHeight: 1.9, color: theme.bodyColor, margin: '0 0 8px' }}
           />
         </div>
       )

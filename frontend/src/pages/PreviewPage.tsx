@@ -7,10 +7,10 @@
 //     destaque na barra flutuante.
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { buildDocumentBlocks, splitIntoPages, NUMERIC_INTERP_KEYS, STATIC_TEXT_KEYS, type InterpretationMap } from '../lib/document-builder'
+import { buildDocumentBlocks, splitIntoPages, NUMERIC_INTERP_KEYS, STATIC_TEXT_KEYS, DIA_PESSOAL_GUIA_NUMEROS, type InterpretationMap } from '../lib/document-builder'
 import { normalizeBlockOrder, DEFAULT_BLOCK_ORDER, type BlockOrderConfig } from '../lib/block-order'
 import { resolveDocTheme } from '../lib/theme-resolver'
-import { fetchInterpretation, fetchUserProfile, updateAnalysis, type TextOverrides } from '../lib/supabase'
+import { fetchInterpretation, resolveInterpretation, fetchUserProfile, updateAnalysis, type TextOverrides } from '../lib/supabase'
 import { DocumentOrganizerView } from '../components/shared/DocumentOrganizerView'
 import { PrimaryBtn } from '../components/shared/Button'
 import { printDocument } from '../lib/print-document'
@@ -67,17 +67,19 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
     setSavedConfig(normalized)
 
     async function loadInterps() {
+      // Toda chave editável no modal por análise resolve via
+      // resolveInterpretation (lib/supabase.ts) — cascata completa: override
+      // desta análise (com suporte a versões e ao marcador `sistema`) →
+      // texto global do consultor → padrão do sistema. Antes cada bloco
+      // repetia a checagem manual do override (e vários blocos nem checavam,
+      // ex.: arcanos/meses/dias favoráveis — override editado no modal nunca
+      // aparecia no documento).
       const entries = await Promise.all(
         NUMERIC_INTERP_KEYS.map(async ({ mapKey, tipoSuffix }) => {
           const numero = (p.map as any)[mapKey]
           if (numero === null || numero === undefined) return null
           const fullKey = `${p.tab}_${tipoSuffix}`
-          // Override específico deste cliente (editado inline em OutputPanel,
-          // persistido em analyses.text_overrides) tem prioridade sobre o
-          // texto padrão/global do Supabase.
-          const overrideTexto = p.textOverrides?.[numero]?.[fullKey]
-          if (overrideTexto) return { key: fullKey, titulo: 'Personalizado', texto: overrideTexto }
-          const row = await fetchInterpretation(numero, fullKey)
+          const row = await resolveInterpretation(numero, fullKey, p.textOverrides)
           return row ? { key: fullKey, titulo: row.titulo, texto: row.texto } : null
         })
       )
@@ -95,27 +97,21 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
       const licoesEntries = await Promise.all(
         (p.map.licoesCarmicas || []).map(async (v) => {
           const fullKey = `${p.tab}_licao_carmica`
-          const overrideTexto = p.textOverrides?.[v]?.[fullKey]
-          if (overrideTexto) return { key: `${fullKey}_${v}`, titulo: 'Personalizado', texto: overrideTexto }
-          const row = await fetchInterpretation(v, fullKey)
+          const row = await resolveInterpretation(v, fullKey, p.textOverrides)
           return row ? { key: `${fullKey}_${v}`, titulo: row.titulo, texto: row.texto } : null
         })
       )
       const debitosEntries = await Promise.all(
         (p.map.debitosCarmicos || []).map(async (v) => {
-          const fullKey = `${p.tab}_debito_carmica`
-          const overrideTexto = p.textOverrides?.[v]?.[fullKey]
-          if (overrideTexto) return { key: `${fullKey}_${v}`, titulo: 'Personalizado', texto: overrideTexto }
-          const row = await fetchInterpretation(v, fullKey)
+          const fullKey = `${p.tab}_debito_carmico`
+          const row = await resolveInterpretation(v, fullKey, p.textOverrides)
           return row ? { key: `${fullKey}_${v}`, titulo: row.titulo, texto: row.texto } : null
         })
       )
       const tendenciasEntries = await Promise.all(
         (p.map.tendenciasOcultas || []).map(async (v) => {
           const fullKey = `${p.tab}_tendenciaOculta`
-          const overrideTexto = p.textOverrides?.[v]?.[fullKey]
-          if (overrideTexto) return { key: `${fullKey}_${v}`, titulo: 'Personalizado', texto: overrideTexto }
-          const row = await fetchInterpretation(v, fullKey)
+          const row = await resolveInterpretation(v, fullKey, p.textOverrides)
           return row ? { key: `${fullKey}_${v}`, titulo: row.titulo, texto: row.texto } : null
         })
       )
@@ -123,9 +119,7 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
       const ciclosEntries = await Promise.all(
         (p.map.ciclosDeVida || []).map(async (c) => {
           const fullKey = `${p.tab}_ciclo`
-          const overrideTexto = p.textOverrides?.[c.regente]?.[fullKey]
-          if (overrideTexto) return { key: `${fullKey}_${c.regente}`, titulo: 'Personalizado', texto: overrideTexto }
-          const row = await fetchInterpretation(c.regente, fullKey)
+          const row = await resolveInterpretation(c.regente, fullKey, p.textOverrides)
           return row ? { key: `${fullKey}_${c.regente}`, titulo: row.titulo, texto: row.texto } : null
         })
       )
@@ -135,9 +129,7 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
       const desafiosEntries = await Promise.all(
         desafiosList.map(async (v) => {
           const fullKey = `${p.tab}_desafio`
-          const overrideTexto = p.textOverrides?.[v]?.[fullKey]
-          if (overrideTexto) return { key: `${fullKey}_${v}`, titulo: 'Personalizado', texto: overrideTexto }
-          const row = await fetchInterpretation(v, fullKey)
+          const row = await resolveInterpretation(v, fullKey, p.textOverrides)
           return row ? { key: `${fullKey}_${v}`, titulo: row.titulo, texto: row.texto } : null
         })
       )
@@ -147,10 +139,77 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
       const momentosEntries = await Promise.all(
         momentosList.map(async (v) => {
           const fullKey = `${p.tab}_momentoDecisivo`
-          const overrideTexto = p.textOverrides?.[v]?.[fullKey]
-          if (overrideTexto) return { key: `${fullKey}_${v}`, titulo: 'Personalizado', texto: overrideTexto }
-          const row = await fetchInterpretation(v, fullKey)
+          const row = await resolveInterpretation(v, fullKey, p.textOverrides)
           return row ? { key: `${fullKey}_${v}`, titulo: row.titulo, texto: row.texto } : null
+        })
+      )
+
+      // Arcanos (Regente + toda a sequência do Triângulo da Vida, que já
+      // inclui o Arcano Atual) — chave fixa 'pessoal_arcano' (não depende de
+      // tab, mesma convenção usada em OutputPanel.tsx/CustomTexts.tsx: Arcano
+      // Regente, Sequência de Arcanos e Arcano Atual são a MESMA lista de 99
+      // textos). Sem isso, a seção de Arcanos do documento gerado usava o
+      // glossário estático embutido no bundle em vez do texto editável.
+      const arcanoNumeros = Array.from(new Set([
+        p.map.trianguloDaVida?.arcanoRegente ?? null,
+        ...(p.map.trianguloDaVida?.sequenciaCompleta ?? []),
+      ].filter((n): n is number => n !== null)))
+      const arcanosEntries = await Promise.all(
+        arcanoNumeros.map(async (n) => {
+          const row = await resolveInterpretation(n, 'pessoal_arcano', p.textOverrides)
+          return row ? { key: `pessoal_arcano_${n}`, titulo: row.titulo, texto: row.texto } : null
+        })
+      )
+
+      // Bloqueios do Triângulo (sequências 111-999 encontradas no nome) —
+      // tipo fixo 'pessoal_bloqueio', numero = a própria sequência.
+      const bloqueioEntries = await Promise.all(
+        (p.map.trianguloDaVida?.bloqueios ?? []).map(async (b) => {
+          const row = await fetchInterpretation(Number(b.codigo), 'pessoal_bloqueio')
+          return row ? { key: `pessoal_bloqueio_${b.codigo}`, titulo: row.titulo, texto: row.texto } : null
+        })
+      )
+
+      // Dias Favoráveis — texto da vibração de cada dia favorável da pessoa
+      // (tipo 'pessoal_dia_favoravel', numero = o dia do mês 1-31).
+      const diasFavoraveisEntries = await Promise.all(
+        (p.map.diasFavoraveis || []).map(async (v) => {
+          const row = await resolveInterpretation(v, 'pessoal_dia_favoravel', p.textOverrides)
+          return row ? { key: `pessoal_dia_favoravel_${v}`, titulo: row.titulo, texto: row.texto } : null
+        })
+      )
+
+      // Guia de Dias Pessoais — os 11 valores possíveis (1-9/11/22), sempre
+      // completos (não só o dia de hoje), pro cliente usar o mapa como
+      // oráculo diário permanente, não só na data em que foi gerado.
+      const diaPessoalGuiaEntries = await Promise.all(
+        DIA_PESSOAL_GUIA_NUMEROS.map(async (n) => {
+          const row = await resolveInterpretation(n, 'pessoal_diaPessoal', p.textOverrides)
+          return row ? { key: `pessoal_diaPessoal_guia_${n}`, titulo: row.titulo, texto: row.texto } : null
+        })
+      )
+
+      // Meses Pessoais — texto de cada número único que aparece nos próximos
+      // 12 meses (não só o do mês atual).
+      const mesPessoalNumeros = Array.from(new Set((p.map.mesesPessoais ?? []).map(m => m.numero)))
+      const mesesEntries = await Promise.all(
+        mesPessoalNumeros.map(async (n) => {
+          const fullKey = `${p.tab}_mesPessoal`
+          const row = await resolveInterpretation(n, fullKey, p.textOverrides)
+          return row ? { key: `${fullKey}_${n}`, titulo: row.titulo, texto: row.texto } : null
+        })
+      )
+
+      // Harmonia Conjugal — precisa do texto de cada número que aparece em
+      // Vibra com/Atrai/Oposto/Passivo, não só do número de Missão em si.
+      const harmoniaNumeros = Array.from(new Set([
+        ...(p.map.harmoniaConjugal?.vibra ?? []), ...(p.map.harmoniaConjugal?.atrai ?? []),
+        ...(p.map.harmoniaConjugal?.oposto ?? []), ...(p.map.harmoniaConjugal?.passivo ?? []),
+      ]))
+      const harmoniaEntries = await Promise.all(
+        harmoniaNumeros.map(async (n) => {
+          const row = await resolveInterpretation(n, 'pessoal_harmoniaConjugal', p.textOverrides)
+          return row ? { key: `pessoal_harmoniaConjugal_${n}`, titulo: row.titulo, texto: row.texto } : null
         })
       )
 
@@ -163,6 +222,12 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
       ciclosEntries.forEach(e => { if (e) map[`${p.tab}_ciclo_${e.key.split('_').pop()}`] = { titulo: e.titulo, texto: e.texto } })
       desafiosEntries.forEach(e => { if (e) map[`${p.tab}_desafio_${e.key.split('_').pop()}`] = { titulo: e.titulo, texto: e.texto } })
       momentosEntries.forEach(e => { if (e) map[`${p.tab}_momentoDecisivo_${e.key.split('_').pop()}`] = { titulo: e.titulo, texto: e.texto } })
+      arcanosEntries.forEach(e => { if (e) map[e.key] = { titulo: e.titulo, texto: e.texto } })
+      bloqueioEntries.forEach(e => { if (e) map[e.key] = { titulo: e.titulo, texto: e.texto } })
+      harmoniaEntries.forEach(e => { if (e) map[e.key] = { titulo: e.titulo, texto: e.texto } })
+      mesesEntries.forEach(e => { if (e) map[e.key] = { titulo: e.titulo, texto: e.texto } })
+      diaPessoalGuiaEntries.forEach(e => { if (e) map[e.key] = { titulo: e.titulo, texto: e.texto } })
+      diasFavoraveisEntries.forEach(e => { if (e) map[e.key] = { titulo: e.titulo, texto: e.texto } })
 
       setInterp(map)
       setLoading(false)

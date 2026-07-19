@@ -12,6 +12,7 @@ import { TopBar } from './components/app/TopBar'
 import { fetchUserProfile, type UserProfile } from './lib/supabase'
 import { useIsMobile } from './lib/useIsMobile'
 import { t } from './lib/tokens'
+import { ConfirmProvider } from './components/shared/ConfirmDialog'
 
 // TopBar (breadcrumb + toggle de tema + avatar) — fixo em TODAS as rotas
 // /app/* (Guilherme, 2026-07-12: "esse header deve sempre permanecer nas
@@ -69,14 +70,19 @@ export function App() {
   const navigate = useNavigate()
 
   return (
-    <Routes>
-      <Route path="/" element={<SitePage onEnter={() => navigate('/login')} />} />
-      <Route path="/login" element={<LoginPage onSuccess={() => navigate('/app/novo')} onBack={() => navigate('/')} />} />
-      <Route path="/app" element={<AppLayout />}>
-        <Route path="marca" element={<BrandPage />} />
-        <Route path="blocos" element={<BlocosPage />} />
-        <Route path="*" element={<AppPage onLogout={() => navigate('/')} />} />
-      </Route>
-    </Routes>
+    // ConfirmProvider envolve o app inteiro — qualquer tela abaixo pode pedir
+    // confirmação de ação via useConfirm() sem precisar de um <ConfirmDialog>
+    // próprio (substitui o window.confirm() nativo do navegador em todo o sistema).
+    <ConfirmProvider>
+      <Routes>
+        <Route path="/" element={<SitePage onEnter={() => navigate('/login')} />} />
+        <Route path="/login" element={<LoginPage onSuccess={() => navigate('/app/novo')} onBack={() => navigate('/')} />} />
+        <Route path="/app" element={<AppLayout />}>
+          <Route path="marca" element={<BrandPage />} />
+          <Route path="blocos" element={<BlocosPage />} />
+          <Route path="*" element={<AppPage onLogout={() => navigate('/')} />} />
+        </Route>
+      </Routes>
+    </ConfirmProvider>
   )
 }

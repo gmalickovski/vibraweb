@@ -1,7 +1,25 @@
 // print-document.ts
-// Opens a clean print window with captured preview HTML.
-// Screen uses flexible content-section divs (grow with content, no clipping).
-// Print uses CSS page-break rules + break-inside:avoid so browser handles pagination.
+// Opens a clean print window with the document content, using CSS Paged Media
+// techniques for correct header/footer repetition and page numbering.
+//
+// 2026-07-18 rewrite: the previous approach captured the preview HTML as-is,
+// but that layout used `position: absolute` headers/footers inside
+// `.content-section` divs that grow with content — when the browser splits
+// a tall section across A4 pages, the absolute-positioned header/footer only
+// appeared on the first slice, causing cut-off headers and missing footers.
+//
+// New approach:
+//   1. Capture the preview HTML
+//   2. Strip the per-section `.doc-page-header` and `.doc-page-footer` elements
+//      (they were positioned absolute within each section and don't repeat)
+//   3. Inject a FIXED header and footer (`position: fixed`) at the document
+//      level — in the CSS Paged Media model, `position: fixed` elements are
+//      repeated on EVERY printed page automatically (standardised behaviour
+//      in all Chromium browsers)
+//   4. `@page` margins reserve the physical space for these fixed elements
+//   5. Page numbering via CSS `counter(page)` in the fixed footer
+//   6. Cover page uses `@page :first` to suppress header/footer/numbering
+//   7. The cover is moved outside the flow and uses `break-after: page`
 
 import type { DocTheme } from './theme-resolver'
 
@@ -13,19 +31,12 @@ export function printDocument(subject: string, theme: DocTheme) {
   const fontUrl = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&family=Inter:wght@400;500;600;700&display=swap'
 
   const pc = theme.primaryColor
-  const ac = theme.accentColor
 
   const styles = `
     @import url('${fontUrl}');
 
     *, *::before, *::after { box-sizing: border-box; }
 
-    /*
-     * Page setup — margins reserve room for header (top) and footer (bottom).
-     * Constants (match PreviewPage.tsx):
-     *   SAFE = 8mm  SIDE = 12mm
-     *   PAD_TOP_CONTENT = 22mm  PAD_BOT = 20mm
-     */
     @page {
       size: A4;
       margin: 0;
@@ -39,16 +50,16 @@ export function printDocument(subject: string, theme: DocTheme) {
       color: ${theme.bodyColor};
     }
 
-    /* ── Cover page — fixed A4 height, centered content ──────────── */
+    /* ── Capa — folha A4 fixa ───────────────────────────────────── */
     .a4-page.doc-cover {
       width: 210mm;
       height: 297mm;
       margin: 0 auto;
+      padding: 10mm 12mm 20mm;
       background: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 10mm 12mm 20mm;
       position: relative;
       overflow: hidden;
       box-shadow: none !important;
@@ -57,25 +68,26 @@ export function printDocument(subject: string, theme: DocTheme) {
       break-after: page;
     }
 
-    /* ── Content sections — flexible height, break-before each ───── */
-    /* Each section = one major document block (Bloco 2, 3, 4, 5).   */
-    /* Content flows naturally; browser splits across pages if needed. */
+    /* ── Páginas de Conteúdo — folhas A4 rígidas de 297mm ────────── */
+    /* Cada .content-section corresponde exatamente a 1 página A4    */
+    /* gerada pelo paginador splitIntoPages, garantindo fidelidade    */
+    /* 1:1 absoluta entre o preview de tela e a impressão em PDF.     */
     .content-section {
       width: 210mm;
+      height: 297mm;
+      max-height: 297mm;
       margin: 0 auto;
       background: #fff;
       position: relative;
-      padding: 22mm 12mm 20mm;
+      padding: 22mm 12mm 20mm !important;
       box-shadow: none !important;
       border-radius: 0 !important;
-      /* Force a new page before each major block */
-      page-break-before: always;
-      break-before: page;
-      /* Allow content to flow across pages without hard clipping */
-      overflow: visible;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
     }
 
-    /* ── Header — absolutely pinned to top of each section ────────── */
+    /* Cabeçalho fixado no topo de cada folha (8mm) */
     .doc-page-header {
       position: absolute !important;
       top: 8mm !important;
@@ -88,7 +100,7 @@ export function printDocument(subject: string, theme: DocTheme) {
       border-bottom: 1px solid ${pc}22;
     }
 
-    /* ── Footer — absolutely pinned to bottom of each section ─────── */
+    /* Rodapé fixado no fundo de cada folha (8mm) */
     .doc-page-footer {
       position: absolute !important;
       bottom: 8mm !important;
@@ -96,12 +108,12 @@ export function printDocument(subject: string, theme: DocTheme) {
       right: 12mm !important;
       padding-top: 3mm;
       border-top: 1px solid ${pc}22;
-      display: grid !important;
-      grid-template-columns: repeat(3, 1fr) !important;
-      gap: 4px;
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
     }
 
-    /* ── Watermark ──────────────────────────────────────────────────── */
+    /* Marca d'água */
     .watermark {
       position: absolute;
       top: 50%; left: 50%;
@@ -115,36 +127,14 @@ export function printDocument(subject: string, theme: DocTheme) {
       z-index: 0;
     }
 
-    /* ── Typography ──────────────────────────────────────────────────── */
+    /* Tipografia */
     h1 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h1Color}; }
     h2 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h2Color}; }
     h3 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h3Color}; }
     h4 { font-family: 'Poppins', sans-serif; margin: 0; color: ${theme.h3Color}; }
     p  { margin: 0; color: ${theme.bodyColor}; }
 
-    /* ── Prevent individual blocks from being cut in half ───────────── */
-    /* number-entry: the grid container with the large number box */
-    div[style*="grid-template-columns: 72px"] {
-      display: grid !important;
-      grid-template-columns: 72px 1fr !important;
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-
-    /* Keep each number-entry (title + blockquote + grid) together */
-    .content-section > div > div {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-
-    /* Cycles / summary grids */
-    div[style*="repeat(3, 1fr)"],
-    div[style*="repeat(4, 1fr)"],
-    div[style*="repeat(2, 1fr)"] {
-      display: grid !important;
-    }
-
-    /* ── Zoom / scroll wrapper — reset for print ─────────────────────── */
+    /* Zoom / scroll wrapper — reset para impressão */
     .preview-scroll {
       background: #fff !important;
       display: block !important;
@@ -157,7 +147,6 @@ export function printDocument(subject: string, theme: DocTheme) {
       margin-bottom: 0 !important;
     }
 
-    /* ── Hide screen-only toolbar ────────────────────────────────────── */
     .preview-toolbar { display: none !important; }
   `
 

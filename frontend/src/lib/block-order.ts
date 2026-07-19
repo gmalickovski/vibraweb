@@ -12,7 +12,7 @@
 //    Propósito de Vida → dia_natalicio, destino, missao, aptidoes
 //
 //  What to overcome:
-//    Karma e Desafios → licao_carmica, debito_carmica, tendencia_oculta, resposta_subconsciente
+//    Aspectos Cármicos → licao_carmica, debito_carmica, tendencia_oculta, resposta_subconsciente
 //
 //  Timing & Life periods:
 //    Ciclos de Vida → ciclo_1, ciclo_2, ciclo_3 (includes respective challenges & pinnacles)
@@ -69,7 +69,7 @@ export const DEFAULT_BLOCK_ORDER: BlockOrderConfig = {
       hidden: [],
     },
     previsoes_tempo: {
-      order: ['ano_pessoal', 'mes_pessoal', 'dia_pessoal'],
+      order: ['ano_pessoal', 'mes_pessoal', 'dia_pessoal', 'dias_favoraveis'],
       hidden: [],
     },
     relacionamentos: {
@@ -126,8 +126,8 @@ export const BLOCK_DEFS: BlockDef[] = [
   },
   {
     id: 'karma_desafios',
-    label: 'Karma e Desafios',
-    description: 'O que precisa ser superado — padrões kármicos e lições',
+    label: 'Aspectos Cármicos',
+    description: 'O que precisa ser superado — lições, débitos, tendências ocultas e resposta subconsciente',
     children: [
       { id: 'licao_carmica',         label: 'Lições Cármicas',       description: 'Números ausentes no nome — qualidades a desenvolver' },
       { id: 'debito_carmica',        label: 'Débitos Cármicos',      description: 'Padrões kármicos (13, 14, 16, 19) que exigem superação' },
@@ -153,6 +153,7 @@ export const BLOCK_DEFS: BlockDef[] = [
       { id: 'ano_pessoal', label: 'Ano Pessoal', description: 'Energia do ano pessoal corrente' },
       { id: 'mes_pessoal', label: 'Mês Pessoal', description: 'Sequência dos meses pessoais (próximos 12)' },
       { id: 'dia_pessoal', label: 'Dia Pessoal', description: 'Energia do dia pessoal (hoje)' },
+      { id: 'dias_favoraveis', label: 'Dias Favoráveis', description: 'Dias do mês que vibram favoravelmente — os mesmos em todos os meses' },
     ],
   },
   {
@@ -223,6 +224,7 @@ export const GROUP_CHILD_ID_MAP: Record<string, Record<string, string>> = {
     ano_pessoal: 'num-ano',
     mes_pessoal: 'meses-pessoais',
     dia_pessoal: 'num-dia',
+    dias_favoraveis: 'dias-favoraveis',
   },
   relacionamentos: {
     harmonia_conjugal: 'conjugal',

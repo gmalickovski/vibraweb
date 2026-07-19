@@ -66,12 +66,22 @@ Análises salvas por usuário.
 
 | Função | Tabela | Auth |
 |--------|--------|------|
-| `fetchInterpretation(numero, tipo)` | interpretacoes | anon |
-| `fetchUserProfile()` | user_profiles | autenticado |
+| `fetchInterpretation(numero, tipo)` | interpretacoes + user_interpretations | anon/autenticado |
+| `listUserInterpretations()` / `listDefaultInterpretationKeys()` | user_interpretations / interpretacoes | autenticado |
+| `saveUserInterpretation(numero, tipo, texto)` / `deleteAllUserInterpretations()` | user_interpretations | autenticado |
+| `fetchUserProfile()` | user_profiles (inclui `brand_config`, `block_order`) | autenticado |
 | `updateUserProfile(updates)` | user_profiles | autenticado |
 | `saveAnalysis(type, subject, inputData, resultData)` | analyses | autenticado |
 | `listAnalyses()` | analyses | autenticado |
 | `deleteAnalysis(id)` | analyses | autenticado |
+
+### Cache em memória (2026-07-18)
+`fetchInterpretation`/`listUserInterpretations`/`listDefaultInterpretationKeys` e `fetchUserProfile` eram chamados de novo em toda navegação/re-render, e `fetchInterpretation` fazia até 4 round-trips de rede **por chamada** (era invocado uma vez por número/tipo — centenas de vezes em telas como o preview de exemplo ou Personalizar Textos). Agora `supabase.ts` mantém um cache module-level (singleton, dura a sessão da aba):
+- `interpretacoes` (textos padrão, nunca deletados) e `user_interpretations` (personalização global do consultor) → 1 bulk-fetch cada, feito uma única vez; toda chamada seguinte é um lookup síncrono em `Map`.
+- `user_profiles` (perfil, `brand_config`/templates de marca, `block_order`) → mesmo padrão, 1 fetch por sessão.
+- `saveUserInterpretation`/`deleteAllUserInterpretations`/`updateUserProfile` atualizam o cache (write-through) — não precisa recarregar do banco depois de salvar/restaurar.
+
+Textos específicos de cada análise (`analyses.text_overrides`) e templates de marca (`user_profiles.brand_config`) já eram uma única coluna JSONB por linha — sem N+1 aí, o gargalo era só as tabelas normalizadas acima.
 
 ## Políticas RLS ativas (verificado)
 

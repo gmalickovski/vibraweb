@@ -272,6 +272,8 @@ export interface TrianguloDaVida {
   bloqueios: TrianguloBloqueio[]
   /** Todas as linhas da pirâmide, da base (letras) até o topo (arcano regente) */
   linhas: number[][]
+  /** As letras do nome limpo alinhadas com a base da pirâmide (linha 0) */
+  letras?: string[]
 }
 
 export interface ArcanoAtual {
@@ -577,12 +579,16 @@ function calcProximos10AnosPessoais(dob: string): AnoPessoalEntry[] {
 
 function calcTrianguloDaVida(nome: string): TrianguloDaVida | null {
   const clean = nome.replace(/\s+/g, '').toUpperCase()
-  if (clean.length < 2) return null
-  // Cada valor de letra é reduzido a 1 dígito (1-9) ANTES de montar o
-  // triângulo — mirrors a referência (nome-magnetico/core.ts). Sem isso,
-  // acentos como â/ê/ô produzem valores >9 e "arcanos" de 3+ dígitos em vez
-  // do range 11-88 esperado.
-  const valores = clean.split('').map(letterValue).filter(v => v > 0).map(v => reduce(v, false))
+  const letras: string[] = []
+  const valores: number[] = []
+  for (const char of clean.split('')) {
+    const v = letterValue(char)
+    if (v > 0) {
+      letras.push(char)
+      valores.push(reduce(v, false))
+    }
+  }
+  if (valores.length < 2) return null
   // Adjacent pairs concatenated as two-digit numbers (e.g. 3,5 → 35)
   const sequenciaCompleta: number[] = []
   for (let i = 0; i < valores.length - 1; i++) {
@@ -600,7 +606,7 @@ function calcTrianguloDaVida(nome: string): TrianguloDaVida | null {
   const arcanoRegente = row[0] ?? null
   const arcanos = Array.from(new Set(sequenciaCompleta))
   const bloqueios = detectBloqueios(linhas)
-  return { arcanos, arcanoRegente, sequenciaCompleta, bloqueios, linhas }
+  return { arcanos, arcanoRegente, sequenciaCompleta, bloqueios, linhas, letras }
 }
 
 function calcArcanoAtual(dob: string, sequenciaCompleta: number[]): ArcanoAtual | null {

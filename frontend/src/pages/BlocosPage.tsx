@@ -32,10 +32,12 @@ import type { InterpretationMap } from '../lib/document-builder'
 import type { NumerologyMap } from '../lib/numerology'
 import { DocumentOrganizerView } from '../components/shared/DocumentOrganizerView'
 import { SecondaryBtn } from '../components/shared/Button'
+import { useConfirm } from '../components/shared/ConfirmDialog'
 import { t } from '../lib/tokens'
 
 export default function BlocosPage() {
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -78,8 +80,13 @@ export default function BlocosPage() {
     setSaving(false)
   }, [config])
 
-  function restoreDefault() {
-    if (!confirm('Restaurar a ordem e a visibilidade padrão de todos os blocos?')) return
+  async function restoreDefault() {
+    const ok = await confirm({
+      title: 'Restaurar padrão',
+      message: 'Restaurar a ordem e a visibilidade padrão de todos os blocos?',
+      confirmLabel: 'Restaurar',
+    })
+    if (!ok) return
     setConfig(DEFAULT_BLOCK_ORDER)
   }
 

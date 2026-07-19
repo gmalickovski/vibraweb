@@ -24,6 +24,7 @@ import { PrimaryBtn, SecondaryBtn } from '../components/shared/Button'
 import { PageTitle } from '../components/shared/PageTitle'
 import { DocumentOrganizerView } from '../components/shared/DocumentOrganizerView'
 import { EyeIcon, EyeOffIcon, ChevronIcon } from '../components/shared/icons'
+import { useConfirm } from '../components/shared/ConfirmDialog'
 import { useIsMobile } from '../lib/useIsMobile'
 import { t } from '../lib/tokens'
 
@@ -42,6 +43,7 @@ interface TemplateItem {
 export default function BrandPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  const confirm = useConfirm()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -203,9 +205,15 @@ export default function BrandPage() {
 
   // Clicar num card: só troca o que aparece no preview. Se o editor já estiver
   // aberto (editando outro template), acompanha e passa a editar este.
-  function selectCard(id: string) {
-    if (editingId && isDirty && !confirm('Você tem alterações não salvas neste template. Trocar mesmo assim (as alterações serão perdidas)?')) {
-      return
+  async function selectCard(id: string) {
+    if (editingId && isDirty) {
+      const ok = await confirm({
+        title: 'Alterações não salvas',
+        message: 'Você tem alterações não salvas neste template. Trocar mesmo assim? As alterações serão perdidas.',
+        confirmLabel: 'Trocar Mesmo Assim',
+        danger: true,
+      })
+      if (!ok) return
     }
     setPreviewId(id)
     if (editingId) {
@@ -251,7 +259,13 @@ export default function BrandPage() {
       alert('Você precisa ter pelo menos um template.')
       return
     }
-    if (!confirm('Tem certeza que deseja excluir este template?')) return
+    const ok = await confirm({
+      title: 'Excluir template',
+      message: 'Tem certeza que deseja excluir este template? Essa ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
 
     const updated = templates.filter(tpl => tpl.id !== id)
     setTemplates(updated)

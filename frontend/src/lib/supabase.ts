@@ -14,11 +14,62 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export type AnalysisType = 'pessoal' | 'bebe' | 'empresa' | 'previsoes'
 
-// Override de texto de interpretação específico de UM cliente/análise — shape:
-// { [numero]: { [tipo]: texto } }. Ver migration 014 (analyses.text_overrides,
-// Fase 2, 2026-07-11). Null/ausente em qualquer nível cai no padrão do
-// consultor (user_interpretations) e depois no padrão global (interpretacoes).
-export type TextOverrides = Record<number, Record<string, string>>
+// Override de texto de interpretação específico de UM cliente/análise —
+// persistido em analyses.text_overrides (JSONB, migration 014). Shape do
+// valor de cada campo evoluiu em 2026-07-18 pra suportar HISTÓRICO DE
+// VERSÕES + destino de restauração explícito (mesmo modelo de camadas do
+// VS Code/CSS + revisões do WordPress/Notion):
+//
+//   string                → formato legado (análises antigas): só o texto do
+//                           override. Continua lido normalmente.
+//   { texto, data,        → formato atual. `texto` vazio = sem override
+//     sistema?, versoes? }  próprio (cai na cascata abaixo); `sistema: true`
+//                           força o PADRÃO DO SISTEMA, pulando o texto global
+//                           do consultor (o "revert" do CSS — sem esse
+//                           marcador seria impossível, porque a ausência de
+//                           override sempre revela a camada global primeiro);
+//                           `versoes` = pilha das últimas versões salvas
+//                           (mais recente primeiro, cap VERSION_CAP) — cada
+//                           Salvar/Restaurar empilha a anterior, nada se
+//                           perde (restauração não-destrutiva, igual
+//                           WordPress: restaurar também vira revisão).
+//
+// Cascata de resolução (resolveInterpretation): texto do override →
+// [sistema? padrão do sistema] → texto global do consultor
+// (user_interpretations) → padrão do sistema (interpretacoes).
+export interface TextOverrideVersion { texto: string; data: string }
+export interface TextOverrideEntryObj {
+  texto: string
+  data?: string
+  sistema?: boolean
+  versoes?: TextOverrideVersion[]
+}
+export type TextOverrideEntry = string | TextOverrideEntryObj
+export type TextOverrides = Record<number, Record<string, TextOverrideEntry>>
+
+/** Máximo de versões guardadas por campo — mesmo espírito do WP_POST_REVISIONS. */
+export const TEXT_OVERRIDE_VERSION_CAP = 10
+
+/** Texto próprio do override ('' quando não há — NUNCA usar truthiness no entry cru: objeto é sempre truthy). */
+export function overrideTexto(entry: TextOverrideEntry | undefined | null): string {
+  if (!entry) return ''
+  return typeof entry === 'string' ? entry : entry.texto ?? ''
+}
+
+/** true quando o campo está travado no padrão do sistema (ignora o texto global do consultor). */
+export function overrideSistema(entry: TextOverrideEntry | undefined | null): boolean {
+  return !!entry && typeof entry !== 'string' && !!entry.sistema
+}
+
+export function overrideVersoes(entry: TextOverrideEntry | undefined | null): TextOverrideVersion[] {
+  if (!entry || typeof entry === 'string') return []
+  return entry.versoes ?? []
+}
+
+export function overrideData(entry: TextOverrideEntry | undefined | null): string | undefined {
+  if (!entry || typeof entry === 'string') return undefined
+  return entry.data
+}
 
 // ---------- Helpers ----------
 let getUserPromise: ReturnType<typeof supabase.auth.getUser> | null = null
@@ -35,12 +86,76 @@ async function getAuthUser() {
 }
 
 // ---------- Interpretações (public read via RLS) ----------
-
+//
+// Cache em memória (module-level singleton, sobrevive a toda navegação
+// dentro da mesma aba/sessão — só reseta num reload completo da página).
+// Antes, CADA `fetchInterpretation()` disparava de 2 a 4 round-trips de rede
+// (getAuthUser + user_interpretations + interpretacoes + fallback), e telas
+// como o preview de exemplo (sample-preview.ts), PreviewPage.tsx e a grade
+// de Personalizar Textos chamam essa função uma vez por chave — centenas de
+// vezes por carregamento. Resultado: telas de texto/preview extremamente
+// lentas pra carregar. Agora: UMA carga bulk (2 queries: todas as
+// `interpretacoes` do sistema — não deletáveis, sempre as mesmas pra todo
+// mundo — + todas as `user_interpretations` do consultor logado) alimenta
+// dois Maps; toda chamada subsequente de fetchInterpretation/
+// listUserInterpretations/listDefaultInterpretationKeys é só um lookup
+// síncrono, sem rede. saveUserInterpretation/deleteAllUserInterpretations
+// atualizam o cache (write-through) pra não precisar recarregar do zero
+// depois de salvar/restaurar um texto.
 export interface InterpretationRow {
   numero: number
   tipo: string
   titulo: string
   texto: string
+}
+
+function interpCacheKey(numero: number, tipo: string): string {
+  return `${numero}__${tipo}`
+}
+
+interface InterpretationCacheState {
+  defaults: Map<string, InterpretationRow>
+  userOverrides: Map<string, InterpretationRow>
+  loaded: boolean
+  loadingPromise: Promise<void> | null
+}
+
+const interpCache: InterpretationCacheState = {
+  defaults: new Map(),
+  userOverrides: new Map(),
+  loaded: false,
+  loadingPromise: null,
+}
+
+async function ensureInterpretationsCache(): Promise<void> {
+  if (interpCache.loaded) return
+  if (interpCache.loadingPromise) return interpCache.loadingPromise
+
+  interpCache.loadingPromise = (async () => {
+    const [{ data: defaultsData }, { data: { user } }] = await Promise.all([
+      supabase.from('interpretacoes').select('numero, tipo, titulo, texto'),
+      getAuthUser(),
+    ])
+    ;(defaultsData ?? []).forEach(row => {
+      interpCache.defaults.set(interpCacheKey(row.numero, row.tipo), row as InterpretationRow)
+    })
+
+    if (user) {
+      const { data: userData } = await supabase
+        .from('user_interpretations')
+        .select('numero, tipo, texto')
+        .eq('user_id', user.id)
+      ;(userData ?? []).forEach(row => {
+        interpCache.userOverrides.set(interpCacheKey(row.numero, row.tipo), {
+          ...row, titulo: `Personalizado: ${row.tipo}`,
+        } as InterpretationRow)
+      })
+    }
+
+    interpCache.loaded = true
+  })()
+
+  return interpCache.loadingPromise
 }
 
 export async function fetchInterpretation(
@@ -52,44 +167,56 @@ export async function fetchInterpretation(
   // null antes de sequer consultar o banco. Corrigido 2026-07-12.
   if (numero === null || numero === undefined || isNaN(numero)) return null
 
-  // 1) First check if user has a custom override
-  const { data: { user } } = await getAuthUser()
-  if (user) {
-    const { data: customData, error: customErr } = await supabase
-      .from('user_interpretations')
-      .select('numero, tipo, texto')
-      .eq('user_id', user.id)
-      .eq('numero', numero)
-      .eq('tipo', tipo)
-      .maybeSingle()
+  await ensureInterpretationsCache()
 
-    if (!customErr && customData) {
-      return { ...customData, titulo: `Personalizado: ${tipo}` } as InterpretationRow
-    }
-  }
+  // 1) Override do consultor (user_interpretations) — sempre vence.
+  const custom = interpCache.userOverrides.get(interpCacheKey(numero, tipo))
+  if (custom) return custom
 
-  // 2) Try the exact tipo in the defaults table
-  const { data, error } = await supabase
-    .from('interpretacoes')
-    .select('numero, tipo, titulo, texto')
-    .eq('numero', numero)
-    .eq('tipo', tipo)
-    .maybeSingle()
-  if (!error && data) return data as InterpretationRow
+  return systemInterpretation(numero, tipo)
+}
 
-  // 3) Fallback: strip the tab prefix (e.g. "pessoal_destino" → "destino")
+// Só a camada do SISTEMA (interpretacoes), ignorando o texto global do
+// consultor — usada quando um override de análise tem `sistema: true`
+// (destino "Usar padrão do sistema" no modal de edição por análise).
+function systemInterpretation(numero: number, tipo: string): InterpretationRow | null {
+  // Tipo exato no padrão do sistema
+  const exact = interpCache.defaults.get(interpCacheKey(numero, tipo))
+  if (exact) return exact
+
+  // Fallback: strip the tab prefix (e.g. "pessoal_destino" → "destino")
   const baseTipo = tipo.includes('_') ? tipo.split('_').slice(1).join('_') : null
   if (baseTipo && baseTipo !== tipo) {
-    const { data: fallback, error: fallbackErr } = await supabase
-      .from('interpretacoes')
-      .select('numero, tipo, titulo, texto')
-      .eq('numero', numero)
-      .eq('tipo', baseTipo)
-      .maybeSingle()
-    if (!fallbackErr && fallback) return fallback as InterpretationRow
+    const fallback = interpCache.defaults.get(interpCacheKey(numero, baseTipo))
+    if (fallback) return fallback
   }
 
   return null
+}
+
+export async function fetchSystemInterpretation(
+  numero: number,
+  tipo: string
+): Promise<InterpretationRow | null> {
+  if (numero === null || numero === undefined || isNaN(numero)) return null
+  await ensureInterpretationsCache()
+  return systemInterpretation(numero, tipo)
+}
+
+// Resolução COMPLETA da cascata de um campo de análise (override da análise →
+// [sistema forçado] → global do consultor → padrão do sistema) — único ponto
+// de verdade usado por PreviewPage (preview/PDF) e OutputPanel (modal), pra
+// nenhum consumidor precisar conhecer o shape interno de TextOverrideEntry.
+export async function resolveInterpretation(
+  numero: number,
+  tipo: string,
+  overrides?: TextOverrides | null
+): Promise<InterpretationRow | null> {
+  const entry = overrides?.[numero]?.[tipo]
+  const texto = overrideTexto(entry)
+  if (texto) return { numero, tipo, titulo: 'Personalizado', texto }
+  if (overrideSistema(entry)) return fetchSystemInterpretation(numero, tipo)
+  return fetchInterpretation(numero, tipo)
 }
 
 // Lista compacta (numero, tipo) de TODAS as interpretações customizadas do usuário —
@@ -101,14 +228,8 @@ export interface UserInterpretationKey {
 }
 
 export async function listUserInterpretations(): Promise<UserInterpretationKey[]> {
-  const { data: { user } } = await getAuthUser()
-  if (!user) return []
-  const { data, error } = await supabase
-    .from('user_interpretations')
-    .select('numero, tipo')
-    .eq('user_id', user.id)
-  if (error || !data) return []
-  return data as UserInterpretationKey[]
+  await ensureInterpretationsCache()
+  return Array.from(interpCache.userOverrides.values()).map(r => ({ numero: r.numero, tipo: r.tipo }))
 }
 
 // TODAS as (numero, tipo) da tabela pública `interpretacoes` (236 linhas,
@@ -120,11 +241,8 @@ export async function listUserInterpretations(): Promise<UserInterpretationKey[]
 // inconsistentes entre si (ex: `pessoal_motivacao` sem acento vs. `destino`
 // sem prefixo), então checar só o tipo "óbvio" dá falso negativo.
 export async function listDefaultInterpretationKeys(): Promise<UserInterpretationKey[]> {
-  const { data, error } = await supabase
-    .from('interpretacoes')
-    .select('numero, tipo')
-  if (error || !data) return []
-  return data as UserInterpretationKey[]
+  await ensureInterpretationsCache()
+  return Array.from(interpCache.defaults.values()).map(r => ({ numero: r.numero, tipo: r.tipo }))
 }
 
 export async function saveUserInterpretation(
@@ -143,6 +261,7 @@ export async function saveUserInterpretation(
       .eq('user_id', user.id)
       .eq('numero', numero)
       .eq('tipo', tipo)
+    if (!error) interpCache.userOverrides.delete(interpCacheKey(numero, tipo))
     return !error
   }
 
@@ -152,6 +271,11 @@ export async function saveUserInterpretation(
       { user_id: user.id, numero, tipo, texto, updated_at: new Date().toISOString() },
       { onConflict: 'user_id, numero, tipo' }
     )
+  if (!error) {
+    interpCache.userOverrides.set(interpCacheKey(numero, tipo), {
+      numero, tipo, texto, titulo: `Personalizado: ${tipo}`,
+    })
+  }
   return !error
 }
 
@@ -166,6 +290,7 @@ export async function deleteAllUserInterpretations(): Promise<boolean> {
     .from('user_interpretations')
     .delete()
     .eq('user_id', user.id)
+  if (!error) interpCache.userOverrides.clear()
   return !error
 }
 
@@ -182,16 +307,36 @@ export interface UserProfile {
   block_order: any | null // JSONB — ver lib/block-order.ts (Item 1, Fase 1)
 }
 
+// Cache em memória (module-level, mesma ideia do cache de interpretações
+// acima) — `fetchUserProfile()` era chamado de novo em CADA navegação
+// (AppLayout, BlocosPage, BrandPage, AppPage todos chamam no próprio mount),
+// refazendo a mesma query de rede toda vez mesmo sem o perfil ter mudado.
+// Isso inclui os templates de marca (`brand_config`) e a ordem de blocos
+// (`block_order`), ambos JSONB numa única linha — agora carregados uma vez
+// e reaproveitados; `updateUserProfile` atualiza o cache (write-through)
+// pra próxima leitura já vir com o valor novo, sem round-trip.
+let profileCache: { value: UserProfile | null; promise: Promise<UserProfile | null> | null; loaded: boolean } = {
+  value: null, promise: null, loaded: false,
+}
+
 export async function fetchUserProfile(): Promise<UserProfile | null> {
-  const { data: { user } } = await getAuthUser()
-  if (!user) return null
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('id, consultant_name, consultant_contact, logo_url, plan, role, brand_config, block_order')
-    .eq('id', user.id)
-    .single()
-  if (error) return null
-  return data as UserProfile
+  if (profileCache.loaded) return profileCache.value
+  if (profileCache.promise) return profileCache.promise
+
+  profileCache.promise = (async () => {
+    const { data: { user } } = await getAuthUser()
+    if (!user) { profileCache.loaded = true; profileCache.value = null; return null }
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id, consultant_name, consultant_contact, logo_url, plan, role, brand_config, block_order')
+      .eq('id', user.id)
+      .single()
+    profileCache.loaded = true
+    profileCache.value = error ? null : (data as UserProfile)
+    return profileCache.value
+  })()
+
+  return profileCache.promise
 }
 
 export async function updateUserProfile(
@@ -203,6 +348,9 @@ export async function updateUserProfile(
     .from('user_profiles')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', user.id)
+  if (!error && profileCache.value) {
+    profileCache.value = { ...profileCache.value, ...updates }
+  }
   return !error
 }
 

@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { t } from '../../lib/tokens'
 import { NumberCard } from '../shared/NumberCard'
-import { ChevronIcon } from '../shared/icons'
+import { ChevronIcon, CloseIcon } from '../shared/icons'
 import { PrimaryBtn, SecondaryBtn } from '../shared/Button'
 import { MarkdownEditor } from '../shared/MarkdownEditor'
+import { useConfirm } from '../shared/ConfirmDialog'
+import { useIsMobile } from '../../lib/useIsMobile'
 import {
   calcPessoal,
   type NumerologyMap, type Desafios, type MomentosDecisivos,
-  type MesPessoalEntry, type AnoPessoalEntry,
+  type MesPessoalEntry,
 } from '../../lib/numerology'
 import type { AnalysisData } from '../../pages/AppPage'
 import { fetchInterpretation, type InterpretationRow, type TextOverrides } from '../../lib/supabase'
@@ -82,24 +84,14 @@ function resolveValue(nums: NumerologyMap, key: string): number | null {
   return (nums as unknown as Record<string, unknown>)[key] as number ?? null
 }
 
-const primaryCards = [
-  { key: 'destino'       as const, label: 'Destino',         accent: 'gold'    as const },
-  { key: 'expressao'     as const, label: 'Expressão',       accent: 'coral'   as const },
-  { key: 'motivacao'     as const, label: 'Motivação',       accent: 'magenta' as const },
-  { key: 'impressao'     as const, label: 'Impressão',       accent: 'wine'    as const },
-  { key: 'missao'        as const, label: 'Missão',          accent: 'gold'    as const },
-  { key: 'talentoOculto' as const, label: 'Talento Oculto',  accent: 'coral'   as const },
-  { key: 'psiquico'      as const, label: 'Psíquico',        accent: 'info'    as const },
-  { key: 'anoPessoal'    as const, label: 'Ano Pessoal',     accent: 'gold'    as const },
-]
-
 export function OutputPanel({
   data, consultantName, consultantContact, savedMode, onNewAnalysis, onDismiss, onSave, saving,
   onPreview, onGenerate, textOverrides, onTextOverrideChange,
   isPro, templateOptions, templateOverride, onTemplateOverrideChange, effectiveTemplateName, globalTemplateName,
 }: Props) {
+  const confirm = useConfirm()
+  const isMobile = useIsMobile()
   const nums = useMemo(() => calcPessoal(data.nome, data.dob), [data])
-  const subject = useMemo(() => data.nome || '', [data])
 
   const [selectedCard, setSelectedCard] = useState<SelectedCard | null>(null)
   const [interp, setInterp] = useState<InterpretationRow | null>(null)
@@ -176,98 +168,132 @@ export function OutputPanel({
     setDraft(override || interp?.texto || '')
   }, [selectedCard, interp, textOverrides])
 
-  // --- Detail view ---
-  if (selectedCard) {
-    const tabName = 'Pessoal'
-    const canEdit = !!onTextOverrideChange
+  // --- Modal de edição do texto (por análise) ---
+  // Clicar num número NÃO troca mais a tela inteira (nem abre painel lateral):
+  // abre uma janela modal flutuante por cima da grade de cards, com o MESMO
+  // MarkdownEditor compartilhado do editor global (Personalizar Textos) —
+  // mesma barra de formatação fixa, mesmos botões dinâmicos Restaurar/Limpar/
+  // Salvar. A diferença é o destino do save: aqui grava só no text_overrides
+  // DESTA análise (via onTextOverrideChange), nunca no texto padrão global.
+  const canEdit = !!onTextOverrideChange
 
-    function handleFieldSave() {
-      if (!selectedCard) return
-      onTextOverrideChange!(selectedCard.value, selectedCard.tipo, draft)
-    }
-    function handleFieldClear() {
-      setDraft(savedText)
-    }
-    function handleFieldRestore() {
-      if (!selectedCard) return
-      if (!confirm('Deseja apagar sua versão e restaurar o texto padrão do Vibraweb pra este cliente?')) return
-      onTextOverrideChange!(selectedCard.value, selectedCard.tipo, '')
-    }
+  function handleFieldSave() {
+    if (!selectedCard) return
+    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, draft)
+  }
+  function handleFieldClear() {
+    setDraft(savedText)
+  }
+  async function handleFieldRestore() {
+    if (!selectedCard) return
+    const ok = await confirm({
+      title: 'Restaurar padrão',
+      message: 'Deseja apagar sua versão personalizada e restaurar o texto padrão do Vibraweb pra este cliente?',
+      confirmLabel: 'Restaurar',
+      danger: true,
+    })
+    if (!ok) return
+    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, '')
+  }
 
-    return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: t.night }}>
-        <div style={{ flex: 1, padding: '40px 40px 0', overflowY: 'auto' }}>
-          <button
-            onClick={() => setSelectedCard(null)}
-            style={{
-              background: 'transparent', border: 0, color: t.fg3, fontFamily: t.body, fontSize: 13,
-              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 24,
-              transition: 'color .2s'
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = t.fg}
-            onMouseLeave={e => e.currentTarget.style.color = t.fg3}
-          >
-            Voltar aos números
-          </button>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 32, alignItems: 'start' }}>
+  const accentColor = selectedCard ? ((t as Record<string, string>)[selectedCard.accent] || t.gold) : t.gold
+  const editorModal = selectedCard && (
+    <div
+      // Clicar no backdrop fecha SÓ sem edição pendente — com rascunho não
+      // salvo, força a escolha explícita (Salvar/Limpar/✕) em vez de perder
+      // o texto num clique acidental fora da janela.
+      onMouseDown={e => { if (e.target === e.currentTarget && !isDirty) setSelectedCard(null) }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 300,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: isMobile ? 0 : 24,
+        background: 'rgba(10,6,12,0.65)', backdropFilter: 'blur(4px)',
+      }}
+    >
+      <div style={{
+        width: isMobile ? '100%' : 'min(760px, 100%)',
+        height: isMobile ? '100%' : 'min(78vh, 720px)',
+        display: 'flex', flexDirection: 'column', minHeight: 0,
+        background: t.night, border: isMobile ? 'none' : `1px solid ${t.pb}`,
+        borderRadius: isMobile ? 0 : 16,
+        boxShadow: '0 24px 64px rgba(0,0,0,0.55)',
+        overflow: 'hidden', boxSizing: 'border-box',
+      }}>
+        {/* Header: número em destaque + título + badge + fechar */}
+        <div style={{ padding: '16px 20px 12px', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+          <div style={{
+            width: 54, height: 54, borderRadius: 12, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: t.display, fontWeight: 900, fontSize: 26, color: accentColor,
+            background: 'rgba(42,22,32,.45)', border: `1px solid ${t.pb}`,
+          }}>
+            {selectedCard.value}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
-              fontFamily: t.display, fontWeight: 900, fontSize: 88, lineHeight: 1,
-              color: (t as Record<string, string>)[selectedCard.accent] || t.gold,
-              textAlign: 'center',
-              background: 'rgba(42,22,32,.35)',
-              border: `1px solid ${t.pb}`,
-              borderRadius: 16,
-              padding: '24px 0'
+              fontFamily: t.display, fontSize: 15, fontWeight: 700, color: t.fg,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
-              {selectedCard.value}
+              {interp?.titulo ?? `Número de ${selectedCard.label}`}
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <div style={{ fontFamily: t.body, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: t.fg3, fontWeight: 600, flex: 1 }}>
-                  {interp?.titulo ?? `Número de ${selectedCard.label} (${tabName})`}
-                </div>
-                {isCustom && (
-                  <span style={{ fontSize: 11, padding: '4px 8px', background: t.wine, color: t.fg, borderRadius: 4, fontFamily: t.body, flexShrink: 0 }}>
-                    Texto Personalizado Ativo
-                  </span>
-                )}
-              </div>
-              {canEdit ? (
-                <>
-                  <MarkdownEditor
-                    value={draft}
-                    onChange={setDraft}
-                    placeholder={`Interpretando o número ${selectedCard.value} para ${selectedCard.label}...`}
-                    style={{
-                      fontFamily: t.body, fontSize: 15, color: t.fg, marginTop: 12, lineHeight: 1.7,
-                      width: '100%', minHeight: 220, resize: 'vertical', boxSizing: 'border-box',
-                      background: 'rgba(42,22,32,.25)', border: `1px solid ${t.pb}`, borderRadius: 10,
-                      padding: 16,
-                    }}
-                  />
-                  <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginTop: 8 }}>
-                    Esse ajuste vale só para este cliente — não muda o texto padrão em "Textos". Selecione um trecho pra formatar.
-                  </div>
-                </>
-              ) : (
-                <p style={{ fontFamily: t.body, fontSize: 15, color: t.fg, marginTop: 12, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-                  {draft || `Interpretando o número ${selectedCard.value} para ${selectedCard.label}...`}
-                </p>
-              )}
+            <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginTop: 2 }}>
+              Ajuste vale só para esta análise — não muda o texto padrão em "Textos".
             </div>
           </div>
+          {isCustom && (
+            <span style={{ fontSize: 11, padding: '4px 8px', background: t.wine, color: t.fg, borderRadius: 4, fontFamily: t.body, flexShrink: 0 }}>
+              Texto Personalizado Ativo
+            </span>
+          )}
+          <button
+            onClick={() => setSelectedCard(null)}
+            title="Fechar"
+            style={{
+              width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+              background: 'transparent', border: `1px solid ${t.pb}`, color: t.fg3,
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <CloseIcon size={14} />
+          </button>
         </div>
 
-        {/* Rodapé fixo, mesmo padrão dinâmico de CustomTexts.tsx (Personalizar
-            Textos): colapsa a 0 quando não há nada pra mostrar; "Restaurar
-            Padrão" fica sozinho quando há override salvo sem edição pendente;
-            "Limpar"/"Salvar" aparecem juntos só enquanto há edição pendente. */}
+        {/* Corpo: o mesmo editor compartilhado, barra de formatação fixa no topo */}
+        <div style={{ flex: 1, minHeight: 0, padding: '0 20px', display: 'flex', flexDirection: 'column' }}>
+          {canEdit ? (
+            <>
+              <MarkdownEditor
+                value={draft}
+                onChange={setDraft}
+                placeholder={`Interpretando o número ${selectedCard.value} para ${selectedCard.label}...`}
+                style={{
+                  flex: 1, minHeight: 0, width: '100%', boxSizing: 'border-box', overflowY: 'auto',
+                  fontFamily: t.body, fontSize: 15, color: t.fg, lineHeight: 1.7,
+                  background: 'rgba(0,0,0,0.2)', border: `1px solid ${t.pb}`, borderRadius: 8,
+                  padding: 16, outline: 'none',
+                }}
+              />
+              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginTop: 6, flexShrink: 0 }}>
+                Use a barra acima da caixa pra formatar. Reflete no preview e no PDF gerado desta análise.
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+              <p style={{ fontFamily: t.body, fontSize: 15, color: t.fg, margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                {draft || `Interpretando o número ${selectedCard.value} para ${selectedCard.label}...`}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Rodapé dinâmico — mesmo padrão de CustomTexts (Personalizar Textos):
+            colapsa a 0 sem nada a mostrar; Restaurar sozinho com override
+            salvo; Limpar/Salvar só com edição pendente. */}
         {canEdit && (
           <div style={{
-            flexShrink: 0, marginLeft: 40, marginRight: 40,
+            flexShrink: 0, marginLeft: 20, marginRight: 20,
             borderTop: `1px solid ${showFieldFooter ? t.pb : 'transparent'}`,
-            padding: showFieldFooter ? '16px 0' : '0',
+            padding: showFieldFooter ? '14px 0' : '0',
             maxHeight: showFieldFooter ? 64 : 0,
             overflow: 'hidden',
             display: 'flex', alignItems: 'center', gap: 10,
@@ -303,10 +329,10 @@ export function OutputPanel({
             </div>
           </div>
         )}
-        <div style={{ height: 24, flexShrink: 0 }} />
+        <div style={{ height: 14, flexShrink: 0 }} />
       </div>
-    )
-  }
+    </div>
+  )
 
   // --- Card grid view ---
   // Toolbar flutuante (2026-07-12) — mesmo padrão de DocumentOrganizerView:
@@ -493,25 +519,27 @@ export function OutputPanel({
         </div>
       )}
 
-      {/* Sections 1 & 2 — only when there is data */}
+      {/* Seções seguem EXATAMENTE os grupos de nível superior de "Blocos"
+          (block-order.ts / BLOCK_DEFS) — mesma organização e nomes que o
+          consultor vê em /app/blocos e no documento gerado, pra grade de
+          cards e relatório contarem a mesma história na mesma ordem. */}
       {hasData && <>
 
-      {/* 1. A Essência (Traços de Personalidade) */}
-      <Section label="A Essência (Traços de Personalidade)">
-        {/* flex-wrap: cards shrink to fit all in one row; orphans on a new line are centered */}
+      {/* 1. Personalidade — quem você é */}
+      <Section label="Personalidade">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
           {([
-            { key: 'motivacao' as const, label: 'Motivação', accent: 'gold' as const },
-            { key: 'impressao' as const, label: 'Impressão', accent: 'magenta' as const },
-            { key: 'expressao' as const, label: 'Expressão', accent: 'coral' as const },
-            { key: 'talentoOculto' as const, label: 'Talento Oculto', accent: 'info' as const },
-            { key: 'expressao' as const, label: 'Aptidões Profissionais', accent: 'gold' as const },
-          ]).map((c, i) => (
-            <div key={`${c.key}-${i}`} style={{ flex: '1 1 90px', minWidth: 90, maxWidth: 200 }}>
+            { key: 'motivacao' as const, label: 'Motivação', accent: 'gold' as const, tipo: 'pessoal_motivacao' },
+            { key: 'impressao' as const, label: 'Impressão', accent: 'magenta' as const, tipo: 'pessoal_impressao' },
+            { key: 'expressao' as const, label: 'Expressão', accent: 'coral' as const, tipo: 'pessoal_expressao' },
+            { key: 'talentoOculto' as const, label: 'Talento Oculto', accent: 'info' as const, tipo: 'pessoal_talentoOculto' },
+            { key: 'psiquico' as const, label: 'Número Psíquico', accent: 'wine' as const, tipo: 'pessoal_psiquico' },
+          ]).map(c => (
+            <div key={c.tipo} style={{ flex: '1 1 90px', minWidth: 90, maxWidth: 200 }}>
               <NumberCard
                 label={c.label} value={nums[c.key] ?? null} accent={c.accent}
                 onClick={nums[c.key] != null ? () => setSelectedCard({
-                  key: c.key, label: c.label, value: nums[c.key]!, accent: c.accent, tipo: c.label === 'Aptidões Profissionais' ? 'pessoal_aptidoes' : `pessoal_${c.key}`
+                  key: c.key, label: c.label, value: nums[c.key]!, accent: c.accent, tipo: c.tipo
                 }) : undefined}
               />
             </div>
@@ -519,113 +547,102 @@ export function OutputPanel({
         </div>
       </Section>
 
-      {/* 2. O Caminho e os Desafios */}
-      <Section label="O Caminho e os Desafios">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* 2. Propósito de Vida — por que você veio */}
+      <Section label="Propósito de Vida">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+          <NumberCard
+            label="Dia Natalício" value={nums.diaNatalicio} accent="gold"
+            onClick={nums.diaNatalicio != null ? () => setSelectedCard({
+              key: 'diaNatalicio', label: 'Dia Natalício', value: nums.diaNatalicio!, accent: 'gold', tipo: 'pessoal_dia_natalicio'
+            }) : undefined}
+          />
+          <NumberCard
+            label="Destino" value={nums.destino} accent="coral"
+            onClick={nums.destino != null ? () => setSelectedCard({
+              key: 'destino', label: 'Destino', value: nums.destino!, accent: 'coral', tipo: 'pessoal_destino'
+            }) : undefined}
+          />
+          <NumberCard
+            label="Missão" value={nums.missao} accent="magenta"
+            onClick={nums.missao != null ? () => setSelectedCard({
+              key: 'missao', label: 'Missão', value: nums.missao!, accent: 'magenta', tipo: 'pessoal_missao'
+            }) : undefined}
+          />
+          {/* Aptidões usa o número de Expressão — mesma base de cálculo. */}
+          <NumberCard
+            label="Aptidões Profissionais" value={nums.expressao} accent="gold"
+            onClick={nums.expressao != null ? () => setSelectedCard({
+              key: 'expressao', label: 'Aptidões Profissionais', value: nums.expressao!, accent: 'gold', tipo: 'pessoal_aptidoes'
+            }) : undefined}
+          />
+        </div>
+      </Section>
 
-          {/* Row 1: Destino + Missão — 2 large cards filling full width */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-            <NumberCard
-              label="Destino" value={nums.destino} accent="coral"
-              onClick={nums.destino != null ? () => setSelectedCard({
-                key: 'destino', label: 'Destino', value: nums.destino!, accent: 'coral', tipo: 'pessoal_destino'
-              }) : undefined}
-            />
-            <NumberCard
-              label="Missão" value={nums.missao} accent="magenta"
-              onClick={nums.missao != null ? () => setSelectedCard({
-                key: 'missao', label: 'Missão', value: nums.missao!, accent: 'magenta', tipo: 'pessoal_missao'
-              }) : undefined}
-            />
-          </div>
-
-          {/* Row 2: Dia Natalício + Número Psíquico + Resposta Subconsciente — 3 cards full width */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            <NumberCard
-              label="Dia Natalício" value={nums.diaNatalicio} accent="gold"
-              onClick={nums.diaNatalicio != null ? () => setSelectedCard({
-                key: 'diaNatalicio', label: 'Dia Natalício', value: nums.diaNatalicio!, accent: 'gold', tipo: 'pessoal_dia_natalicio'
-              }) : undefined}
-            />
-            <NumberCard
-              label="Número Psíquico" value={nums.psiquico} accent="gold"
-              onClick={nums.psiquico != null ? () => setSelectedCard({
-                key: 'psiquico', label: 'Número Psíquico', value: nums.psiquico!, accent: 'gold', tipo: 'pessoal_psiquico'
-              }) : undefined}
-            />
-            <NumberCard
-              label="Resposta Subconsciente" value={nums.respostaSubconsciente} accent="info"
-              onClick={nums.respostaSubconsciente != null ? () => setSelectedCard({
-                key: 'respostaSubconsciente', label: 'Resposta Subconsciente', value: nums.respostaSubconsciente!, accent: 'info', tipo: 'pessoal_respostaSubconsciente'
-              }) : undefined}
-            />
-          </div>
-
-          {/* Row 3 (conditional): Lições, Débitos, Tendências */}
-          {(nums.licoesCarmicas.length > 0 || nums.debitosCarmicos.length > 0 || nums.tendenciasOcultas.length > 0) && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, alignItems: 'stretch' }}>
-              {nums.licoesCarmicas.length > 0 && (
-                <GroupCard label="Lições Cármicas" accent="magenta">
-                  {nums.licoesCarmicas.map((v, i) => (
-                    <CircleNumber key={`licao-${i}`} value={v} accent="magenta" onClick={() => setSelectedCard({
-                      key: `licoesCarmicas.${i}`, label: 'Lição Cármica', value: v, accent: 'magenta', tipo: 'pessoal_licao_carmica'
-                    })} />
-                  ))}
-                </GroupCard>
-              )}
-              {nums.debitosCarmicos.length > 0 && (
-                <GroupCard label="Débitos Cármicos" accent="magenta">
-                  {nums.debitosCarmicos.map((v, i) => (
-                    <CircleNumber key={`debito-${i}`} value={v} accent="magenta" onClick={() => setSelectedCard({
-                      key: `debitosCarmicos.${i}`, label: 'Débito Cármico', value: v, accent: 'magenta', tipo: 'pessoal_debito_carmico'
-                    })} />
-                  ))}
-                </GroupCard>
-              )}
-              {nums.tendenciasOcultas.length > 0 && (
-                <GroupCard label="Tendências Ocultas" accent="success">
-                  {nums.tendenciasOcultas.map((v, i) => (
-                    <CircleNumber key={`tend-${i}`} value={v} accent="success" onClick={() => setSelectedCard({
-                      key: `tendenciasOcultas.${i}`, label: 'Tendência Oculta', value: v, accent: 'success', tipo: 'pessoal_tendenciaOculta'
-                    })} />
-                  ))}
-                </GroupCard>
-              )}
+      {/* 3. Aspectos Cármicos — o que superar */}
+      <Section label="Aspectos Cármicos">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
+          {nums.licoesCarmicas.length > 0 && (
+            <div style={{ flex: '1 1 200px', minWidth: 200, display: 'flex' }}>
+              <GroupCard label="Lições Cármicas" accent="magenta">
+                {nums.licoesCarmicas.map((v, i) => (
+                  <CircleNumber key={`licao-${i}`} value={v} accent="magenta" onClick={() => setSelectedCard({
+                    key: `licoesCarmicas.${i}`, label: 'Lição Cármica', value: v, accent: 'magenta', tipo: 'pessoal_licao_carmica'
+                  })} />
+                ))}
+              </GroupCard>
+            </div>
+          )}
+          {nums.debitosCarmicos.length > 0 && (
+            <div style={{ flex: '1 1 200px', minWidth: 200, display: 'flex' }}>
+              <GroupCard label="Débitos Cármicos" accent="magenta">
+                {nums.debitosCarmicos.map((v, i) => (
+                  <CircleNumber key={`debito-${i}`} value={v} accent="magenta" onClick={() => setSelectedCard({
+                    key: `debitosCarmicos.${i}`, label: 'Débito Cármico', value: v, accent: 'magenta', tipo: 'pessoal_debito_carmico'
+                  })} />
+                ))}
+              </GroupCard>
+            </div>
+          )}
+          {nums.tendenciasOcultas.length > 0 && (
+            <div style={{ flex: '1 1 200px', minWidth: 200, display: 'flex' }}>
+              <GroupCard label="Tendências Ocultas" accent="success">
+                {nums.tendenciasOcultas.map((v, i) => (
+                  <CircleNumber key={`tend-${i}`} value={v} accent="success" onClick={() => setSelectedCard({
+                    key: `tendenciasOcultas.${i}`, label: 'Tendência Oculta', value: v, accent: 'success', tipo: 'pessoal_tendenciaOculta'
+                  })} />
+                ))}
+              </GroupCard>
+            </div>
+          )}
+          {nums.respostaSubconsciente != null && (
+            <div style={{ flex: '1 1 200px', minWidth: 200 }}>
+              <NumberCard
+                label="Resposta Subconsciente" value={nums.respostaSubconsciente} accent="info"
+                onClick={() => setSelectedCard({
+                  key: 'respostaSubconsciente', label: 'Resposta Subconsciente', value: nums.respostaSubconsciente!, accent: 'info', tipo: 'pessoal_respostaSubconsciente'
+                })}
+              />
             </div>
           )}
         </div>
       </Section>
 
-      </> /* end hasData sections 1 & 2 */}
-
-      {/* 3. Ciclos de Tempo (Previsões) — only when there is data */}
-      {(nums.ciclosDeVida.length > 0 || !!nums.desafios || !!nums.momentosDecisivos ||
-        nums.anoPessoal !== null || nums.diaPessoal !== null || nums.mesesPessoais.length > 0) && (
-      <Section label="Ciclos de Tempo (Previsões)">
+      {/* 4. Ciclos de Vida, Desafios e Momentos Decisivos */}
+      {(nums.ciclosDeVida.length > 0 || !!nums.desafios || !!nums.momentosDecisivos) && (
+      <Section label="Ciclos de Vida, Desafios e Momentos Decisivos">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {nums.ciclosDeVida.length > 0 && (
             <div>
-              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>Ciclos de Vida</div>
+              <SubLabel>Ciclos de Vida</SubLabel>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 {nums.ciclosDeVida.map((c, i) => (
-                  <div
-                    key={i}
+                  <MiniTile
+                    key={i} value={c.regente} title={`Ciclo ${i + 1}`} sub={`${c.inicio} – ${c.fim}`}
                     onClick={() => setSelectedCard({
                       key: `ciclosDeVida.${i}`, label: `Ciclo ${i + 1}`, value: c.regente,
                       accent: 'coral', tipo: 'pessoal_ciclo'
                     })}
-                    style={{
-                      flex: 1, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                      background: 'rgba(42,22,32,.35)', border: `1px solid ${t.pb}`,
-                      transition: 'border-color .2s', display: 'flex', flexDirection: 'column', alignItems: 'center'
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.coral}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.pb}
-                  >
-                    <div style={{ fontFamily: t.display, fontWeight: 900, fontSize: 24, color: t.coral }}>{c.regente}</div>
-                    <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg3, marginTop: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Ciclo {i + 1}</div>
-                    <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg4, marginTop: 2 }}>{c.inicio} – {c.fim}</div>
-                  </div>
+                  />
                 ))}
               </div>
             </div>
@@ -633,30 +650,19 @@ export function OutputPanel({
 
           {nums.desafios && (
             <div>
-              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>Desafios</div>
+              <SubLabel>Desafios</SubLabel>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 {([
                   { label: 'Desafio 1', subKey: 'desafio1' as const, period: nums.ciclosDeVida[0] ? `${nums.ciclosDeVida[0].inicio} – ${nums.ciclosDeVida[0].fim}` : '' },
                   { label: 'Desafio 2', subKey: 'desafio2' as const, period: nums.ciclosDeVida[0] && typeof nums.ciclosDeVida[0].fim === 'number' ? `${nums.ciclosDeVida[0].fim} – ${nums.ciclosDeVida[0].fim + 9}` : '' },
                   { label: 'Desafio Principal', subKey: 'desafioPrincipal' as const, period: 'Vida Toda' },
                 ]).map(d => (
-                  <div
-                    key={d.subKey}
+                  <MiniTile
+                    key={d.subKey} value={nums.desafios![d.subKey]} title={d.label} sub={d.period || undefined}
                     onClick={() => setSelectedCard({
                       key: `desafios.${d.subKey}`, label: d.label, value: nums.desafios![d.subKey], accent: 'coral', tipo: 'pessoal_desafio'
                     })}
-                    style={{
-                      flex: 1, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                      background: 'rgba(42,22,32,.35)', border: `1px solid ${t.pb}`,
-                      transition: 'border-color .2s', display: 'flex', flexDirection: 'column', alignItems: 'center'
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.coral}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.pb}
-                  >
-                    <div style={{ fontFamily: t.display, fontWeight: 900, fontSize: 24, color: t.coral }}>{nums.desafios![d.subKey]}</div>
-                    <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg3, marginTop: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>{d.label}</div>
-                    {d.period && <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg4, marginTop: 2 }}>{d.period}</div>}
-                  </div>
+                  />
                 ))}
               </div>
             </div>
@@ -664,209 +670,251 @@ export function OutputPanel({
 
           {nums.momentosDecisivos && (
             <div>
-              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>Momentos Decisivos</div>
+              <SubLabel>Momentos Decisivos</SubLabel>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                 {([
                   { i: 1, label: 'Momento 1', subKey: 'momento1' as const, period: nums.ciclosDeVida[0] ? `${nums.ciclosDeVida[0].inicio} – ${nums.ciclosDeVida[0].fim}` : '' },
                   { i: 2, label: 'Momento 2', subKey: 'momento2' as const, period: nums.ciclosDeVida[0] && typeof nums.ciclosDeVida[0].fim === 'number' ? `${nums.ciclosDeVida[0].fim} – ${nums.ciclosDeVida[0].fim + 9}` : '' },
                   { i: 3, label: 'Momento 3', subKey: 'momento3' as const, period: nums.ciclosDeVida[0] && typeof nums.ciclosDeVida[0].fim === 'number' ? `${nums.ciclosDeVida[0].fim + 9} – ${nums.ciclosDeVida[0].fim + 18}` : '' },
                   { i: 4, label: 'Momento 4', subKey: 'momento4' as const, period: nums.ciclosDeVida[0] && typeof nums.ciclosDeVida[0].fim === 'number' ? `${nums.ciclosDeVida[0].fim + 18} – Vida Toda` : '' },
-                ]).map(d => {
-                  const value = nums.momentosDecisivos![d.subKey]
-                  return (
-                    <div
-                      key={d.subKey}
-                      onClick={() => setSelectedCard({
-                        key: `momentosDecisivos.${d.subKey}`, label: `Momento Decisivo ${d.i}`,
-                        value, accent: 'coral', tipo: 'pessoal_momentoDecisivo'
-                      })}
-                      style={{
-                        flex: 1, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                        background: 'rgba(42,22,32,.35)', border: `1px solid ${t.pb}`,
-                        transition: 'border-color .2s', display: 'flex', flexDirection: 'column', alignItems: 'center'
-                      }}
-                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.coral}
-                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.pb}
-                    >
-                      <div style={{ fontFamily: t.display, fontWeight: 900, fontSize: 24, color: t.coral }}>{value}</div>
-                      <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg3, marginTop: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>{d.label}</div>
-                      {d.period && <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg4, marginTop: 2 }}>{d.period}</div>}
-                    </div>
-                  )
-                })}
+                ]).map(d => (
+                  <MiniTile
+                    key={d.subKey} value={nums.momentosDecisivos![d.subKey]} title={d.label} sub={d.period || undefined}
+                    onClick={() => setSelectedCard({
+                      key: `momentosDecisivos.${d.subKey}`, label: `Momento Decisivo ${d.i}`,
+                      value: nums.momentosDecisivos![d.subKey], accent: 'coral', tipo: 'pessoal_momentoDecisivo'
+                    })}
+                  />
+                ))}
               </div>
             </div>
           )}
+        </div>
+      </Section>
+      )}
 
+      {/* 5. Previsões Temporais — Ano/Mês/Dia Pessoal + Dias Favoráveis
+          (Dias Favoráveis mudou de "Relacionamentos e Cabalística" pra cá,
+          seguindo a posição real no documento/Blocos). */}
+      {(nums.anoPessoal !== null || nums.diaPessoal !== null || nums.mesesPessoais.length > 0 || nums.diasFavoraveis.length > 0) && (
+      <Section label="Previsões Temporais">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {(nums.anoPessoal !== null || nums.diaPessoal !== null || nums.mesesPessoais.length > 0) && (
-            <div>
-              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>Previsões Pessoais</div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-                  {nums.anoPessoal !== null && (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <NumberCard
-                        label="Ano Pessoal" value={nums.anoPessoal} accent="gold"
-                        onClick={() => setSelectedCard({
-                          key: 'anoPessoal', label: 'Ano Pessoal', value: nums.anoPessoal!, accent: 'gold', tipo: 'pessoal_anoPessoal'
-                        })}
-                      />
-                    </div>
-                  )}
-                  {nums.diaPessoal !== null && (
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <NumberCard
-                        label="Dia Pessoal" value={nums.diaPessoal} accent="gold"
-                        onClick={() => setSelectedCard({
-                          key: 'diaPessoal', label: 'Dia Pessoal', value: nums.diaPessoal!, accent: 'gold', tipo: 'pessoal_diaPessoal'
-                        })}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
-                  {nums.mesesPessoais.length > 0 && (
-                    <MesesPessoaisGrid
-                      meses={nums.mesesPessoais}
-                      onMonthClick={(entry, idx) => setSelectedCard({
-                        key: `mesesPessoais.${idx}`, label: entry.nome, value: entry.numero, accent: 'gold', tipo: 'pessoal_mesPessoal'
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+                {nums.anoPessoal !== null && (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <NumberCard
+                      label="Ano Pessoal" value={nums.anoPessoal} accent="gold"
+                      onClick={() => setSelectedCard({
+                        key: 'anoPessoal', label: 'Ano Pessoal', value: nums.anoPessoal!, accent: 'gold', tipo: 'pessoal_anoPessoal'
                       })}
                     />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </Section>
-      )}
-
-      {/* 4. Relacionamentos e Cabalística — only when there is data */}
-      {(!!nums.harmoniaConjugal || !!nums.trianguloDaVida ||
-        nums.diasFavoraveis.length > 0 || nums.numerosHarmonicos.length > 0) && (
-      <Section label="Relacionamentos e Cabalística">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {nums.harmoniaConjugal && (
-            <div>
-              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>Harmonia Conjugal</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, alignItems: 'stretch' }}>
-                <GroupCard label="Vibra com" accent="indigo">
-                  {nums.harmoniaConjugal.vibra.map((v, i) => (
-                    <CircleNumber key={`vibra-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
-                      key: 'harmoniaConjugal.vibra', label: 'Vibra com', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
-                    })} />
-                  ))}
-                </GroupCard>
-                <GroupCard label="Atrai" accent="indigo">
-                  {nums.harmoniaConjugal.atrai.map((v, i) => (
-                    <CircleNumber key={`atrai-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
-                      key: 'harmoniaConjugal.atrai', label: 'Atrai', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
-                    })} />
-                  ))}
-                </GroupCard>
-                <GroupCard label="Oposto" accent="indigo">
-                  {nums.harmoniaConjugal.oposto.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Nenhum</span>}
-                  {nums.harmoniaConjugal.oposto.map((v, i) => (
-                    <CircleNumber key={`oposto-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
-                      key: 'harmoniaConjugal.oposto', label: 'Oposto', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
-                    })} />
-                  ))}
-                </GroupCard>
-                <GroupCard label="Passivo" accent="indigo">
-                  {nums.harmoniaConjugal.passivo.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Nenhum</span>}
-                  {nums.harmoniaConjugal.passivo.map((v, i) => (
-                    <CircleNumber key={`passivo-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
-                      key: 'harmoniaConjugal.passivo', label: 'Passivo', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
-                    })} />
-                  ))}
-                </GroupCard>
-              </div>
-            </div>
-          )}
-
-          {nums.trianguloDaVida && (
-            <div>
-              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>Triângulo da Vida</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 10, alignItems: 'stretch', marginBottom: 10 }}>
-                <NumberCard
-                  label="Arcano Regente" value={nums.trianguloDaVida.arcanoRegente} accent="indigo"
-                  onClick={nums.trianguloDaVida.arcanoRegente != null ? () => setSelectedCard({
-                    key: 'arcanoRegente', label: 'Arcano Regente', value: nums.trianguloDaVida!.arcanoRegente!, accent: 'indigo', tipo: 'pessoal_arcano'
-                  }) : undefined}
-                />
-                <GroupCard label="Sequência de Arcanos" accent="indigo">
-                  {nums.trianguloDaVida.arcanos.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Sem sequência</span>}
-                  {nums.trianguloDaVida.arcanos.map((v, i) => (
-                    <CircleNumber key={`seq-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
-                      key: `arcanos.${i}`, label: 'Arcano da Sequência', value: v, accent: 'indigo', tipo: 'pessoal_arcano'
-                    })} />
-                  ))}
-                </GroupCard>
-              </div>
-              {nums.arcanoAtual && (
-                <GroupCard label="Arcano Atual" accent="indigo">
-                  <div
-                    onClick={nums.arcanoAtual.numero != null ? () => setSelectedCard({
-                      key: 'arcanoAtual', label: 'Arcano Atual', value: nums.arcanoAtual!.numero!, accent: 'indigo', tipo: 'pessoal_arcano'
-                    }) : undefined}
-                    style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: nums.arcanoAtual.numero != null ? 'pointer' : 'default' }}
-                  >
-                    <span style={{ fontFamily: t.display, fontWeight: 900, fontSize: 40, color: t.indigo }}>
-                      {nums.arcanoAtual.numero}
-                    </span>
-                    <span style={{ fontFamily: t.body, fontSize: 13, color: t.fg3 }}>
-                      {nums.arcanoAtual.periodo}
-                    </span>
                   </div>
-                </GroupCard>
-              )}
+                )}
+                {nums.diaPessoal !== null && (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <NumberCard
+                      label="Dia Pessoal" value={nums.diaPessoal} accent="gold"
+                      onClick={() => setSelectedCard({
+                        key: 'diaPessoal', label: 'Dia Pessoal', value: nums.diaPessoal!, accent: 'gold', tipo: 'pessoal_diaPessoal'
+                      })}
+                    />
+                  </div>
+                )}
+              </div>
+              <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
+                {nums.mesesPessoais.length > 0 && (
+                  <MesesPessoaisGrid
+                    meses={nums.mesesPessoais}
+                    onMonthClick={(entry, idx) => setSelectedCard({
+                      key: `mesesPessoais.${idx}`, label: entry.nome, value: entry.numero, accent: 'gold', tipo: 'pessoal_mesPessoal'
+                    })}
+                  />
+                )}
+              </div>
             </div>
           )}
+          {nums.diasFavoraveis.length > 0 && (
+            <GroupCard label="Dias Favoráveis" accent="success">
+              {nums.diasFavoraveis.map((v, i) => (
+                <CircleNumber key={`dia-${i}`} value={v} accent="success" onClick={() => setSelectedCard({
+                  key: `diasFavoraveis.${i}`, label: 'Dia Favorável', value: v, accent: 'success', tipo: 'pessoal_dia_favoravel'
+                })} />
+              ))}
+            </GroupCard>
+          )}
+        </div>
+      </Section>
+      )}
 
-          {(nums.diasFavoraveis.length > 0 || nums.numerosHarmonicos.length > 0) && (
-            <div>
-              <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>Dias e Números Harmônicos</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, alignItems: 'stretch' }}>
-                <GroupCard label="Dias Favoráveis" accent="success">
-                  {nums.diasFavoraveis.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Nenhum</span>}
-                  {nums.diasFavoraveis.map((v, i) => (
-                    <CircleNumber key={`dia-${i}`} value={v} accent="success" onClick={() => setSelectedCard({
-                      key: `diasFavoraveis.${i}`, label: 'Dia Favorável', value: v, accent: 'success', tipo: 'pessoal_dia_favoravel'
-                    })} />
-                  ))}
-                </GroupCard>
-                <GroupCard label="Números Harmônicos" accent="success">
-                  {nums.numerosHarmonicos.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Nenhum</span>}
-                  {nums.numerosHarmonicos.map((v, i) => (
-                    <CircleNumber key={`harm-${i}`} value={v} accent="success" />
-                  ))}
-                </GroupCard>
-              </div>
+      {/* 6. Relacionamentos — Harmonia Conjugal + Números Harmônicos */}
+      {(!!nums.harmoniaConjugal || nums.numerosHarmonicos.length > 0) && (
+      <Section label="Relacionamentos">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {nums.harmoniaConjugal && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, alignItems: 'stretch' }}>
+              <GroupCard label="Vibra com" accent="indigo">
+                {nums.harmoniaConjugal.vibra.map((v, i) => (
+                  <CircleNumber key={`vibra-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
+                    key: 'harmoniaConjugal.vibra', label: 'Vibra com', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
+                  })} />
+                ))}
+              </GroupCard>
+              <GroupCard label="Atrai" accent="indigo">
+                {nums.harmoniaConjugal.atrai.map((v, i) => (
+                  <CircleNumber key={`atrai-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
+                    key: 'harmoniaConjugal.atrai', label: 'Atrai', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
+                  })} />
+                ))}
+              </GroupCard>
+              <GroupCard label="Oposto" accent="indigo">
+                {nums.harmoniaConjugal.oposto.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Nenhum</span>}
+                {nums.harmoniaConjugal.oposto.map((v, i) => (
+                  <CircleNumber key={`oposto-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
+                    key: 'harmoniaConjugal.oposto', label: 'Oposto', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
+                  })} />
+                ))}
+              </GroupCard>
+              <GroupCard label="Passivo" accent="indigo">
+                {nums.harmoniaConjugal.passivo.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Nenhum</span>}
+                {nums.harmoniaConjugal.passivo.map((v, i) => (
+                  <CircleNumber key={`passivo-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
+                    key: 'harmoniaConjugal.passivo', label: 'Passivo', value: v, accent: 'indigo', tipo: 'pessoal_harmoniaConjugal'
+                  })} />
+                ))}
+              </GroupCard>
+            </div>
+          )}
+          {nums.numerosHarmonicos.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              <GroupCard label="Números Harmônicos" accent="success">
+                {nums.numerosHarmonicos.map((v, i) => (
+                  <CircleNumber key={`harm-${i}`} value={v} accent="success" />
+                ))}
+              </GroupCard>
             </div>
           )}
         </div>
       </Section>
       )}
+
+      {/* 7. Triângulo da Vida e Arcanos */}
+      {nums.trianguloDaVida && (
+      <Section label="Triângulo da Vida e Arcanos">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 10, alignItems: 'stretch' }}>
+            <NumberCard
+              label="Arcano Regente" value={nums.trianguloDaVida.arcanoRegente} accent="indigo"
+              onClick={nums.trianguloDaVida.arcanoRegente != null ? () => setSelectedCard({
+                key: 'arcanoRegente', label: 'Arcano Regente', value: nums.trianguloDaVida!.arcanoRegente!, accent: 'indigo', tipo: 'pessoal_arcano'
+              }) : undefined}
+            />
+            <GroupCard label="Sequência de Arcanos" accent="indigo">
+              {nums.trianguloDaVida.arcanos.length === 0 && <span style={{ color: t.fg4, fontSize: 13, fontFamily: t.body }}>Sem sequência</span>}
+              {nums.trianguloDaVida.arcanos.map((v, i) => (
+                <CircleNumber key={`seq-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
+                  key: `arcanos.${i}`, label: 'Arcano da Sequência', value: v, accent: 'indigo', tipo: 'pessoal_arcano'
+                })} />
+              ))}
+            </GroupCard>
+          </div>
+          {nums.arcanoAtual && (
+            <GroupCard label="Arcano Atual" accent="indigo">
+              <div
+                onClick={nums.arcanoAtual.numero != null ? () => setSelectedCard({
+                  key: 'arcanoAtual', label: 'Arcano Atual', value: nums.arcanoAtual!.numero!, accent: 'indigo', tipo: 'pessoal_arcano'
+                }) : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: nums.arcanoAtual.numero != null ? 'pointer' : 'default' }}
+              >
+                <span style={{ fontFamily: t.display, fontWeight: 900, fontSize: 40, color: t.indigo }}>
+                  {nums.arcanoAtual.numero}
+                </span>
+                <span style={{ fontFamily: t.body, fontSize: 13, color: t.fg3 }}>
+                  {nums.arcanoAtual.periodo}
+                </span>
+              </div>
+            </GroupCard>
+          )}
+        </div>
+      </Section>
+      )}
+
+      </> /* end hasData */}
 
       {/* Suppress unused warning for consultantName/consultantContact */}
       {false && consultantName && consultantContact}
       </div>
+
+      {editorModal}
     </div>
   )
 }
 
 // --- Helper components ---
 
+// Cabeçalho de seção: marcador em gradiente + rótulo + linha fina até a
+// borda — dá hierarquia visual clara entre os 7 grupos (mesmos de Blocos)
+// sem pesar o layout.
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{
-        fontFamily: t.body, fontSize: 11, color: t.fg3, textTransform: 'uppercase',
-        letterSpacing: '.08em', marginBottom: 10, fontWeight: 600
-      }}>
-        {label}
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ width: 3, height: 14, borderRadius: 2, background: t.gradCta, flexShrink: 0 }} />
+        <span style={{
+          fontFamily: t.body, fontSize: 11, color: t.fg2, textTransform: 'uppercase',
+          letterSpacing: '.08em', fontWeight: 700, whiteSpace: 'nowrap',
+        }}>
+          {label}
+        </span>
+        <span style={{ flex: 1, height: 1, background: t.pb }} />
       </div>
       {children}
+    </div>
+  )
+}
+
+function SubLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4, marginBottom: 8 }}>
+      {children}
+    </div>
+  )
+}
+
+// Tile compacto de número + rótulo + período — usado por Ciclos, Desafios e
+// Momentos Decisivos (antes eram 3 cópias do mesmo bloco de estilos inline).
+function MiniTile({ value, title, sub, onClick }: {
+  value: number | string
+  title: string
+  sub?: string
+  onClick?: () => void
+}) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        padding: '12px 14px', borderRadius: 12, cursor: onClick ? 'pointer' : 'default',
+        background: 'rgba(42,22,32,.35)', border: `1px solid ${t.pb}`,
+        transition: 'border-color .2s, background .2s',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}
+      onMouseEnter={e => {
+        if (!onClick) return
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = t.coral
+        el.style.background = 'rgba(224,94,71,.08)'
+      }}
+      onMouseLeave={e => {
+        if (!onClick) return
+        const el = e.currentTarget as HTMLDivElement
+        el.style.borderColor = t.pb
+        el.style.background = 'rgba(42,22,32,.35)'
+      }}
+    >
+      <div style={{ fontFamily: t.display, fontWeight: 900, fontSize: 24, color: t.coral }}>{value}</div>
+      <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg3, marginTop: 4, textTransform: 'uppercase', letterSpacing: '.06em', textAlign: 'center' }}>{title}</div>
+      {sub && <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg4, marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }
@@ -963,26 +1011,3 @@ function MesesPessoaisGrid({ meses, onMonthClick }: {
   )
 }
 
-function AnoCard({ entry, onClick }: { entry: AnoPessoalEntry; onClick: () => void }) {
-  const parts = entry.periodo.split(' a ')
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        padding: '16px 18px', borderRadius: 12, cursor: 'pointer',
-        background: 'rgba(42,22,32,.35)', border: `1px solid ${t.pb}`,
-        display: 'flex', alignItems: 'center', gap: 16, transition: 'border-color .2s',
-      }}
-      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.gold}
-      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = t.pb}
-    >
-      <span style={{ fontFamily: t.display, fontWeight: 900, fontSize: 32, color: t.gold, minWidth: 32, textAlign: 'center' }}>
-        {entry.numero}
-      </span>
-      <span style={{ fontFamily: t.body, fontSize: 11, color: t.fg3, lineHeight: 1.5, display: 'flex', flexDirection: 'column' }}>
-        <span>{parts[0]} a</span>
-        {parts[1] && <span>{parts[1]}</span>}
-      </span>
-    </div>
-  )
-}

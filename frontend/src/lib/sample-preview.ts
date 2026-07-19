@@ -16,7 +16,7 @@
 
 import { calcPessoal, type NumerologyMap } from './numerology'
 import { fetchInterpretation, supabase } from './supabase'
-import { NUMERIC_INTERP_KEYS, STATIC_TEXT_KEYS, type InterpretationMap } from './document-builder'
+import { NUMERIC_INTERP_KEYS, STATIC_TEXT_KEYS, DIA_PESSOAL_GUIA_NUMEROS, type InterpretationMap } from './document-builder'
 
 export interface SampleIdentity {
   subject: string
@@ -77,7 +77,7 @@ export async function loadSampleInterpretations(map: NumerologyMap): Promise<Int
   )
   const debitosEntries = await Promise.all(
     (map.debitosCarmicos || []).map(async (v) => {
-      const fullKey = 'pessoal_debito_carmica'
+      const fullKey = 'pessoal_debito_carmico'
       const row = await fetchInterpretation(v, fullKey)
       return row ? { key: `${fullKey}_${v}`, titulo: row.titulo, texto: row.texto } : null
     })
@@ -118,6 +118,68 @@ export async function loadSampleInterpretations(map: NumerologyMap): Promise<Int
     })
   )
 
+  // Arcanos (Regente + sequência completa) — mesma chave fixa 'pessoal_arcano'
+  // usada em OutputPanel.tsx/CustomTexts.tsx/PreviewPage.tsx.
+  const arcanoNumeros = Array.from(new Set([
+    map.trianguloDaVida?.arcanoRegente ?? null,
+    ...(map.trianguloDaVida?.sequenciaCompleta ?? []),
+  ].filter((n): n is number => n !== null)))
+  const arcanosEntries = await Promise.all(
+    arcanoNumeros.map(async (n) => {
+      const row = await fetchInterpretation(n, 'pessoal_arcano')
+      return row ? { key: `pessoal_arcano_${n}`, titulo: row.titulo, texto: row.texto } : null
+    })
+  )
+
+  // Bloqueios do Triângulo (sequências 111-999 encontradas no nome) — tipo
+  // fixo 'pessoal_bloqueio', numero = a própria sequência (migration 032).
+  const bloqueioEntries = await Promise.all(
+    (map.trianguloDaVida?.bloqueios ?? []).map(async (b) => {
+      const row = await fetchInterpretation(Number(b.codigo), 'pessoal_bloqueio')
+      return row ? { key: `pessoal_bloqueio_${b.codigo}`, titulo: row.titulo, texto: row.texto } : null
+    })
+  )
+
+  // Dias Favoráveis — texto da vibração de cada dia favorável da pessoa
+  // (tipo 'pessoal_dia_favoravel', numero = o dia do mês 1-31, migration 033).
+  const diasFavoraveisEntries = await Promise.all(
+    (map.diasFavoraveis || []).map(async (v) => {
+      const row = await fetchInterpretation(v, 'pessoal_dia_favoravel')
+      return row ? { key: `pessoal_dia_favoravel_${v}`, titulo: row.titulo, texto: row.texto } : null
+    })
+  )
+
+  // Guia de Dias Pessoais — os 11 valores possíveis (1-9/11/22).
+  const diaPessoalGuiaEntries = await Promise.all(
+    DIA_PESSOAL_GUIA_NUMEROS.map(async (n) => {
+      const row = await fetchInterpretation(n, 'pessoal_diaPessoal')
+      return row ? { key: `pessoal_diaPessoal_guia_${n}`, titulo: row.titulo, texto: row.texto } : null
+    })
+  )
+
+  // Meses Pessoais — texto de cada número único nos próximos 12 meses.
+  const mesPessoalNumeros = Array.from(new Set((map.mesesPessoais ?? []).map(m => m.numero)))
+  const mesesEntries = await Promise.all(
+    mesPessoalNumeros.map(async (n) => {
+      const fullKey = 'pessoal_mesPessoal'
+      const row = await fetchInterpretation(n, fullKey)
+      return row ? { key: `${fullKey}_${n}`, titulo: row.titulo, texto: row.texto } : null
+    })
+  )
+
+  // Harmonia Conjugal — texto de cada número que aparece em
+  // Vibra com/Atrai/Oposto/Passivo.
+  const harmoniaNumeros = Array.from(new Set([
+    ...(map.harmoniaConjugal?.vibra ?? []), ...(map.harmoniaConjugal?.atrai ?? []),
+    ...(map.harmoniaConjugal?.oposto ?? []), ...(map.harmoniaConjugal?.passivo ?? []),
+  ]))
+  const harmoniaEntries = await Promise.all(
+    harmoniaNumeros.map(async (n) => {
+      const row = await fetchInterpretation(n, 'pessoal_harmoniaConjugal')
+      return row ? { key: `pessoal_harmoniaConjugal_${n}`, titulo: row.titulo, texto: row.texto } : null
+    })
+  )
+
   const interp: InterpretationMap = {}
   entries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
   staticEntries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
@@ -127,5 +189,11 @@ export async function loadSampleInterpretations(map: NumerologyMap): Promise<Int
   ciclosEntries.forEach(e => { if (e) interp[`pessoal_ciclo_${e.key.split('_').pop()}`] = { titulo: e.titulo, texto: e.texto } })
   desafiosEntries.forEach(e => { if (e) interp[`pessoal_desafio_${e.key.split('_').pop()}`] = { titulo: e.titulo, texto: e.texto } })
   momentosEntries.forEach(e => { if (e) interp[`pessoal_momentoDecisivo_${e.key.split('_').pop()}`] = { titulo: e.titulo, texto: e.texto } })
+  arcanosEntries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
+  bloqueioEntries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
+  harmoniaEntries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
+  mesesEntries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
+  diaPessoalGuiaEntries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
+  diasFavoraveisEntries.forEach(e => { if (e) interp[e.key] = { titulo: e.titulo, texto: e.texto } })
   return interp
 }
