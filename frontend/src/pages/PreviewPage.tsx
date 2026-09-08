@@ -5,17 +5,22 @@
 //   - mode="gerar" (rota /app/gerar, botão "Gerar Análise") — tela cheia só
 //     de preview (sem painel, mesmo pra Pro), com o CTA "Gerar PDF" em
 //     destaque na barra flutuante.
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { buildDocumentBlocks, splitIntoPages, NUMERIC_INTERP_KEYS, STATIC_TEXT_KEYS, DIA_PESSOAL_GUIA_NUMEROS, type InterpretationMap } from '../lib/document-builder'
+import {
+  buildDocumentBlocks, buildTocEntries,
+  NUMERIC_INTERP_KEYS, STATIC_TEXT_KEYS, DIA_PESSOAL_GUIA_NUMEROS,
+  type InterpretationMap, type DocumentBlock, type TocEntry,
+} from '../lib/document-builder'
+import { useMeasuredPages } from '../lib/measure-document'
 import { normalizeBlockOrder, DEFAULT_BLOCK_ORDER, type BlockOrderConfig } from '../lib/block-order'
 import { resolveDocTheme } from '../lib/theme-resolver'
-import { fetchInterpretation, resolveInterpretation, fetchUserProfile, updateAnalysis, type TextOverrides } from '../lib/supabase'
+import { fetchInterpretation, resolveInterpretation, fetchUserProfile, updateAnalysis, type TextOverrides } from '../lib/neon'
 import { DocumentOrganizerView } from '../components/shared/DocumentOrganizerView'
 import { PrimaryBtn } from '../components/shared/Button'
 import { printDocument } from '../lib/print-document'
 import type { NumerologyMap } from '../lib/numerology'
-import type { UserProfile } from '../lib/supabase'
+import type { UserProfile } from '../lib/neon'
 import type { AnalysisTab } from './AppPage'
 import { t } from '../lib/tokens'
 
@@ -62,13 +67,17 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
     if (!raw) { navigate('/app/novo'); return }
     const p: PreviewPayload = JSON.parse(raw)
     setPayload(p)
-    const normalized = normalizeBlockOrder(p.blockOrder ?? p.profile?.block_order)
+    const templateBlockOrder = p.templateId
+      ? ((p.profile?.brand_config?.templates ?? []) as { id?: string; config?: { blockOrder?: BlockOrderConfig } }[])
+          .find(template => template.id === p.templateId)?.config?.blockOrder
+      : undefined
+    const normalized = normalizeBlockOrder(p.blockOrder ?? templateBlockOrder ?? p.profile?.block_order)
     setConfig(normalized)
     setSavedConfig(normalized)
 
     async function loadInterps() {
       // Toda chave editável no modal por análise resolve via
-      // resolveInterpretation (lib/supabase.ts) — cascata completa: override
+      // resolveInterpretation (lib/neon.ts) — cascata completa: override
       // desta análise (com suporte a versões e ao marcador `sistema`) →
       // texto global do consultor → padrão do sistema. Antes cada bloco
       // repetia a checagem manual do override (e vários blocos nem checavam,
@@ -251,7 +260,67 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
     navigate(-1)
   }, [payload, config, navigate])
 
-  if (loading || !payload) {
+  // Override de template desta análise (2026-07-12): quando presente, resolve
+  // o tema a partir de um profile "mockado" com esse template forçado como
+  // ativo — igual ao truque já usado em BrandPage.tsx pro preview ao vivo do
+  // editor — sem alterar o template ativo global do consultor.
+  // `isPro`/`theme`/`effectiveOrder`/`blocks` precisam ser MEMOIZADOS (não
+  // recalculados soltos a cada render): são a entrada do efeito de medição
+  // real logo abaixo — sem useMemo, cada render geraria um `blocks` novo por
+  // referência e o efeito reagiria de novo indefinidamente (setPages →
+  // re-render → novo `blocks` → mede de novo → ...).
+  const isPro = payload?.profile?.plan === 'pro' || payload?.profile?.role === 'admin'
+
+  const theme = useMemo(() => {
+    if (!payload) return null
+    const effectiveProfile = payload.templateId
+      ? {
+          ...(payload.profile as UserProfile),
+          brand_config: { ...(payload.profile?.brand_config ?? {}), activeTemplateId: payload.templateId },
+        }
+      : payload.profile
+    return resolveDocTheme(effectiveProfile)
+  }, [payload])
+
+  const effectiveOrder = useMemo(() => {
+    if (!payload) return DEFAULT_BLOCK_ORDER
+    if (isPro) return config
+    const templateOrder = payload.templateId
+      ? ((payload.profile?.brand_config?.templates ?? []) as { id?: string; config?: { blockOrder?: BlockOrderConfig } }[])
+          .find(template => template.id === payload.templateId)?.config?.blockOrder
+      : undefined
+    return normalizeBlockOrder(templateOrder ?? payload.profile?.block_order)
+  }, [payload, isPro, config])
+
+  const blocks = useMemo(() => {
+    if (!payload) return []
+    return buildDocumentBlocks(payload.map, payload.subject, payload.dataNascimento, interp, effectiveOrder)
+  }, [payload, interp, effectiveOrder])
+
+  // Paginação com medição REAL de altura via DOM (measure-document.tsx).
+  // Retorna null na primeira renderização (enquanto mede), depois as páginas
+  // calculadas com alturas precisas — sem estimativas heurísticas.
+  const pages = useMeasuredPages(blocks, theme)
+
+  // Sumário: construído APÓS paginação para ter os números reais de página.
+  // A página do sumário é unnumbered (ABNT) e não desloca a numeração do
+  // conteúdo — os números no sumário correspondem 1:1 ao rodapé de cada folha.
+  const tocEntries = useMemo((): TocEntry[] | undefined => {
+    if (!pages) return undefined
+    const blockPageMap = new Map<string, number>()
+    pages.forEach((pageBlocks, pageIdx) => {
+      pageBlocks.forEach(block => {
+        // Registra só a PRIMEIRA ocorrência de cada id (parte 1 do bloco
+        // cortado tem o id original; parte 2+ tem sufixo -part2/-part3).
+        if (!blockPageMap.has(block.id)) {
+          blockPageMap.set(block.id, pageIdx + 1)
+        }
+      })
+    })
+    return buildTocEntries(effectiveOrder, blockPageMap)
+  }, [pages, effectiveOrder])
+
+  if (loading || !payload || !theme || !pages) {
     return (
       <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: t.fg2 }}>
         Montando documento...
@@ -259,31 +328,21 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
     )
   }
 
-  // Override de template desta análise (2026-07-12): quando presente, resolve
-  // o tema a partir de um profile "mockado" com esse template forçado como
-  // ativo — igual ao truque já usado em BrandPage.tsx pro preview ao vivo do
-  // editor — sem alterar o template ativo global do consultor.
-  const effectiveProfile = payload.templateId
-    ? {
-        ...(payload.profile as UserProfile),
-        brand_config: { ...(payload.profile?.brand_config ?? {}), activeTemplateId: payload.templateId },
-      }
-    : payload.profile
-
-  const theme = resolveDocTheme(effectiveProfile)
-  const isPro = payload.profile?.plan === 'pro' || payload.profile?.role === 'admin'
   const showPanel = isPro && mode === 'organizar'
-  const effectiveOrder = isPro ? config : normalizeBlockOrder(payload.profile?.block_order)
-  const blocks = buildDocumentBlocks(payload.map, payload.subject, payload.dataNascimento, interp, effectiveOrder)
-  const pageCount = splitIntoPages(blocks).length + 1
+  const hasToc = !!tocEntries && tocEntries.length > 0
+  // +1 para a capa, +1 para a página de sumário (quando existe)
+  const pageCount = pages.length + 1 + (hasToc ? 1 : 0)
   const docSubject = `${payload.subject} — Mapa Pessoal`
 
   return (
     <DocumentOrganizerView
       theme={theme}
       blocks={blocks}
+      pages={pages}
+      tocEntries={tocEntries}
       subject={payload.subject}
       dataNascimento={payload.dataNascimento}
+      showSubjectInHeader
       isPro={isPro}
       docTitle={docSubject}
       pageCount={pageCount}
@@ -291,7 +350,8 @@ export function PreviewPage({ mode = 'organizar' }: Props) {
       config={showPanel ? config : undefined}
       onConfigChange={showPanel ? setConfig : undefined}
       panelTitle="Organizar Blocos deste Cliente"
-      panelInfo={`Vale só para ${payload.subject}. Não muda o seu padrão em "Blocos".`}
+      panelInfo={`Arraste para reordenar e clique no olho para ocultar ou exibir um bloco no PDF de ${payload.subject}. O seu padrão na página "Blocos" continua intacto.`}
+      scope="analise"
       isDirty={showPanel ? isDirty : undefined}
       saving={savingOrder}
       onSave={showPanel ? handleSaveOrder : undefined}

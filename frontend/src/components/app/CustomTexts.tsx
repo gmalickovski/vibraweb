@@ -2,7 +2,7 @@
 // Redesenho (2026-07-12): as abas Pessoal/Bebê/Empresa saíram (Bebê/Empresa
 // nunca tiveram uso real no resto do app — só "pessoal" existe de fato, ver
 // AnalysisTab em AppPage.tsx). No lugar entraram 3 modos de edição, cada um
-// com sua própria chave no Supabase (mesma tabela user_interpretations):
+// com sua própria chave no neon (mesma tabela user_interpretations):
 //   - "Números"              → grade categoria × número (como já existia)
 //   - "Introduções de Categoria" → texto de abertura de cada número no
 //     relatório (chave `estatico_def_<categoria>`, numero=1) — só as 9
@@ -20,15 +20,52 @@
 // Ver Produto/docs/vibra-web/requisitos.md, seção 3.
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { t } from '../../lib/tokens'
-import { fetchInterpretation, saveUserInterpretation, listUserInterpretations, deleteAllUserInterpretations, listDefaultInterpretationKeys } from '../../lib/supabase'
+import { fetchInterpretation, saveUserInterpretation, listUserInterpretations, deleteAllUserInterpretations, listDefaultInterpretationKeys } from '../../lib/neon'
 import { PrimaryBtn, SecondaryBtn } from '../shared/Button'
 import { TabBar } from '../shared/TabBar'
-import { PageTitle } from '../shared/PageTitle'
+import { PageTitle, type Scope } from '../shared/PageTitle'
 import { ChevronIcon, CloseIcon, CheckIcon, ExpandIcon, CollapseIcon } from '../shared/icons'
 import { MarkdownEditor } from '../shared/MarkdownEditor'
 import { useConfirm } from '../shared/ConfirmDialog'
 import { useIsMobile } from '../../lib/useIsMobile'
+
+// ── Adaptador de armazenamento (2026-07-27) ─────────────────────────────────
+// Extraído pra reaproveitar esta MESMA tela (grade + editor + abas) dentro do
+// editor de um Modelo (ver ModeloTextosTab, BrandPage.tsx), salvando NO
+// MODELO em vez de globalmente — sem duplicar a UI inteira (~1000 linhas).
+// O adaptador GLOBAL (`globalTextsAdapter`, usado quando `adapter` não é
+// passado) chama exatamente as mesmas funções de sempre — /app/textos
+// continua com o MESMO comportamento, zero mudança.
+//
+// `fetchEffective` do adaptador de MODELO (ver BrandPage.tsx) sobrepõe a
+// personalização do modelo por cima da cascata GLOBAL já existente
+// (global personalizado → padrão do sistema): sem override do modelo, cai
+// pra `fetchInterpretation` (a MESMA função abaixo), então o editor sempre
+// mostra e edita o valor EFETIVO, seja lá de qual camada ele vier.
+export interface TextsAdapter {
+  fetchEffective(numero: number, tipo: string): Promise<{ texto: string; isOverridden: boolean } | null>
+  saveOverride(numero: number, tipo: string, texto: string | null): Promise<void>
+  listOverrideKeys(): Promise<{ numero: number; tipo: string }[]>
+  clearAllOverrides(): Promise<void>
+}
+
+const globalTextsAdapter: TextsAdapter = {
+  async fetchEffective(numero, tipo) {
+    const res = await fetchInterpretation(numero, tipo)
+    return res ? { texto: res.texto, isOverridden: !!res.titulo?.startsWith('Personalizado:') } : null
+  },
+  async saveOverride(numero, tipo, texto) {
+    await saveUserInterpretation(numero, tipo, texto)
+  },
+  async listOverrideKeys() {
+    return listUserInterpretations()
+  },
+  async clearAllOverrides() {
+    await deleteAllUserInterpretations()
+  },
+}
 
 // Ids SEM acento — viram `pessoal_${id}` e precisam bater exatamente com o
 // `tipo` gravado no banco (interpretacoes/user_interpretations). Corrigido em
@@ -43,7 +80,6 @@ const CATEGORIES: { id: string; label: string }[] = [
   { id: 'motivacao', label: 'Motivação' },
   { id: 'impressao', label: 'Impressão' },
   { id: 'expressao', label: 'Expressão' },
-  { id: 'dia_natalicio', label: 'Dia Natalício' },
   { id: 'psiquico', label: 'Número Psíquico' },
   { id: 'destino', label: 'Destino' },
   { id: 'missao', label: 'Missão' },
@@ -60,14 +96,20 @@ const CATEGORIES: { id: string; label: string }[] = [
 ]
 // Categorias que NÃO seguem a numerologia padrão 1-9/11-22 (números mestres)
 // da grade CATEGORIES × NUMBERS: cada uma tem seu próprio conjunto de
-// números válidos fora desse range. Viram sua própria aba "Débitos e Dias
-// Favoráveis" (ver EXTRA_ROWS / extraRowsView), do mesmo jeito que Arcanos
+// números válidos fora desse range. Viram sua própria aba "Débitos, Dias e
+// Bloqueios" (ver EXTRA_ROWS / extraRowsView), do mesmo jeito que Arcanos
 // tem a aba própria — não entram na grade principal, onde ficariam
 // permanentemente "sem texto" em quase todas as colunas.
 const DEBITOS_CARMICOS_NUMEROS = [13, 14, 16, 19]
-// Dias Favoráveis do mês (calcDiasFavoraveis em numerology.ts) variam de 1 a
-// 31 — nenhum texto padrão existe ainda pra esses números (0 de 31,
-// aparecem todos como "sem texto" até serem escritos em Textos).
+// Dia Natalício é o dia CRU de nascimento (calcDiaNatalicio, numerology.ts) —
+// 1 a 31, NÃO os números reduzidos 0-9/11/22 da grade principal. Morava por
+// engano em CATEGORIES/NUMBERS (2026-07-19, relatado pelo Guilherme): quem
+// nascia num dia composto (10, 12-21, 23-31) simplesmente não tinha como
+// editar o texto — a grade nem mostrava essas colunas. Migration 037 seedou
+// os 20 textos padrão faltantes; aqui a aba corrige o acesso via UI.
+const DIA_NATALICIO_NUMEROS = Array.from({ length: 31 }, (_, i) => i + 1)
+// Dias Favoráveis do mês (calcDiasFavoraveis em numerology.ts) também variam
+// de 1 a 31.
 const DIAS_FAVORAVEIS_NUMEROS = Array.from({ length: 31 }, (_, i) => i + 1)
 // Bloqueios do Triângulo da Vida (sequências de 3+ dígitos iguais) — numero
 // no banco é a própria sequência (111-999, migration 032).
@@ -77,9 +119,10 @@ const BLOQUEIOS_NUMEROS = [111, 222, 333, 444, 555, 666, 777, 888, 999]
 // nesse caso, positivo. Vive na MESMA linha da grade, como mais uma célula
 // no fim (mesmo formato 36×30), em vez de um card separado abaixo — o
 // símbolo (check) já comunica "ausência = bom sinal", sem precisar de um
-// bloco de texto à parte pra explicar isso na UI. Dias Favoráveis não tem
-// `absence`: todo mapa sempre tem pelo menos 2 dias favoráveis calculados.
+// bloco de texto à parte pra explicar isso na UI. Dia Natalício e Dias
+// Favoráveis não têm `absence`: todo mapa sempre tem os dois calculados.
 const EXTRA_ROWS: { label: string; tipo: string; numeros: number[]; absence?: { id: string; label: string } }[] = [
+  { label: 'Dia Natalício', tipo: 'pessoal_dia_natalicio', numeros: DIA_NATALICIO_NUMEROS },
   { label: 'Débitos Cármicos', tipo: 'pessoal_debito_carmico', numeros: DEBITOS_CARMICOS_NUMEROS, absence: { id: 'estatico_sem_debitos', label: 'Quando não há Débitos Cármicos' } },
   { label: 'Dias Favoráveis', tipo: 'pessoal_dia_favoravel', numeros: DIAS_FAVORAVEIS_NUMEROS },
   { label: 'Bloqueios do Triângulo', tipo: 'pessoal_bloqueio', numeros: BLOQUEIOS_NUMEROS, absence: { id: 'estatico_sem_bloqueios', label: 'Quando não há Bloqueios no Triângulo' } },
@@ -92,7 +135,8 @@ const EXTRA_ROWS_TOTAL = EXTRA_ROWS.reduce((sum, r) => sum + r.numeros.length, 0
 // pra ele, e a grade mostra "sem texto" normalmente. Dia Pessoal também usa
 // essas mesmas colunas (1-9/11/22) — segue o padrão normal, por isso fica na
 // grade principal (confirmado: pdf-dia-pessoal.pdf, "varia de 1 a 9 e
-// considera-se o 11 e o 22").
+// considera-se o 11 e o 22"). Dia Natalício NÃO segue esse padrão — ver
+// EXTRA_ROWS acima.
 const NUMBERS = [0, ...Array.from({ length: 9 }, (_, i) => i + 1), 11, 22]
 const TOTAL_CELLS = CATEGORIES.length * NUMBERS.length
 
@@ -191,21 +235,27 @@ const ARCANOS_LIST: { numero: number; nome: string }[] = [
   ...Array.from({ length: 21 }, (_, i) => ({ numero: 79 + i, nome: `Arcano Complementar ${79 + i}` })),
 ]
 
+// Ordem ALFABÉTICA pelo label (Guilherme, 2026-07-27) — antes era uma ordem
+// meio arbitrária (Números primeiro, depois um agrupamento solto). O ESTADO
+// inicial/default continua sendo 'numeros' (a aba mais usada) — só a ORDEM
+// de exibição das abas mudou, não qual abre primeiro.
 const LEFT_TABS = [
-  { id: 'numeros', label: 'Números' },
-  { id: 'categorias', label: 'Introduções de Categoria' },
-  { id: 'gerais', label: 'Textos Gerais' },
   { id: 'arcanos', label: 'Arcanos' },
   { id: 'especiais', label: 'Débitos, Dias e Bloqueios' },
   { id: 'instrucoes', label: 'Instruções' },
+  { id: 'categorias', label: 'Introduções de Categoria' },
+  { id: 'numeros', label: 'Números' },
+  { id: 'gerais', label: 'Textos Gerais' },
 ]
 
 type LeftView = 'numeros' | 'categorias' | 'gerais' | 'arcanos' | 'especiais' | 'instrucoes'
 
-// Título do editor pros itens da aba "Débitos, Dias e Bloqueios" — Dias
-// Favoráveis usa "Dia N" (o número É o dia do mês, 1-31), não "— Número N".
+// Título do editor pros itens da aba "Débitos, Dias e Bloqueios" — Dia
+// Natalício e Dias Favoráveis usam "Dia N" (o número É o dia do mês, 1-31),
+// não "— Número N".
 function extraRowTitle(row: { label: string; tipo: string }, n: number): string {
   if (row.tipo === 'pessoal_dia_favoravel') return `Dia ${n}`
+  if (row.tipo === 'pessoal_dia_natalicio') return `Dia Natalício ${n}`
   return `${row.label} — Número ${n}`
 }
 
@@ -219,9 +269,23 @@ function keyOf(tipo: string, numero: number) {
   return `${tipo}__${numero}`
 }
 
-export function CustomTexts() {
+interface CustomTextsProps {
+  /** Omitido = comportamento de sempre (/app/textos, escopo global, direto no neon). */
+  adapter?: TextsAdapter
+  /** Alcance mostrado no popup de info do título — ver PageTitle. */
+  scope?: Scope
+  /** Sobrepõe o título do painel (padrão: "Personalizar Textos"). */
+  title?: string
+  /** Sobrepõe a descrição do popup de info do título. */
+  info?: string
+  /** Trecho usado nas confirmações de restaurar/redefinir — ex. "ao padrão global deste modelo" em vez de "ao padrão do Vibraweb". */
+  restoreTargetLabel?: string
+}
+
+export function CustomTexts({ adapter = globalTextsAdapter, scope = 'global', title, info, restoreTargetLabel }: CustomTextsProps = {}) {
   const isMobile = useIsMobile()
   const confirm = useConfirm()
+  const [searchParams] = useSearchParams()
   const [leftView, setLeftView] = useState<LeftView>('numeros')
   const [selected, setSelected] = useState<Selection | null>(
     isMobile ? null : { tipo: `pessoal_${CATEGORIES[0].id}`, numero: NUMBERS[0], title: `${CATEGORIES[0].label} — Número ${NUMBERS[0]}` }
@@ -232,10 +296,30 @@ export function CustomTexts() {
   const [defaultsLoaded, setDefaultsLoaded] = useState(false)
   const [expandedCategory, setExpandedCategory] = useState<string | null>(CATEGORIES[0].id)
 
+  // Links vindos do modal de Blocos chegam direto ao texto correto, sem o
+  // usuário precisar reencontrar a categoria ou o texto geral manualmente.
+  const requestedTipo = searchParams.get('tipo')
+  const requestedView = searchParams.get('view')
+  useEffect(() => {
+    if (!requestedTipo || (requestedView !== 'categorias' && requestedView !== 'gerais')) return
+    const category = CATEGORY_DEFS.find(item => `estatico_def_${item.id}` === requestedTipo)
+    const general = GENERAL_TEXTS.find(item => item.id === requestedTipo)
+    if (!category && !general) return
+    setLeftView(requestedView)
+    setSelected({
+      tipo: requestedTipo,
+      numero: 1,
+      title: category ? `Introdução — ${category.label}` : `Texto Geral — ${general!.label}`,
+    })
+  }, [requestedTipo, requestedView])
+
   // Modo foco (desktop): o editor toma a largura inteira e o painel esquerdo
   // se recolhe com animação sutil — alternado pelo botão Expandir/Recolher no
   // header do editor. Sidebar e header principal do app continuam visíveis
   // (o modo só mexe nos DOIS painéis internos desta tela, nada de overlay).
+  // (Tentativa de expandir também o painel ESQUERDO — 2026-07-27 — revertida
+  // a pedido do Guilherme: pouco dado nas abas de lista pra justificar mais
+  // espaço, e em telas maiores que a dele já cabe tudo sem scroll.)
   const [focusMode, setFocusMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -244,11 +328,15 @@ export function CustomTexts() {
   const [savedText, setSavedText] = useState('')
   const [isCustom, setIsCustom] = useState(false)
 
+  const restoreTarget = restoreTargetLabel ?? 'ao padrão do Vibraweb'
+  const restoreActionLabel = scope === 'admin' ? 'Restaurar padrão do sistema' : 'Restaurar padrão'
+  const resetAllActionLabel = scope === 'admin' ? 'Restaurar todos os textos do sistema' : 'Redefinir todos os textos'
+
   const refreshCustomKeys = useCallback(async () => {
-    const rows = await listUserInterpretations()
+    const rows = await adapter.listOverrideKeys()
     setCustomKeys(new Set(rows.map(r => keyOf(r.tipo, r.numero))))
     setCustomLoaded(true)
-  }, [])
+  }, [adapter])
 
   useEffect(() => { refreshCustomKeys() }, [refreshCustomKeys])
 
@@ -264,7 +352,7 @@ export function CustomTexts() {
     load()
   }, [])
 
-  // Mesmo fallback do fetchInterpretation (lib/supabase.ts): tipo exato
+  // Mesmo fallback do fetchInterpretation (lib/neon.ts): tipo exato
   // primeiro, senão o tipo sem o 1º prefixo ("pessoal_motivacao" → "motivacao").
   // Precisa disso porque os `tipo` reais na tabela não seguem 1 padrão único.
   const hasDefaultText = useCallback((tipo: string, numero: number) => {
@@ -300,18 +388,18 @@ export function CustomTexts() {
     let active = true
     async function load() {
       setLoading(true)
-      const res = await fetchInterpretation(selected!.numero, selected!.tipo)
+      const res = await adapter.fetchEffective(selected!.numero, selected!.tipo)
       if (active) {
         const value = res?.texto || ''
         setText(value)
         setSavedText(value)
-        setIsCustom(!!res?.titulo?.startsWith('Personalizado:'))
+        setIsCustom(!!res?.isOverridden)
         setLoading(false)
       }
     }
     load()
     return () => { active = false }
-  }, [selected])
+  }, [selected, adapter])
 
   const isDirty = text !== savedText
   const showFooter = isCustom || isDirty
@@ -319,7 +407,7 @@ export function CustomTexts() {
   async function handleSave() {
     if (!selected) return
     setSaving(true)
-    await saveUserInterpretation(selected.numero, selected.tipo, text)
+    await adapter.saveOverride(selected.numero, selected.tipo, text)
     setSavedText(text)
     setIsCustom(true)
     setSaving(false)
@@ -339,22 +427,22 @@ export function CustomTexts() {
 
   // Apaga TODAS as personalizações do consultor de uma vez (Números,
   // Introduções de Categoria e Textos Gerais) — botão no rodapé do painel
-  // esquerdo, ver deleteAllUserInterpretations em lib/supabase.ts.
+  // esquerdo, ver deleteAllUserInterpretations em lib/neon.ts.
   async function handleResetAll() {
     const total = customKeys.size
     if (!total) return
     const ok = await confirm({
-      title: 'Redefinir todos os textos',
-      message: `Isso vai apagar as ${total} personalizações salvas e restaurar todos os textos ao padrão do Vibraweb. Essa ação não pode ser desfeita.`,
-      confirmLabel: 'Redefinir Tudo',
+      title: resetAllActionLabel,
+      message: `Isso vai apagar as ${total} personalizações salvas e restaurar todos os textos ${restoreTarget}. Essa ação não pode ser desfeita.`,
+      confirmLabel: scope === 'admin' ? 'Restaurar textos' : 'Redefinir Tudo',
       danger: true,
     })
     if (!ok) return
     setResettingAll(true)
-    await deleteAllUserInterpretations()
+    await adapter.clearAllOverrides()
     setCustomKeys(new Set())
     if (selected) {
-      const res = await fetchInterpretation(selected.numero, selected.tipo)
+      const res = await adapter.fetchEffective(selected.numero, selected.tipo)
       const value = res?.texto || ''
       setText(value)
       setSavedText(value)
@@ -366,15 +454,15 @@ export function CustomTexts() {
   async function handleRestore() {
     if (!selected) return
     const ok = await confirm({
-      title: 'Restaurar padrão',
-      message: 'Deseja apagar sua versão personalizada e restaurar o texto padrão do Vibraweb?',
+      title: restoreActionLabel,
+      message: `Deseja apagar sua versão personalizada e restaurar o texto ${restoreTarget}?`,
       confirmLabel: 'Restaurar',
       danger: true,
     })
     if (!ok) return
     setSaving(true)
-    await saveUserInterpretation(selected.numero, selected.tipo, null)
-    const res = await fetchInterpretation(selected.numero, selected.tipo)
+    await adapter.saveOverride(selected.numero, selected.tipo, null)
+    const res = await adapter.fetchEffective(selected.numero, selected.tipo)
     const value = res?.texto || ''
     setText(value)
     setSavedText(value)
@@ -502,50 +590,35 @@ export function CustomTexts() {
         </div>
       </div>
 
-      {/* Rodapé colapsa a 0 (sem padding/borda) quando não há nada pra mostrar
-          (nem "Restaurar Padrão", nem edição pendente) — a caixa de texto
-          acima (flex: 1) toma esse espaço de volta automaticamente. Ao digitar
-          (isDirty), o rodapé se abre de novo e a caixa cede o espaço. */}
+      {/* Rodapé só existe quando há uma ação. A montagem condicional evita
+          animar altura/largura, que causa reflow durante a digitação. */}
       <div style={{
         flexShrink: 0,
         borderTop: `1px solid ${showFooter ? t.pb : 'transparent'}`,
         padding: showFooter ? '16px 20px' : '0 20px',
-        maxHeight: showFooter ? 64 : 0,
+        height: showFooter ? 64 : 0,
         overflow: 'hidden',
         display: 'flex', alignItems: 'center', gap: 10,
-        transition: 'max-height 0.25s ease, padding 0.25s ease, border-color 0.25s ease',
       }}>
         {isCustom && (
           <SecondaryBtn onClick={handleRestore} disabled={saving} style={{ padding: '10px', fontSize: 12, flexShrink: 0 }}>
-            Restaurar Padrão
+            {restoreActionLabel}
           </SecondaryBtn>
         )}
         <div style={{ flex: 1 }} />
         {/* "Limpar" e "Salvar" são dinâmicos: só existem enquanto há edição
             pendente (isDirty) e somem juntos assim que ela é descartada ou
             salva — sem botão "Voltar" fixo (esse saiu pro "✕" do header). */}
-        <div style={{
-          flex: isDirty ? 1 : 0,
-          maxWidth: isDirty ? 160 : 0,
-          opacity: isDirty ? 1 : 0,
-          overflowY: 'hidden', overflowX: isDirty ? 'visible' : 'hidden',
-          transition: 'flex 0.25s ease, max-width 0.25s ease, opacity 0.2s ease',
-        }}>
-          <SecondaryBtn onClick={handleCancelEdit} style={{ padding: '10px', fontSize: 12, width: '100%', justifyContent: 'center', whiteSpace: 'nowrap' }}>
+        {isDirty && (
+          <SecondaryBtn onClick={handleCancelEdit} style={{ padding: '10px', fontSize: 12, flex: 1, justifyContent: 'center', whiteSpace: 'nowrap' }}>
             Limpar
           </SecondaryBtn>
-        </div>
-        <div style={{
-          flex: isDirty ? 1 : 0,
-          maxWidth: isDirty ? '100%' : 0,
-          opacity: isDirty ? 1 : 0,
-          overflowY: 'hidden', overflowX: isDirty ? 'visible' : 'hidden',
-          transition: 'flex 0.25s ease, max-width 0.25s ease, opacity 0.2s ease',
-        }}>
-          <PrimaryBtn onClick={handleSave} disabled={saving || !text.trim()} style={{ padding: '10px', fontSize: 12, width: '100%', justifyContent: 'center', whiteSpace: 'nowrap' }}>
+        )}
+        {isDirty && (
+          <PrimaryBtn onClick={handleSave} disabled={saving || !text.trim()} style={{ padding: '10px', fontSize: 12, flex: 1, justifyContent: 'center', whiteSpace: 'nowrap' }}>
             {saving ? 'Salvando...' : 'Salvar'}
           </PrimaryBtn>
-        </div>
+        )}
       </div>
     </div>
   )
@@ -934,24 +1007,22 @@ export function CustomTexts() {
           disabled={resettingAll || !customKeys.size}
           style={{ padding: '8px 10px', fontSize: 11, flexShrink: 0 }}
         >
-          {resettingAll ? 'Redefinindo...' : 'Redefinir Todos os Textos'}
+          {resettingAll ? 'Restaurando...' : resetAllActionLabel}
         </SecondaryBtn>
       </div>
     </div>
   )
 
-  // ── Header fixo do painel esquerdo — título + as 3 abas de modo, lado a
-  // lado (Guilherme, 2026-07-12: "posicionar esse 3 novos botão ao lado do
-  // título dentro do header padrão").
+  // ── Header fixo do painel esquerdo — título numa linha, abas de modo
+  // logo abaixo (Guilherme, 2026-07-27: "abas... abaixo do título e não na
+  // mesma linha" — antes ficavam lado a lado, 2026-07-12).
   const headerContent = (
-    <div style={{
-      padding: 20, borderBottom: `1px solid ${t.pb}`, flexShrink: 0,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
-    }}>
+    <div style={{ padding: 20, borderBottom: `1px solid ${t.pb}`, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageTitle
-        title="Personalizar Textos"
-        info="Números: grade categoria × número — cada célula é um texto por cliente. Introduções de Categoria: o texto de abertura de cada número no relatório. Textos Gerais: Orientação, Importante, Resumo e Conclusão. Tudo pode ser restaurado ao padrão do Vibraweb a qualquer momento."
+        title={title ?? 'Personalizar Textos'}
+        info={info ?? 'Crie uma versão própria para o seu workspace sem alterar o texto oficial do Vibraweb. Números: a grade categoria × número — cada célula é a leitura daquele número. Introduções de Categoria: o texto de abertura de cada seção. Textos Gerais: Orientação, Importante, Resumo e Conclusão. Restaurar padrão remove apenas a sua versão; o texto oficial continua preservado.'}
         size={16}
+        scope={scope}
       />
       <TabBar tabs={LEFT_TABS} value={leftView} onChange={id => switchLeftView(id as LeftView)} />
     </div>
@@ -979,7 +1050,7 @@ export function CustomTexts() {
           {/* Scroll horizontal da grade (modo Números) acontece aqui, coladinho
               na borda inferior do painel, em vez de flutuar dentro de um
               wrapper próprio com espaço sobrando abaixo dele. */}
-          <div style={{
+          <div className="vw-scroll-area" style={{
             flex: 1, overflowY: 'auto',
             overflowX: (!isMobile && (leftView === 'numeros' || leftView === 'especiais')) ? 'auto' : 'hidden',
             padding: (!isMobile && (leftView === 'numeros' || leftView === 'especiais')) ? '16px 16px 6px' : 16,

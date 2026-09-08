@@ -12,7 +12,7 @@ import { PreviewPage, savePreviewPayload } from './PreviewPage'
 import {
   fetchUserProfile, saveAnalysis, updateAnalysis, type UserProfile, type TextOverrides,
   overrideTexto, overrideVersoes, overrideData, TEXT_OVERRIDE_VERSION_CAP,
-} from '../lib/supabase'
+} from '../lib/neon'
 import { calcPessoal } from '../lib/numerology'
 import type { BlockOrderConfig } from '../lib/block-order'
 import { VIBRAWEB_DEFAULTS } from '../lib/theme-resolver'
@@ -222,10 +222,10 @@ export function AppPage({ onLogout }: Props) {
           onNewAnalysis={handleNewAnalysis}
         />
       )}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div className="vw-analysis-workspace" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           <Routes>
             <Route path="salvos" element={
-              <div style={{ flex: 1, display: 'flex', minWidth: 0, overflow: 'hidden' }}>
+              <div className="vw-saved-analysis" style={{ flex: 1, display: 'flex', minWidth: 0, overflow: 'hidden' }}>
                 <div style={{
                   width: savedMode ? 400 : '100%',
                   flexShrink: 0,
@@ -256,7 +256,7 @@ export function AppPage({ onLogout }: Props) {
                   display: 'flex',
                   background: t.night
                 }}>
-                  <div style={{ width: '100%', minWidth: 700, display: 'flex' }}>
+                  <div style={{ width: '100%', minWidth: 0, display: 'flex' }}>
                     <OutputPanel
                       data={data}
                       consultantName={consultantName}

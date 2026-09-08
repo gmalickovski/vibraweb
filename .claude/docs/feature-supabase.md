@@ -1,6 +1,10 @@
-# Supabase Integration
+# Supabase Integration Legacy
 
-**Client**: `src/lib/supabase.ts`
+Supabase agora é **origem legada de migração**. O backend oficial do Vibraweb passou a ser Neon; ver `feature-neon.md`.
+
+**Client**: `src/lib/neon.ts`
+
+O nome do arquivo permanece por compatibilidade histórica dos imports, mas o cliente atual usa `@neondatabase/neon-js`.
 
 ## Arquitetura de Segurança
 
@@ -8,6 +12,7 @@
 - **Service role key** → NUNCA no frontend. Usar apenas em Edge Functions (server-side).
 - Toda proteção de dados é feita por **Row Level Security (RLS)** no banco.
 - Credenciais ficam exclusivamente no `.env.local` (nunca commitadas).
+- **Supabase Auth Lock**: Configurada a opção `auth.lock: async (_name, _acquireTimeout, fn) => fn()` em `createClient` (`src/lib/neon.ts`) para evitar timeouts de `navigator.locks` em navegadores Chrome/Vite HMR (`NavigatorLockAcquireTimeoutError`).
 
 ## Variáveis de ambiente
 
@@ -58,6 +63,7 @@ Análises salvas por usuário.
 | subject | text nullable | nome do cliente |
 | input_data | jsonb | snapshot de AnalysisData |
 | result_data | jsonb nullable | snapshot de NumerologyMap |
+| text_overrides | jsonb nullable | `{ [numero]: { [tipo]: entry } }` — entry é string (legado) ou `{ texto, data, sistema?, versoes?[] }` (2026-07-19: histórico de versões cap 10 + marcador "usar padrão do sistema"). Ler SEMPRE via helpers `overrideTexto/overrideSistema/overrideVersoes`; cascata completa em `resolveInterpretation` |
 
 **RLS**: SELECT, INSERT, UPDATE, DELETE apenas para o próprio usuário.  
 **Index**: `(user_id, created_at DESC)`.
@@ -76,7 +82,7 @@ Análises salvas por usuário.
 | `deleteAnalysis(id)` | analyses | autenticado |
 
 ### Cache em memória (2026-07-18)
-`fetchInterpretation`/`listUserInterpretations`/`listDefaultInterpretationKeys` e `fetchUserProfile` eram chamados de novo em toda navegação/re-render, e `fetchInterpretation` fazia até 4 round-trips de rede **por chamada** (era invocado uma vez por número/tipo — centenas de vezes em telas como o preview de exemplo ou Personalizar Textos). Agora `supabase.ts` mantém um cache module-level (singleton, dura a sessão da aba):
+`fetchInterpretation`/`listUserInterpretations`/`listDefaultInterpretationKeys` e `fetchUserProfile` eram chamados de novo em toda navegação/re-render, e `fetchInterpretation` fazia até 4 round-trips de rede **por chamada** (era invocado uma vez por número/tipo — centenas de vezes em telas como o preview de exemplo ou Personalizar Textos). Agora `neon.ts` mantém um cache module-level (singleton, dura a sessão da aba):
 - `interpretacoes` (textos padrão, nunca deletados) e `user_interpretations` (personalização global do consultor) → 1 bulk-fetch cada, feito uma única vez; toda chamada seguinte é um lookup síncrono em `Map`.
 - `user_profiles` (perfil, `brand_config`/templates de marca, `block_order`) → mesmo padrão, 1 fetch por sessão.
 - `saveUserInterpretation`/`deleteAllUserInterpretations`/`updateUserProfile` atualizam o cache (write-through) — não precisa recarregar do banco depois de salvar/restaurar.

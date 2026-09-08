@@ -104,18 +104,24 @@ export function parseInlineAst(text: string): InlineNode[] {
   })
 }
 
-function renderInlineAst(nodes: InlineNode[]): ReactNode[] {
+function renderInlineAst(nodes: InlineNode[], strongColor?: string): ReactNode[] {
   return nodes.map((node, i) => {
     if (node.type === 'text') return node.value
-    const inner = renderInlineAst(node.children)
-    if (node.type === 'bold') return <strong key={i}>{inner}</strong>
+    const inner = renderInlineAst(node.children, strongColor)
+    if (node.type === 'bold') {
+      return (
+        <strong key={i} style={strongColor ? { color: strongColor } : undefined}>
+          {inner}
+        </strong>
+      )
+    }
     if (node.type === 'underline') return <u key={i}>{inner}</u>
     return <em key={i}>{inner}</em>
   })
 }
 
-function parseInline(text: string): ReactNode[] {
-  return renderInlineAst(parseInlineAst(text))
+function parseInline(text: string, strongColor?: string): ReactNode[] {
+  return renderInlineAst(parseInlineAst(text), strongColor)
 }
 
 // ── AST de blocos (parágrafos) ──────────────────────────────────────────────
@@ -161,10 +167,11 @@ interface MarkdownParagraphsProps {
   text: string | null | undefined
   style?: CSSProperties
   emptyFallback?: ReactNode
+  strongColor?: string
 }
 
 /** Divide o texto em parágrafos (linha em branco) e aplica negrito/itálico/sublinhado dentro de cada um. */
-export function MarkdownParagraphs({ text, style, emptyFallback }: MarkdownParagraphsProps) {
+export function MarkdownParagraphs({ text, style, emptyFallback, strongColor }: MarkdownParagraphsProps) {
   const blocks = parseMarkdownBlocks(text ?? '')
   if (blocks.length === 0) return emptyFallback != null ? <>{emptyFallback}</> : null
 
@@ -194,7 +201,7 @@ export function MarkdownParagraphs({ text, style, emptyFallback }: MarkdownParag
               margin: '20px 0 10px',
               ...(block.align ? { textAlign: block.align } : null),
             }}>
-              {parseInline(block.lines[0])}
+              {parseInline(block.lines[0], strongColor)}
             </h4>
           )
         }
@@ -211,7 +218,7 @@ export function MarkdownParagraphs({ text, style, emptyFallback }: MarkdownParag
               ...(block.align ? { textAlign: block.align } : null),
             }}>
               {block.lines.map((item, j) => (
-                <li key={j} style={{ marginBottom: 4 }}>{parseInline(item)}</li>
+                <li key={j} style={{ marginBottom: 4 }}>{parseInline(item, strongColor)}</li>
               ))}
             </ListTag>
           )
@@ -221,7 +228,7 @@ export function MarkdownParagraphs({ text, style, emptyFallback }: MarkdownParag
           <p key={i} style={block.align ? { ...style, textAlign: block.align } : style}>
             {block.lines.map((line, j) => (
               <span key={j}>
-                {parseInline(line)}
+                {parseInline(line, strongColor)}
                 {j < block.lines.length - 1 && <br />}
               </span>
             ))}
@@ -233,6 +240,6 @@ export function MarkdownParagraphs({ text, style, emptyFallback }: MarkdownParag
 }
 
 /** Aplica só negrito/itálico/sublinhado inline, sem quebrar em parágrafos — pra rótulos e legendas curtas de 1 linha. */
-export function MarkdownInline({ text }: { text: string | null | undefined }) {
-  return <>{parseInline(text ?? '')}</>
+export function MarkdownInline({ text, strongColor }: { text: string | null | undefined; strongColor?: string }) {
+  return <>{parseInline(text ?? '', strongColor)}</>
 }

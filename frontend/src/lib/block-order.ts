@@ -1,4 +1,4 @@
-﻿// block-order.ts — shared config for "Blocos do Relatório".
+// block-order.ts — shared config for "Blocos do Relatório".
 // Defines which top-level report blocks — and their children — the consultant
 // can reorder/hide in /app/blocos, and the default value used when the profile
 // does not have a `block_order` saved yet.
@@ -29,17 +29,30 @@ export interface ChildBlockOrder {
   hidden: string[]
 }
 
+/** Bloco livre criado no escopo global, de um modelo ou de uma análise.
+ * `parentId` ausente representa uma seção principal (H1); presente torna o
+ * bloco um sub-bloco do pai indicado (H2). */
+export interface CustomBlock {
+  id: string
+  title: string
+  text: string
+  parentId?: string
+}
+
 export interface BlockOrderConfig {
   order: string[]
   hidden: string[]
   children?: Record<string, ChildBlockOrder>
+  /** Rótulos dos blocos nativos. O conteúdo continua no editor de Textos. */
+  titleOverrides?: Record<string, string>
+  /** Conteúdo autoral, exclusivo do editor de Blocos em cada camada. */
+  customBlocks?: CustomBlock[]
 }
 
 export const DEFAULT_BLOCK_ORDER: BlockOrderConfig = {
   order: [
     'capa',
     'orientacao',
-    'importante',
     'os_seus_numeros',
     'personalidade',
     'proposito_vida',
@@ -52,6 +65,10 @@ export const DEFAULT_BLOCK_ORDER: BlockOrderConfig = {
   ],
   hidden: [],
   children: {
+    orientacao: {
+      order: ['importante'],
+      hidden: [],
+    },
     personalidade: {
       order: ['motivacao', 'impressao', 'expressao', 'talento_oculto', 'psiquico'],
       hidden: [],
@@ -83,6 +100,48 @@ export const DEFAULT_BLOCK_ORDER: BlockOrderConfig = {
   },
 }
 
+export function getBlockTitle(config: BlockOrderConfig, id: string, fallback: string): string {
+  const value = config.titleOverrides?.[id]?.trim()
+  return value || fallback
+}
+
+export function isCustomBlockId(id: string): boolean {
+  return id.startsWith('custom-')
+}
+
+export interface BlockTextTarget {
+  tipo: string
+  view: 'categorias' | 'gerais'
+}
+
+/** Ação contextual do modal de Blocos → campo já existente em Textos. */
+export function getBlockTextTarget(id: string): BlockTextTarget | null {
+  const general: Record<string, string> = {
+    orientacao: 'estatico_orientacao',
+    importante: 'estatico_importante',
+    os_seus_numeros: 'estatico_importante_resumo',
+    conclusao: 'estatico_conclusao',
+  }
+  if (general[id]) return { tipo: general[id], view: 'gerais' }
+
+  const category: Record<string, string> = {
+    personalidade: 'personalidade_intro', proposito_vida: 'proposito_vida_intro',
+    karma_desafios: 'aspectos_carmicos_intro', ciclos_vida: 'ciclos_intro',
+    previsoes_tempo: 'previsoes_intro', relacionamentos: 'relacionamentos_intro',
+    triangulo: 'triangulo_intro', motivacao: 'motivacao', impressao: 'impressao',
+    expressao: 'expressao', talento_oculto: 'talento_oculto', psiquico: 'psiquico',
+    dia_natalicio: 'dia_natalicio', destino: 'destino', missao: 'missao', aptidoes: 'aptidoes',
+    licao_carmica: 'licao_carmica', debito_carmica: 'debito_carmico',
+    tendencia_oculta: 'tendencia_oculta', resposta_subconsciente: 'resposta_subconsciente',
+    ciclo_1: 'ciclo', ciclo_2: 'ciclo', ciclo_3: 'ciclo', ano_pessoal: 'ano_pessoal',
+    mes_pessoal: 'mes_pessoal', dia_pessoal: 'dia_pessoal', dias_favoraveis: 'dias_favoraveis',
+    harmonia_conjugal: 'harmonia_conjugal', triangulo_piramide: 'triangulo_intro',
+    triangulo_arcano_regente: 'triangulo_intro', triangulo_arcano_vigente: 'triangulo_intro',
+    triangulo_arcanos_lista: 'triangulo_intro',
+  }
+  return category[id] ? { tipo: `estatico_def_${category[id]}`, view: 'categorias' } : null
+}
+
 export interface BlockDef {
   id: string
   label: string
@@ -98,8 +157,14 @@ export const BLOCK_DEFS: BlockDef[] = [
     description: 'Capa do documento — sempre a 1ª página, não é reordenável nem pode ser ocultada.',
     lockedVisible: true,
   },
-  { id: 'orientacao',     label: 'Orientação',      description: 'Texto de abertura, logo após a capa.' },
-  { id: 'importante',     label: 'Importante',       description: 'Explicação de como ler o mapa.' },
+  {
+    id: 'orientacao',
+    label: 'Orientação',
+    description: 'Texto de abertura, logo após a capa.',
+    children: [
+      { id: 'importante', label: 'Importante', description: 'Explicação de como ler o mapa.' },
+    ],
+  },
   { id: 'os_seus_numeros',label: 'Os Seus Números',  description: 'Resumo com todos os números calculados do cliente.' },
   {
     id: 'personalidade',
@@ -182,7 +247,6 @@ export const BLOCK_DEFS: BlockDef[] = [
 export const BLOCK_ID_MAP: Record<string, string> = {
   capa:            'bloco-capa',
   orientacao:      'bloco-orientacao',
-  importante:      'bloco-importante',
   os_seus_numeros: 'bloco-numeros',
   personalidade:   'bloco-personalidade',
   proposito_vida:  'bloco-proposito-vida',
@@ -196,6 +260,9 @@ export const BLOCK_ID_MAP: Record<string, string> = {
 
 // Mapeia chaves de sub-blocos (externos) para seus IDs internos
 export const GROUP_CHILD_ID_MAP: Record<string, Record<string, string>> = {
+  orientacao: {
+    importante: 'importante',
+  },
   personalidade: {
     motivacao:    'num-motivacao',
     impressao:    'num-impressao',
@@ -263,6 +330,18 @@ export function normalizeBlockOrder(raw: unknown): BlockOrderConfig {
   const cfg = raw as Partial<BlockOrderConfig>
   let savedOrder  = Array.isArray(cfg.order) && cfg.order.length > 0 ? cfg.order : DEFAULT_BLOCK_ORDER.order
   let savedHidden = Array.isArray(cfg.hidden) ? cfg.hidden : []
+  const rawCustomBlocks = Array.isArray(cfg.customBlocks)
+    ? cfg.customBlocks
+    : Object.values((cfg as { customBlocks?: Record<string, CustomBlock> }).customBlocks ?? {})
+  const customBlocks: CustomBlock[] = rawCustomBlocks
+    .filter((block): block is CustomBlock => !!block && typeof block === 'object' && typeof block.id === 'string' && isCustomBlockId(block.id))
+    .map(block => ({
+      id: block.id,
+      title: typeof block.title === 'string' && block.title.trim() ? block.title.trim() : 'Novo bloco',
+      text: typeof block.text === 'string' ? block.text : '',
+      ...(typeof block.parentId === 'string' && block.parentId ? { parentId: block.parentId } : {}),
+    }))
+  const customIds = new Set(customBlocks.map(block => block.id))
 
   // Inicializa estrutura de filhos a partir do padrão ou do perfil
   const children: Record<string, ChildBlockOrder> = {}
@@ -273,6 +352,17 @@ export function normalizeBlockOrder(raw: unknown): BlockOrderConfig {
       hidden: userVal && Array.isArray(userVal.hidden) ? [...userVal.hidden] : [...defaultVal.hidden],
     }
   }
+
+  // Pais autorais carregam a mesma estrutura de ordenação dos grupos nativos.
+  // Isso permite criar uma seção (H1) e, em seguida, soltar blocos filhos (H2)
+  // nela sem inventar uma segunda representação de árvore.
+  customBlocks.forEach(block => {
+    const saved = cfg.children?.[block.id] as Partial<ChildBlockOrder> | undefined
+    children[block.id] = {
+      order: saved && Array.isArray(saved.order) ? [...saved.order] : [],
+      hidden: saved && Array.isArray(saved.hidden) ? [...saved.hidden] : [],
+    }
+  })
 
   // ── Migrações de estruturas anteriores ───────────────────────────────────
 
@@ -375,12 +465,33 @@ export function normalizeBlockOrder(raw: unknown): BlockOrderConfig {
   })
 
   // ── Finaliza ──────────────────────────────────────────────────────────────
-  const validIds = new Set(DEFAULT_BLOCK_ORDER.order)
+  const validIds = new Set([...DEFAULT_BLOCK_ORDER.order, ...customBlocks.filter(block => !block.parentId).map(block => block.id)])
   const order = mergeWithDefaultOrder(
     savedOrder.filter(id => validIds.has(id)),
-    DEFAULT_BLOCK_ORDER.order
+    [...DEFAULT_BLOCK_ORDER.order, ...customBlocks.filter(block => !block.parentId).map(block => block.id)]
   )
   const hidden = savedHidden.filter(id => validIds.has(id))
 
-  return { order, hidden, children }
+  // Acrescenta filhos autorais aos respectivos pais e elimina referências
+  // órfãs deixadas por um bloco removido em alguma camada anterior.
+  const validParentIds = new Set([...DEFAULT_BLOCK_ORDER.order, ...customIds])
+  customBlocks.forEach(block => {
+    if (block.parentId && !validParentIds.has(block.parentId)) delete block.parentId
+  })
+  Object.entries(children).forEach(([parentId, childConfig]) => {
+    const nativeChildren = (DEFAULT_BLOCK_ORDER.children?.[parentId]?.order ?? [])
+    const customChildren = customBlocks.filter(block => block.parentId === parentId).map(block => block.id)
+    const validChildren = new Set([...nativeChildren, ...customChildren])
+    childConfig.order = mergeWithDefaultOrder(childConfig.order.filter(id => validChildren.has(id)), [...nativeChildren, ...customChildren])
+    childConfig.hidden = childConfig.hidden.filter(id => validChildren.has(id))
+  })
+
+  const titleOverrides = Object.fromEntries(
+    Object.entries(cfg.titleOverrides ?? {}).filter(([id, title]) =>
+      (DEFAULT_BLOCK_ORDER.order.includes(id) || Object.values(DEFAULT_BLOCK_ORDER.children ?? {}).some(group => group.order.includes(id)))
+      && typeof title === 'string' && title.trim().length > 0,
+    ).map(([id, title]) => [id, (title as string).trim()]),
+  )
+
+  return { order, hidden, children, ...(Object.keys(titleOverrides).length ? { titleOverrides } : {}), ...(customBlocks.length ? { customBlocks } : {}) }
 }

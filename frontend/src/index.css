@@ -1,5 +1,5 @@
 /* Vibraweb — Design Tokens */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500;1,600&family=UnifrakturCook:wght@400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   --vw-night:        #120A10;
@@ -22,6 +22,9 @@
   --vw-fg-3:         #9CA3AF;
   --vw-fg-4:         #6B7280;
   --vw-divider:      rgba(255,255,255,0.08);
+  --vw-scroll-track: rgba(255,255,255,0.045);
+  --vw-scroll-thumb: rgba(192,57,123,0.72);
+  --vw-scroll-thumb-hover: rgba(253,184,19,0.86);
 
   --vw-paper:        #FBF7F4;
   --vw-paper-2:      #F1E9E2;
@@ -69,7 +72,11 @@
   --vw-dur-slow:   600ms;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vw-scroll-thumb) var(--vw-scroll-track);
+}
 
 html, body, #root {
   height: 100%;
@@ -77,6 +84,37 @@ html, body, #root {
   padding: 0;
 }
 
+html { scrollbar-gutter: stable; }
+
+.vw-app-shell { height: 100dvh !important; min-height: 100dvh; }
+.vw-auth-page { min-height: 100dvh !important; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+/* Shared adaptive primitives. These keep flex/grid children shrinkable so a
+   narrow Fold cover or split-screen pane never creates page-level overflow. */
+.vw-analysis-workspace,
+.vw-analysis-workspace > * {
+  min-width: 0;
+}
+.vw-analysis-workspace > * {
+  min-height: 0;
+}
+
+/* A4 is deliberately kept at print dimensions. Its parent owns the touch
+   scroll, so document fidelity and small-screen usability can coexist. */
+.preview-scroll {
+  min-width: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scroll-area is the shared workspace primitive. The reserved gutter keeps
+   grids and document previews at a stable width before and after overflow. */
+.vw-scroll-area {
+  min-width: 0;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vw-scroll-thumb) var(--vw-scroll-track);
+}
 body {
   background: var(--vw-night);
   color: var(--vw-fg);
@@ -85,6 +123,27 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Identifies the current product surface. It is intentionally not styled as
+   a breadcrumb because these labels are context, not navigable destinations. */
+.vw-topbar-context {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  font-family: var(--vw-font-body);
+}
+.vw-topbar-brand { color: var(--vw-fg); font-family: var(--vw-font-display); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.vw-topbar-divider { width: 1px; height: 18px; flex: 0 0 1px; background: var(--vw-plum-border); }
+.vw-topbar-surface { color: var(--vw-gold); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.vw-topbar-identity { min-width: 0; overflow: hidden; color: var(--vw-fg-3); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.vw-topbar-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.vw-topbar-action { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; border: 1px solid var(--vw-plum-border); border-radius: 8px; background: transparent; color: var(--vw-fg-2); font: 600 11px var(--vw-font-body); cursor: pointer; transition: color .15s ease, border-color .15s ease, background .15s ease; }
+.vw-topbar-action:hover:not(:disabled) { color: var(--vw-fg); border-color: rgba(253,184,19,.45); background: rgba(253,184,19,.08); }
+.vw-topbar-action.is-accent { color: var(--vw-night-2); border-color: transparent; background: var(--vw-grad-cta); }
+.vw-topbar-action:disabled { cursor: wait; opacity: .5; }
 
 h1, h2, h3, h4, h5 {
   font-family: var(--vw-font-display);
@@ -100,9 +159,16 @@ a { color: inherit; text-decoration: none; }
 
 button { cursor: pointer; font-family: inherit; }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: var(--vw-plum-border); border-radius: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--vw-scroll-track); border-radius: var(--vw-r-full); }
+::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  background: var(--vw-scroll-thumb);
+  border: 3px solid transparent;
+  border-radius: var(--vw-r-full);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--vw-scroll-thumb-hover); }
 
 .vw-grad-text {
   background: var(--vw-grad-text);
@@ -110,6 +176,18 @@ button { cursor: pointer; font-family: inherit; }
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
+}
+
+/* ── Site landing animations ─────────────────────────────────────────── */
+@keyframes spineFlow {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -28; }
+}
+
+@keyframes waveDrift {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(-18%); }
+  100% { transform: translateX(0); }
 }
 
 /* ── A4 Document Preview ─────────────────────────────────────────────── */
@@ -130,10 +208,16 @@ button { cursor: pointer; font-family: inherit; }
   flex-shrink: 0;
 }
 
-.doc-cover {
-  align-items: center;
-  justify-content: center;
-}
+/* .doc-cover não centraliza mais os filhos (2026-07-29, Guilherme: "vamos
+   aproveitar mais o espaço horizontal da folha para todos os containers") —
+   o `align-items: center` herdado aqui fazia o wrapper de 4 containers
+   (DocumentChrome.tsx CoverPage) encolher pra caber no conteúdo mais largo
+   em vez de ocupar 100% da largura útil, o que fazia a âncora "esquerda"
+   (`AnchorPicker`) nunca chegar de fato na margem da folha — o wrapper
+   ficava centralizado ANTES de qualquer posicionamento interno. Agora o
+   `.a4-page` (flex column) usa o `align-items: stretch` padrão, e cada um
+   dos 4 containers ocupa 100% da largura, deixando o posicionamento
+   esquerda/centro/direita valer a partir da margem real da página. */
 
 /* Content sections — grow with content, never clip text ─────────────── */
 /* Each section = one major document block rendered in the preview.       */
@@ -153,6 +237,179 @@ button { cursor: pointer; font-family: inherit; }
   flex-shrink: 0;
   box-sizing: border-box;
 }
+
+/* ── Presets globais de relatório ──────────────────────────────────────
+ * A paginação e a hierarquia continuam pertencendo aos mesmos blocos.
+ * Estes seletores só mudam tipografia, cor e ornamentação, mantendo H1/H2/
+ * H3/H4/parágrafo consistentes no preview e no documento impresso. */
+.doc-style-holistic,
+.doc-style-minimalist,
+.doc-style-default { --doc-ornament-color: #4C2A68; }
+
+.doc-holistic-frame { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+/* Ornamentos só vivem no respiro exterior: fora da coluna lateral de 12mm e
+ * sem tocar a faixa reservada ao cabeçalho, rodapé ou conteúdo da página. */
+.doc-holistic-frame-corner { position: absolute; width: 7mm; height: 7mm; object-fit: contain; opacity: .46; }
+.doc-holistic-frame-corner.is-top-left { top: 2.5mm; left: 2.5mm; }
+.doc-holistic-frame-corner.is-top-right { top: 2.5mm; right: 2.5mm; transform: rotate(90deg); }
+.doc-holistic-frame-corner.is-bottom-right { right: 2.5mm; bottom: 2.5mm; transform: rotate(180deg); }
+.doc-holistic-frame-corner.is-bottom-left { bottom: 2.5mm; left: 2.5mm; transform: rotate(270deg); }
+.doc-style-holistic .doc-page-header,
+.doc-style-holistic .doc-page-footer { z-index: 1; }
+
+.doc-style-holistic .doc-content-flow,
+.doc-style-holistic .doc-content-flow p,
+.doc-style-holistic .doc-content-flow li {
+  font-family: 'Lora', Georgia, serif !important;
+  color: #4A414F !important;
+  line-height: 1.82 !important;
+}
+.doc-style-holistic .doc-content-flow h1 {
+  font-family: 'Cinzel', Georgia, serif !important;
+  color: #8A5A00 !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: .025em !important;
+  text-align: center !important;
+}
+.doc-style-holistic .doc-content-flow h2,
+.doc-style-holistic .doc-content-flow h3,
+.doc-style-holistic .doc-content-flow h4 {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  color: #4C2A68 !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: .025em !important;
+}
+.doc-style-holistic.doc-ornament-flourish .doc-content-flow h1::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 12px;
+  margin: 8px 0 12px;
+  background: url('/assets/ornament-flourish.svg') center center / 100% 12px no-repeat;
+  opacity: .72;
+}
+
+.doc-style-holistic .doc-holistic-callout {
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 13px 17px 13px 14px;
+  border: 1px solid rgba(114, 83, 138, .34);
+  border-radius: 2px;
+  background: rgba(114, 83, 138, .035);
+}
+.doc-style-holistic .doc-holistic-callout-mark {
+  display: block;
+  align-self: stretch;
+  margin: 3px 0 5px;
+  background: url('/assets/ornament-side-mark.svg') center top / 10px 42px repeat-y;
+  opacity: .8;
+}
+.doc-style-holistic .doc-holistic-callout p:last-child { margin-bottom: 0 !important; }
+.doc-style-holistic .doc-holistic-section-intro {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.doc-style-holistic .doc-holistic-section-intro p:last-child { margin-bottom: 0 !important; }
+.doc-style-holistic .doc-holistic-instruction {
+  margin: 0 0 20px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid rgba(138, 90, 0, .48);
+  border-bottom: 1px solid rgba(138, 90, 0, .48);
+  background: rgba(138, 90, 0, .025);
+}
+.doc-style-holistic .doc-holistic-instruction-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #8A5A00;
+  font: 600 10px 'Cinzel', Georgia, serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.doc-style-holistic .doc-holistic-instruction p:last-child { margin-bottom: 0 !important; }
+.doc-style-holistic blockquote {
+  position: relative;
+  margin: 0 0 18px !important;
+  padding: 12px 16px !important;
+  border: 1px solid rgba(114, 83, 138, .34) !important;
+  border-left: 1px solid rgba(114, 83, 138, .34) !important;
+  border-radius: 2px !important;
+  background: rgba(114, 83, 138, .025) !important;
+}
+.doc-style-holistic .doc-holistic-number-entry {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.doc-style-holistic .doc-holistic-number {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border-right: 1px solid rgba(114, 83, 138, .42);
+  color: #4C2A68;
+  font: 600 34px/1 'Cinzel', Georgia, serif;
+}
+.doc-style-holistic .doc-holistic-period {
+  margin: 2px 0 9px;
+  color: #66526F;
+  font: italic 10px/1.5 'Lora', Georgia, serif;
+}
+
+.doc-style-minimalist .doc-content-flow,
+.doc-style-minimalist .doc-content-flow p,
+.doc-style-minimalist .doc-content-flow li {
+  font-family: 'Inter', sans-serif !important;
+  color: #3F444A !important;
+}
+.doc-style-minimalist .doc-content-flow h1,
+.doc-style-minimalist .doc-content-flow h2,
+.doc-style-minimalist .doc-content-flow h3,
+.doc-style-minimalist .doc-content-flow h4 {
+  font-family: 'Poppins', sans-serif !important;
+  color: #34383D !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.doc-style-minimalist.doc-ornament-line .doc-content-flow h1::after,
+.doc-style-minimalist.doc-ornament-line .doc-content-flow h2::after {
+  content: '';
+  display: block;
+  width: min(100%, 280px);
+  height: 9px;
+  margin: 7px 0 9px;
+  background: url('/assets/ornament-line.svg') left center / 280px 9px no-repeat;
+  opacity: .62;
+}
+
+.doc-style-default,
+.doc-style-default .doc-content-flow,
+.doc-style-default .doc-content-flow p,
+.doc-style-default .doc-content-flow li,
+.doc-style-default .doc-content-flow h1,
+.doc-style-default .doc-content-flow h2,
+.doc-style-default .doc-content-flow h3,
+.doc-style-default .doc-content-flow h4 {
+  font-family: Arial, sans-serif !important;
+  color: #111 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+.doc-style-default::before,
+.doc-style-default .doc-content-flow h1::after,
+.doc-style-default .doc-content-flow h2::after { display: none !important; }
+.doc-style-default .watermark,
+.doc-style-default .doc-page-header,
+.doc-style-default .doc-page-footer { color: #111 !important; }
+
+/* Removido o blockquote margin-bottom: 0 forçado aqui para não grudar a definição nos cards */
 
 .doc-footer {
   margin-top: auto;
@@ -270,3 +527,340 @@ button { cursor: pointer; font-family: inherit; }
   }
 }
 
+/* ── Admin console ───────────────────────────────────────────────────── */
+.admin-shell { height: 100dvh; min-height: 100dvh; display: flex; background: var(--vw-night); color: var(--vw-fg); overflow: hidden; }
+.admin-workspace-column { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.admin-sidebar { width: 248px; flex: 0 0 248px; border-right: 1px solid var(--vw-divider); background: var(--vw-night-2); padding: 28px 16px 20px; display: flex; flex-direction: column; }
+.admin-brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 30px; font-family: var(--vw-font-display); }
+.admin-brand strong { display: block; font-size: 18px; letter-spacing: -.02em; }
+.admin-brand small { display: block; color: var(--vw-fg-4); font: 10px var(--vw-font-mono); letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+.admin-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: var(--vw-grad-cta); color: var(--vw-night); font: 900 20px var(--vw-font-display); }
+.admin-nav { display: grid; gap: 5px; }
+.admin-nav-button { min-height: 42px; display: flex; align-items: center; gap: 11px; width: 100%; padding: 0 12px; border: 1px solid transparent; border-radius: 8px; color: var(--vw-fg-3); background: transparent; text-align: left; font: 600 13px var(--vw-font-body); transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.admin-nav-button:hover { color: var(--vw-fg); background: rgba(255,255,255,.04); }
+.admin-nav-button.is-active { color: var(--vw-fg); background: rgba(253,184,19,.09); border-color: rgba(253,184,19,.22); }
+.admin-nav-glyph, .admin-quick-glyph { color: var(--vw-gold); font: 700 11px var(--vw-font-mono); }
+.admin-back-link { margin-top: auto; border: 0; border-top: 1px solid var(--vw-divider); padding: 18px 10px 0; color: var(--vw-fg-3); background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
+.admin-back-link:hover { color: var(--vw-gold); }
+.admin-main { width: min(1400px, 100%); margin: 0 auto; padding: 42px clamp(24px, 4vw, 64px) 72px; overflow: auto; scrollbar-gutter: stable; }
+.admin-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 36px; }
+.admin-kicker { color: var(--vw-gold); font: 600 10px var(--vw-font-mono); letter-spacing: .1em; margin-bottom: 8px; }
+.admin-header h1 { font-size: 32px; }
+.admin-header p:not(.admin-kicker) { color: var(--vw-fg-3); margin-top: 7px; font-size: 14px; }
+.admin-header-actions { display: flex; align-items: center; gap: 12px; }
+.admin-notice { color: #8ee0b3; font-size: 12px; }
+.admin-refresh { width: 36px; height: 36px; border: 1px solid var(--vw-plum-border); border-radius: 8px; background: var(--vw-plum); color: var(--vw-fg-2); font-size: 22px; line-height: 1; cursor: pointer; }
+.admin-refresh:hover { color: var(--vw-gold); border-color: rgba(253,184,19,.4); }
+.admin-loading, .admin-state { min-height: 240px; display: grid; place-items: center; color: var(--vw-fg-3); }
+.admin-state { gap: 8px; align-content: center; text-align: center; }
+.admin-state strong { color: var(--vw-fg); font-size: 18px; }
+.admin-state span { color: var(--vw-fg-3); margin-bottom: 8px; }
+.admin-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.admin-kpi, .admin-panel { background: var(--vw-night-2); border: 1px solid var(--vw-plum-border); border-radius: 12px; }
+.admin-kpi { padding: 19px 20px; min-height: 126px; }
+.admin-kpi span, .admin-kpi small { display: block; color: var(--vw-fg-3); font-size: 12px; }
+.admin-kpi strong { display: block; margin: 12px 0 4px; color: var(--vw-fg); font: 700 25px var(--vw-font-display); }
+.admin-kpi small { color: var(--vw-fg-4); font-size: 11px; }
+.admin-overview-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(290px, .8fr); gap: 16px; }
+.admin-panel { padding: 24px; }
+.admin-panel-large { min-height: 400px; }
+.admin-panel h2 { font-size: 18px; }
+.admin-panel-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 22px; }
+.admin-panel-heading p { color: var(--vw-fg-3); font-size: 13px; line-height: 1.6; max-width: 72ch; margin-top: 7px; }
+.admin-live-dot { color: #8ee0b3; font: 10px var(--vw-font-mono); white-space: nowrap; }
+.admin-live-dot::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #58c68d; margin: 0 6px 1px 0; }
+.admin-roadmap { border-top: 1px solid var(--vw-divider); }
+.admin-roadmap-item { display: flex; gap: 13px; padding: 17px 0; border-bottom: 1px solid var(--vw-divider); }
+.admin-roadmap-mark { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border: 1px solid var(--vw-plum-border); border-radius: 50%; color: var(--vw-fg-4); font-size: 13px; }
+.admin-roadmap-mark.is-done { color: var(--vw-night); border-color: var(--vw-gold); background: var(--vw-gold); font-weight: 700; }
+.admin-roadmap-item strong { font-size: 13px; }
+.admin-roadmap-item p { color: var(--vw-fg-3); font-size: 12px; margin-top: 4px; }
+.admin-quick-actions { display: grid; gap: 2px; margin-top: 18px; }
+.admin-quick-actions button { display: flex; align-items: center; gap: 12px; padding: 14px 0; border: 0; border-top: 1px solid var(--vw-divider); background: transparent; color: var(--vw-fg); text-align: left; cursor: pointer; }
+.admin-quick-actions button:hover strong { color: var(--vw-gold); }
+.admin-quick-actions svg { color: var(--vw-gold); }
+.admin-quick-actions strong, .admin-quick-actions small { display: block; }
+.admin-quick-actions strong { font-size: 13px; }
+.admin-quick-actions small { color: var(--vw-fg-4); font-size: 11px; margin-top: 3px; }
+.admin-toolbar { display: flex; gap: 10px; margin-bottom: 15px; }
+.admin-toolbar input, .admin-form-grid input, .admin-form-grid select, .admin-form-grid textarea, .admin-json-editor { width: 100%; border: 1px solid var(--vw-plum-border); border-radius: 7px; padding: 10px 11px; background: var(--vw-night); color: var(--vw-fg); font: 13px var(--vw-font-body); outline: none; }
+.admin-toolbar input:focus, .admin-form-grid input:focus, .admin-form-grid select:focus, .admin-form-grid textarea:focus, .admin-json-editor:focus { border-color: var(--vw-gold); box-shadow: 0 0 0 2px rgba(253,184,19,.12); }
+.admin-table-wrap { overflow-x: auto; scrollbar-gutter: stable; }
+.admin-table { width: 100%; border-collapse: collapse; min-width: 780px; font-size: 12px; }
+.admin-table th { color: var(--vw-fg-4); font: 10px var(--vw-font-mono); letter-spacing: .06em; text-align: left; text-transform: uppercase; padding: 0 12px 11px; border-bottom: 1px solid var(--vw-plum-border); }
+.admin-table td { padding: 13px 12px; vertical-align: top; border-bottom: 1px solid var(--vw-divider); color: var(--vw-fg-2); }
+.admin-table td:first-child, .admin-table th:first-child { padding-left: 0; }
+.admin-table td:last-child, .admin-table th:last-child { padding-right: 0; text-align: right; white-space: nowrap; }
+.admin-table code, .admin-cell-sub { color: var(--vw-fg-4); font: 11px var(--vw-font-mono); }
+.admin-cell-sub { display: block; margin-top: 3px; }
+.admin-table-text { max-width: 360px; color: var(--vw-fg-3) !important; line-height: 1.55; }
+.admin-row-action { border: 0; background: transparent; color: var(--vw-gold); padding: 4px 0 4px 12px; font-size: 11px; cursor: pointer; }
+.admin-row-action.danger { color: var(--vw-error); }
+.admin-status { display: inline-block; padding: 4px 7px; border-radius: 4px; font: 10px var(--vw-font-mono); text-transform: uppercase; letter-spacing: .03em; }
+.status-active { color: #91e0b4; background: rgba(46,163,106,.15); }
+.status-draft { color: var(--vw-gold); background: rgba(253,184,19,.12); }
+.status-archived { color: var(--vw-fg-4); background: rgba(156,163,175,.12); }
+.admin-editor { margin-top: 24px; border-top: 1px solid var(--vw-plum-border); padding-top: 22px; }
+.admin-editor-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.admin-editor-heading h3 { font-size: 16px; }
+.admin-editor-heading button { width: 30px; height: 30px; border: 0; background: transparent; color: var(--vw-fg-3); font-size: 23px; cursor: pointer; }
+.admin-editor-heading button:hover { color: var(--vw-fg); }
+.admin-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-form-grid label { display: grid; gap: 6px; color: var(--vw-fg-3); font-size: 11px; }
+.admin-form-grid label.full { grid-column: 1 / -1; }
+.admin-form-grid textarea, .admin-json-editor { resize: vertical; line-height: 1.55; }
+.admin-form-grid select { appearance: auto; }
+.admin-checkbox { display: flex !important; align-items: center; grid-column: 1 / -1; gap: 8px !important; }
+.admin-checkbox input { width: auto; }
+.admin-editor-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.admin-form-error { color: #ff8b9b; font-size: 12px; margin-top: 10px; }
+.admin-editor-description { color: var(--vw-fg-3); font-size: 13px; margin-bottom: 12px; }
+.admin-template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+.admin-template-item { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; padding: 14px; border: 1px solid var(--vw-plum-border); border-radius: 8px; }
+.admin-template-preview { min-height: 94px; display: grid; place-items: center; border-radius: 6px; background: linear-gradient(145deg, #29151f, #120a10); color: var(--vw-gold); font: 900 29px var(--vw-font-display); }
+.admin-template-info > div:first-child { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.admin-template-info strong { font-size: 13px; }
+.admin-template-info small { display: block; color: var(--vw-fg-3); font-size: 11px; line-height: 1.5; margin-top: 8px; }
+.admin-template-actions { margin-top: 15px; }
+.admin-settings-list { border-top: 1px solid var(--vw-divider); }
+.admin-settings-list button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 17px 0; border: 0; border-bottom: 1px solid var(--vw-divider); background: transparent; color: var(--vw-gold); text-align: left; cursor: pointer; }
+.admin-settings-list button:hover strong { color: var(--vw-gold); }
+.admin-settings-list strong, .admin-settings-list small { display: block; }
+.admin-settings-list strong { color: var(--vw-fg); font-size: 13px; }
+.admin-settings-list small { color: var(--vw-fg-4); font: 10px var(--vw-font-mono); margin-top: 5px; }
+@media (max-width: 900px) { .admin-sidebar { width: 210px; flex-basis: 210px; } .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-overview-grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .admin-shell { display: block; } .admin-sidebar { width: 100%; padding: 16px; border-right: 0; border-bottom: 1px solid var(--vw-divider); } .admin-brand { padding-bottom: 16px; } .admin-nav { display: flex; overflow-x: auto; } .admin-nav-button { flex: 0 0 auto; width: auto; } .admin-nav-button span:last-child { display: none; } .admin-back-link { display: none; } .admin-main { padding: 28px 16px 48px; } .admin-header h1 { font-size: 26px; } .admin-panel-heading { display: block; } .admin-panel-heading > :last-child { margin-top: 15px; } .admin-form-grid { grid-template-columns: 1fr; } .admin-form-grid label.full { grid-column: auto; } }
+
+/* Responsive surface rules: the admin shares the workspace shell, but its
+   content must also survive split-screen widths, Fold cover screens and
+   tablets in both orientations. Data tables keep their columns inside an
+   explicit touch-scroll region; cards and forms reflow by available width. */
+.admin-main { min-width: 0; min-height: 0; width: 100%; max-width: 1480px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.admin-header { flex-wrap: wrap; }
+.admin-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+.admin-overview-grid { grid-template-columns: minmax(0, 1.45fr) minmax(250px, .8fr); }
+.admin-table-wrap { min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; scrollbar-gutter: stable; scrollbar-width: thin; }
+.admin-table { min-width: 720px; }
+.admin-workspace-column > .admin-main { flex: 1; overflow-y: auto; }
+.admin-shell-mobile { flex-direction: column; }
+.admin-shell-mobile { display: flex; }
+.admin-shell-mobile .admin-workspace-column { flex: 1; }
+.admin-shell-mobile .admin-main { overflow-y: auto; }
+
+@media (max-width: 1100px) {
+  .admin-main { padding-top: 32px; padding-bottom: 48px; }
+  .admin-overview-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Compact / medium window classes follow Material's adaptive scaffold idea:
+   single-column content, then a two-pane layout only when each pane remains
+   useful. This also covers portrait tablets and Fold inner displays in split
+   screen. */
+@media (max-width: 900px) {
+  .vw-analysis-workspace {
+    flex-direction: column !important;
+    overflow: auto !important;
+  }
+
+  .vw-analysis-workspace > * {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .vw-analysis-workspace > .vw-saved-list {
+    flex: 0 0 auto;
+  }
+
+  .vw-saved-analysis {
+    flex-direction: column !important;
+    overflow: auto !important;
+  }
+
+  .vw-saved-analysis > :first-child,
+  .vw-saved-analysis > :last-child {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  .vw-saved-analysis > :first-child {
+    flex: 0 0 auto !important;
+    max-height: 42vh;
+  }
+
+  .vw-saved-analysis > :last-child {
+    flex: 1 1 auto !important;
+    min-height: 0;
+  }
+
+  .preview-scroll {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+@media (max-width: 560px) {
+  .vw-analysis-workspace {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .preview-scroll {
+    padding-top: 78px;
+  }
+}
+
+/* Material's 48dp touch target is applied to coarse pointers while desktop
+   keeps the existing compact visual rhythm. The visual icon can stay small;
+   the button's hit area is what grows. */
+@media (pointer: coarse) {
+  button,
+  [role="button"] {
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-main { padding-top: 24px; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+  .admin-header { align-items: flex-end; margin-bottom: 24px; }
+  .admin-header h1 { font-size: 28px; }
+  .admin-header-actions { margin-left: auto; }
+  .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .admin-kpi { min-height: 112px; padding: 16px; }
+  .admin-kpi strong { font-size: 20px; }
+  .admin-panel { padding: 18px; }
+  .admin-panel-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .admin-panel-heading > :last-child { margin-top: 0; }
+  .admin-table { min-width: 680px; }
+  .admin-quick-actions button, .admin-settings-list button { min-height: 58px; }
+}
+
+@media (max-width: 480px) {
+  .vw-topbar { padding-left: max(16px, env(safe-area-inset-left)) !important; padding-right: max(16px, env(safe-area-inset-right)) !important; }
+  .vw-topbar-identity { display: none; }
+  .vw-topbar-action { width: 36px; padding: 0; }
+  .vw-topbar-action span { display: none; }
+}
+
+@media (max-width: 720px) {
+  .vw-auth-page { grid-template-columns: 1fr !important; overflow-y: auto; }
+  .vw-auth-brand { min-height: 250px; padding: 28px 24px 24px !important; }
+  .vw-auth-brand h1 { font-size: 34px !important; }
+  .vw-auth-brand p { max-width: 38ch !important; font-size: 14px !important; }
+  .vw-auth-form { min-height: 470px; padding: 32px 20px max(32px, env(safe-area-inset-bottom)) !important; border-left: 0 !important; border-top: 1px solid var(--vw-plum-border); }
+  .vw-auth-form-inner { width: min(360px, 100%) !important; }
+}
+
+@media (max-width: 380px) {
+  .vw-auth-brand { min-height: 220px; padding-inline: 18px !important; }
+  .vw-auth-brand h1 { font-size: 29px !important; }
+  .vw-auth-form { padding-inline: 16px !important; }
+}
+
+@media (max-width: 480px) {
+  .admin-main { padding-top: 20px; }
+  .admin-header { display: block; }
+  .admin-header h1 { font-size: 25px; }
+  .admin-header-actions { justify-content: space-between; margin: 14px 0 0; }
+  .admin-kpi-grid { grid-template-columns: 1fr; }
+  .admin-panel-heading { display: block; }
+  .admin-panel-heading > :last-child { margin-top: 14px; }
+  .admin-table { min-width: 620px; }
+  .admin-editor-actions { flex-wrap: wrap; }
+  .admin-editor-actions > button { flex: 1 1 140px; min-height: 44px; }
+}
+
+@media (max-width: 480px) {
+  .vw-auth-name-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+}
+
+@media (pointer: coarse) {
+  .admin-nav-button, .admin-quick-actions button, .admin-settings-list button { min-height: 44px; }
+  .admin-row-action { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
+}
+
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 600px) {
+  .admin-main { padding-top: 16px; padding-bottom: 24px; }
+  .admin-header { margin-bottom: 18px; }
+  .admin-kpi { min-height: 96px; }
+}
+
+/* Unified global-editing surface. The sidebar's existing two-level cascade
+   opens this area with the same icon-by-icon motion used by workspace models;
+   these rules give the page body the matching entrance and tab hierarchy. */
+@keyframes adminGlobalEditIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.admin-global-edits { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.admin-global-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.admin-global-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-global-template-select { display: grid; gap: 6px; min-width: min(360px, 100%); }
+.admin-global-template-select label { color: var(--vw-fg-3); font-size: 11px; }
+.admin-global-template-select select { width: 100%; border: 1px solid var(--vw-plum-border); border-radius: 8px; padding: 11px 12px; background: var(--vw-night-2); color: var(--vw-fg); font: 13px var(--vw-font-body); }
+.admin-global-create { display: grid; gap: 16px; animation: adminGlobalEditIn .24s var(--vw-ease-out); }
+.admin-global-create h2 { font-size: 18px; }
+.admin-global-create p { color: var(--vw-fg-3); font-size: 13px; margin-top: 6px; }
+.admin-global-tabs { display: flex; gap: 8px; min-width: 0; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.admin-global-tabs button { flex: 1 1 0; min-width: 190px; display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 1px solid var(--vw-plum-border); border-radius: 10px; background: var(--vw-night-2); color: var(--vw-fg-3); text-align: left; cursor: pointer; }
+.admin-global-tabs button svg { flex: 0 0 auto; color: var(--vw-gold); }
+.admin-global-tabs button span { min-width: 0; display: grid; gap: 3px; }
+.admin-global-tabs button strong { color: var(--vw-fg); font-size: 13px; }
+.admin-global-tabs button small { color: var(--vw-fg-4); font-size: 11px; line-height: 1.35; }
+.admin-global-tabs button.is-active { border-color: rgba(253,184,19,.45); background: rgba(253,184,19,.08); color: var(--vw-fg); box-shadow: 0 4px 18px rgba(0,0,0,.18); }
+.admin-global-edit-content { min-width: 0; animation: adminGlobalEditIn .28s var(--vw-ease-out); }
+.admin-global-edit-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 4px 0 16px; }
+.admin-global-edit-heading .admin-kicker { display: flex; align-items: center; gap: 6px; }
+.admin-global-edit-heading h2 { font-size: 22px; }
+.admin-global-visual-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .85fr); gap: 16px; }
+.admin-global-form, .admin-global-visual-preview { min-width: 0; }
+.admin-global-presets { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; color: var(--vw-fg-3); font-size: 11px; }
+.admin-global-presets button { border: 1px solid var(--vw-plum-border); border-radius: 999px; padding: 8px 12px; background: transparent; color: var(--vw-fg-2); font-size: 11px; cursor: pointer; }
+.admin-global-presets button:hover { border-color: var(--vw-gold); color: var(--vw-gold); }
+.admin-global-style-picker { display: grid; gap: 10px; margin-bottom: 18px; }
+.admin-global-style-picker > div:first-child { display: grid; gap: 4px; }
+.admin-global-style-picker > div:first-child strong { color: var(--vw-fg); font-size: 13px; }
+.admin-global-style-picker > div:first-child small { color: var(--vw-fg-3); font-size: 11px; line-height: 1.45; }
+.admin-style-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.admin-style-option { min-width: 0; display: flex; align-items: center; gap: 9px; padding: 9px; border: 1px solid var(--vw-plum-border); border-radius: 8px; background: rgba(255,255,255,.02); color: var(--vw-fg-2); text-align: left; cursor: pointer; }
+.admin-style-option:hover { border-color: rgba(253,184,19,.55); }
+.admin-style-option.is-active { border-color: var(--vw-gold); background: rgba(253,184,19,.09); box-shadow: 0 0 0 1px rgba(253,184,19,.12); }
+.admin-style-option > span:last-child { min-width: 0; display: grid; gap: 3px; }
+.admin-style-option strong { color: var(--vw-fg); font-size: 11px; }
+.admin-style-option small { color: var(--vw-fg-4); font-size: 10px; line-height: 1.3; }
+.admin-style-swatch { width: 34px; height: 34px; flex: 0 0 34px; display: block; border-radius: 7px; }
+.admin-style-swatch.style-vibracao { background: linear-gradient(135deg, #581C3C 0 28%, #4C2A68 28% 48%, #2457C5 48% 62%, #C0397B 62% 78%, #FDB813 78%); }
+.admin-style-swatch.style-modern { background: linear-gradient(135deg, #581C3C 0 42%, #C0397B 42% 64%, #FDB813 64% 80%, #2457C5 80%); border: 1px solid rgba(88, 28, 60, .3); }
+.admin-style-swatch.style-holistic { background: #2A173D url('/assets/ornament-flourish.svg') center / 31px auto no-repeat; border: 1px solid #72538A; }
+.admin-style-swatch.style-minimalist { background: #E9EAEB url('/assets/ornament-line.svg') center / 29px auto no-repeat; border: 1px solid #AEB2B7; }
+.admin-style-swatch.style-default { background: #FFF; border: 1px solid #C6C6C6; position: relative; }
+.admin-style-swatch.style-default::after { content: 'Aa'; position: absolute; inset: 0; display: grid; place-items: center; color: #111; font: 700 13px Arial, sans-serif; }
+.admin-form-label { display: grid; gap: 6px; color: var(--vw-fg-3); font-size: 11px; }
+.admin-global-paper-ornament { display: block; width: min(100%, 250px); height: 14px; margin: 16px 0 -4px; object-fit: contain; object-position: left center; }
+.admin-color-field { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.admin-form-grid .admin-color-field input[type="color"] { width: 42px; height: 42px; flex: 0 0 42px; padding: 2px; }
+.admin-form-grid .admin-color-field input:not([type="color"]) { min-width: 0; flex: 1; }
+.admin-global-visual-preview { display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+.admin-global-paper { min-height: 300px; padding: 32px 26px; border: 2px solid; border-radius: 8px; background: var(--vw-paper); box-shadow: 0 14px 40px rgba(0,0,0,.24); color: var(--vw-ink); }
+.admin-global-paper-line { width: 56px; height: 4px; margin-bottom: 24px; border-radius: 999px; }
+.admin-global-paper strong { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.admin-global-paper h3 { margin-top: 46px; font-size: 24px; }
+.admin-global-paper p { margin-top: 14px; font-size: 13px; line-height: 1.65; }
+.admin-global-paper small { display: block; margin-top: 42px; font-size: 11px; }
+.admin-global-document-editor, .admin-global-text-editor { min-width: 0; height: clamp(520px, calc(100dvh - 300px), 820px); min-height: 520px; overflow: hidden; background: #0e0810; border: 1px solid var(--vw-plum-border); border-radius: 10px; }
+.admin-global-text-editor > * { height: 100%; }
+.admin-global-loading { min-height: 260px; display: grid; place-items: center; color: var(--vw-fg-3); }
+
+@media (max-width: 900px) {
+  .admin-global-visual-grid { grid-template-columns: 1fr; }
+  .admin-style-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-global-document-editor, .admin-global-text-editor { height: clamp(520px, calc(100dvh - 260px), 760px); }
+}
+
+@media (max-width: 560px) {
+  .admin-global-template-select { min-width: 100%; }
+  .admin-global-edit-heading h2 { font-size: 19px; }
+  .admin-global-tabs button { min-width: 168px; }
+  .admin-global-tabs button small { display: none; }
+  .admin-style-grid { grid-template-columns: 1fr; }
+  .admin-global-document-editor, .admin-global-text-editor { min-height: 500px; }
+}

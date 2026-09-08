@@ -31,7 +31,7 @@ export function PdfViewer({ label, pageCount, children }: PdfViewerProps) {
           {pageCount} {pageCount === 1 ? 'página' : 'páginas'}
         </span>
       </div>
-      <div style={{
+      <div className="vw-scroll-area" style={{
         flex: 1, overflowY: 'auto', padding: 24,
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
       }}>

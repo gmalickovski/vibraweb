@@ -9,6 +9,7 @@ import { t } from '../../lib/tokens'
 import { Field } from '../shared/Field'
 import { PageTitle } from '../shared/PageTitle'
 import type { AnalysisData, AnalysisTab } from '../../pages/AppPage'
+import { useIsMobile } from '../../lib/useIsMobile'
 
 interface Props {
   data: AnalysisData
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function InputPanel({ data, setData }: Props) {
+  const isMobile = useIsMobile(900)
   const set = (k: keyof AnalysisData) => (val: string) => setData({ ...data, [k]: val })
 
   const handleDobChange = (val: string) => {
@@ -30,9 +32,12 @@ export function InputPanel({ data, setData }: Props) {
 
   return (
     <div style={{
-      flex: '0 0 420px',
+      flex: isMobile ? '0 0 auto' : '0 0 420px',
+      width: isMobile ? '100%' : undefined,
+      maxHeight: isMobile ? '42vh' : undefined,
       background: t.night2,
-      borderRight: `1px solid ${t.pb}`,
+      borderRight: isMobile ? 'none' : `1px solid ${t.pb}`,
+      borderBottom: isMobile ? `1px solid ${t.pb}` : 'none',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -45,7 +50,7 @@ export function InputPanel({ data, setData }: Props) {
         />
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="vw-scroll-area" style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Nome Completo de Nascimento" value={data.nome} onChange={set('nome')} placeholder="Digite o nome completo" />
         <Field label="Data de Nascimento" value={data.dob} onChange={handleDobChange} placeholder="DD/MM/AAAA" />
       </div>

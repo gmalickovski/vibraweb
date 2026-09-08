@@ -5,7 +5,7 @@
 
 ## Screens
 
-1. **Login** (`LoginPage`) — Supabase email+password auth. Left: brand panel. Right: form.
+1. **Login** (`LoginPage`) — Neon Auth com email/senha. Left: brand panel. Right: form.
 2. **Workspace** (`AppPage`) — split-screen: Sidebar + TopBar + InputPanel + OutputPanel.
 3. **Análises Salvas** (`SavedAnalyses`) — lista de análises do usuário com Abrir/Excluir.
 
@@ -43,6 +43,31 @@ grade (não troca mais a tela nem abre painel lateral):
 - **Salvar grava apenas no `text_overrides` DESTA análise** (`onTextOverrideChange` → `analyses.text_overrides`) — nunca toca o texto padrão global (`user_interpretations`), verificado por SQL.
 - Backdrop: clique fora fecha SÓ sem edição pendente (com rascunho não salvo, força escolha explícita). Mobile: modal em tela cheia; a barra de formatação mobile (fixa no rodapé da tela, zIndex 400) fica por cima do modal (zIndex 300).
 
+### Restauração em camadas + histórico de versões (2026-07-19)
+
+Cascata do texto efetivo de um campo: **override da análise → [sistema
+forçado] → texto global do consultor → padrão do sistema** (resolvida em um
+único lugar: `resolveInterpretation`, lib/neon.ts — usada pelo modal e
+pelo preview/PDF). Modelo combina camadas do VS Code/CSS com revisões do
+WordPress/Notion:
+
+- **Cada Salvar empilha a versão anterior** no histórico do campo (dentro do
+  próprio JSONB `text_overrides`, cap `TEXT_OVERRIDE_VERSION_CAP = 10`),
+  com data/hora. Único escritor: `handleTextOverrideChange` (AppPage.tsx),
+  modos `'save' | 'global' | 'sistema'`.
+- **Menu "Restaurar"** (substitui o botão único): lista as *Versões
+  anteriores* (data + prévia; clique restaura — a atual vai pro histórico,
+  restauração 100% não-destrutiva, por isso sem diálogo de confirmação) +
+  dois destinos de cascata: *Usar meu texto global* e *Usar padrão do
+  sistema* (grava o marcador `sistema: true` — o "revert" do CSS: pula a
+  camada global só nesta análise; badge "Padrão do Sistema (fixado)" no
+  header). Destino em que o campo já está aparece desabilitado com tag
+  "atual".
+- **Shape do valor** em `text_overrides[numero][tipo]`: string (legado) ou
+  `{ texto, data, sistema?, versoes?: [{texto, data}] }` — NUNCA usar
+  truthiness no entry cru (objeto é sempre truthy); ler via helpers
+  `overrideTexto/overrideSistema/overrideVersoes` (lib/neon.ts).
+
 ## Baby Comparison
 
 Quando `bebeNome2` ou `bebeNome3` estão preenchidos, `BabyComparison` exibe 3 cards lado a lado com Destino + Expressão + Motivação de cada opção.
@@ -54,7 +79,7 @@ InputPanel → AnalysisData (estado em AppPage)
                  ↓
 OutputPanel → useMemo(calc...) → NumberCards + BabyComparison + ReportPreview
                                                                       ↓
-                                                       fetchInterpretation() → Supabase
+                                                       fetchInterpretation() → Neon Data API
 ```
 
 ## Salvar análise
@@ -83,4 +108,4 @@ Textos interpretativos buscados do banco (`interpretacoes`) via `fetchInterpreta
 
 - Nenhuma credential admin no frontend.
 - Toda escrita/leitura de dados do usuário passa por RLS.
-- Service role key reservada para Edge Functions (PDF/DOCX/pagamentos).
+- Credenciais privadas reservadas para Neon Functions (PDF/DOCX/pagamentos/uploads).

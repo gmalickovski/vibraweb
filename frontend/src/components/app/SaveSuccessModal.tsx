@@ -14,6 +14,8 @@ export function SaveSuccessModal({ onEditSaved, onNewAnalysis }: Props) {
         background: 'rgba(0,0,0,.7)',
         backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 'max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))',
+        overflowY: 'auto',
         zIndex: 50,
       }}
       onClick={onNewAnalysis}
@@ -21,7 +23,7 @@ export function SaveSuccessModal({ onEditSaved, onNewAnalysis }: Props) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: 480,
+          width: 'min(480px, 100%)',
           background: t.night2,
           borderRadius: 20,
           border: `1px solid ${t.pb}`,
@@ -36,7 +38,7 @@ export function SaveSuccessModal({ onEditSaved, onNewAnalysis }: Props) {
           Seu mapa foi salvo com sucesso. O que deseja fazer agora?
         </p>
 
-        <div style={{ marginTop: 24, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <div style={{ marginTop: 24, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <SecondaryBtn onClick={onNewAnalysis}>Iniciar Nova Análise</SecondaryBtn>
           <PrimaryBtn onClick={onEditSaved} small>Editar Mapa Salvo</PrimaryBtn>
         </div>

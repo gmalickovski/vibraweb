@@ -20,12 +20,13 @@
 // salva (diferente do padrão de fábrica), sozinho no lugar do "Salvar" ou
 // lado a lado com ele se a restauração ainda não foi salva.
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchUserProfile, updateUserProfile } from '../lib/supabase'
-import type { UserProfile } from '../lib/supabase'
-import { DEFAULT_BLOCK_ORDER, normalizeBlockOrder, type BlockOrderConfig } from '../lib/block-order'
-import { buildDocumentBlocks, splitIntoPages } from '../lib/document-builder'
+import { fetchUserProfile, updateUserProfile } from '../lib/neon'
+import type { UserProfile } from '../lib/neon'
+import { DEFAULT_BLOCK_ORDER, getBlockTextTarget, normalizeBlockOrder, type BlockOrderConfig } from '../lib/block-order'
+import { buildDocumentBlocks, buildTocEntriesFromPages } from '../lib/document-builder'
+import { useMeasuredPages } from '../lib/measure-document'
 import { resolveDocTheme } from '../lib/theme-resolver'
 import { loadSampleClient, loadSampleInterpretations, type SampleIdentity } from '../lib/sample-preview'
 import type { InterpretationMap } from '../lib/document-builder'
@@ -70,6 +71,20 @@ export default function BlocosPage() {
     })
   }, [])
 
+  const previewReady = !!(sampleMap && interp && sampleIdentity)
+
+  // Mesmo motor de paginação do preview FINAL do cliente: tema + blocos
+  // memoizados e páginas por MEDIÇÃO REAL de DOM (useMeasuredPages). Antes esta
+  // tela usava splitIntoPages (heurística por caractere), então o preview de
+  // amostra podia paginar diferente do documento real — agora são idênticos.
+  const theme = useMemo(() => (profile ? resolveDocTheme(profile) : null), [profile])
+  const blocks = useMemo(
+    () => (previewReady ? buildDocumentBlocks(sampleMap!, sampleIdentity!.subject, sampleIdentity!.dataNascimento, interp!, config) : []),
+    [previewReady, sampleMap, sampleIdentity, interp, config],
+  )
+  const pages = useMeasuredPages(blocks, theme)
+  const tocEntries = useMemo(() => pages ? buildTocEntriesFromPages(config, pages) : undefined, [config, pages])
+
   const isDirty = JSON.stringify(config) !== JSON.stringify(savedConfig)
   const hasCustomization = JSON.stringify(savedConfig) !== JSON.stringify(DEFAULT_BLOCK_ORDER)
 
@@ -98,12 +113,7 @@ export default function BlocosPage() {
     )
   }
 
-  const theme = resolveDocTheme(profile)
-  const previewReady = sampleMap && interp && sampleIdentity
-  const blocks = previewReady ? buildDocumentBlocks(sampleMap!, sampleIdentity!.subject, sampleIdentity!.dataNascimento, interp!, config) : []
-  const pageCount = previewReady ? splitIntoPages(blocks).length + 1 : 0 // +1 pela capa
-
-  if (!previewReady) {
+  if (!previewReady || !theme || !pages) {
     return (
       <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: t.fg3, fontFamily: t.body, fontSize: 13 }}>
         Montando preview...
@@ -111,10 +121,14 @@ export default function BlocosPage() {
     )
   }
 
+  const pageCount = pages.length + 1 + (tocEntries?.length ? 1 : 0) // capa + sumário, quando houver
+
   return (
     <DocumentOrganizerView
       theme={theme}
       blocks={blocks}
+      pages={pages}
+      tocEntries={tocEntries}
       subject={sampleIdentity!.subject}
       dataNascimento={sampleIdentity!.dataNascimento}
       isPro
@@ -122,8 +136,13 @@ export default function BlocosPage() {
       pageCount={pageCount}
       config={config}
       onConfigChange={setConfig}
+      onEditBlockText={blockId => {
+        const target = getBlockTextTarget(blockId)
+        if (target) navigate(`/app/textos?tipo=${encodeURIComponent(target.tipo)}&view=${target.view}`)
+      }}
       panelTitle="Blocos do Relatório"
-      panelInfo="Arraste para reordenar, ou clique no olho para ocultar/exibir um bloco no PDF final. A capa é sempre a 1ª página. Clique em Salvar para aplicar como o seu padrão pessoal, usado em todo cliente novo."
+      scope="global"
+      panelInfo="Arraste para reordenar e clique no olho para ocultar ou exibir um bloco no PDF. Grupos podem ser abertos para reordenar os sub-blocos por dentro. A capa é sempre a 1ª página e não sai daí. O preview ao lado usa um cliente fictício e repagina a cada mudança."
       isDirty={isDirty}
       saving={saving}
       onSave={handleSave}

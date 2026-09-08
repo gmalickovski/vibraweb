@@ -28,12 +28,12 @@
 // rodapé (ex: "Restaurar padrão" em BlocosPage), que a própria página decide
 // quando mostrar.
 
-import { useState, useCallback, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react'
 import { DocumentPreviewStack } from './DocumentPreviewStack'
 import { BlockOrderPanel } from './BlockOrderPanel'
-import { PageTitle } from './PageTitle'
+import { PageTitle, type Scope } from './PageTitle'
 import { PrimaryBtn, SecondaryBtn } from './Button'
-import type { DocumentBlock } from '../../lib/document-builder'
+import { SECTION_ANCHOR_MAP, type DocumentBlock, type TocEntry } from '../../lib/document-builder'
 import type { BlockOrderConfig } from '../../lib/block-order'
 import type { DocTheme } from '../../lib/theme-resolver'
 import { useIsMobile } from '../../lib/useIsMobile'
@@ -50,8 +50,17 @@ const zoomBtnStyle: React.CSSProperties = {
 interface Props {
   theme: DocTheme
   blocks: DocumentBlock[]
+  // Páginas já paginadas com altura REAL medida (PreviewPage.tsx,
+  // measure-document.tsx) — quando ausente, DocumentPreviewStack cai pro
+  // cálculo heurístico de estimateBlockHeight (previews de amostra em
+  // Blocos/Templates, onde a medição real não vale o custo assíncrono).
+  pages?: DocumentBlock[][]
+  // Entradas do sumário computadas em PreviewPage após paginação.
+  // Ausente nos previews de amostra (sem numeração de página real).
+  tocEntries?: TocEntry[]
   subject: string
   dataNascimento: string
+  showSubjectInHeader?: boolean
   isPro: boolean
   docTitle: string
   pageCount: number
@@ -62,8 +71,12 @@ interface Props {
   // inteiro (ex: plano Essencial no passo por cliente, que só vê o preview).
   config?: BlockOrderConfig
   onConfigChange?: (next: BlockOrderConfig) => void
+  /** Abre o editor de Textos no campo nativo correspondente ao bloco. */
+  onEditBlockText?: (blockId: string) => void
   panelTitle?: string
   panelInfo?: string
+  /** Alcance da edição (global / modelo / análise) — mostra o ScopeBanner. */
+  scope?: Scope
   // Rodapé fixo do painel (padrão 9ª rodada, 2026-07-12: Voltar/Cancelar +
   // Salvar dinâmico) — "Voltar" é o botão padrão (sem destaque) quando não há
   // mudança pendente; ao editar (`isDirty`), "Salvar" aparece ao lado
@@ -81,21 +94,47 @@ interface Props {
 }
 
 export function DocumentOrganizerView({
-  theme, blocks, subject, dataNascimento, isPro, docTitle, pageCount,
+  theme, blocks, pages, tocEntries, subject, dataNascimento, showSubjectInHeader, isPro, docTitle, pageCount,
   onBack, rightActions, savingIndicator,
-  config, onConfigChange, panelTitle, panelInfo,
+  config, onConfigChange, onEditBlockText, panelTitle, panelInfo, scope,
   isDirty, onSave, saving, footerExtra, onFooterBack, onCancelEdit,
 }: Props) {
   const isMobile = useIsMobile()
   const [zoom, setZoom] = useState(0.75)
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
+  const [tocPageCount, setTocPageCount] = useState(tocEntries?.length ? 1 : 0)
 
   const zoomIn  = useCallback(() => setZoom(z => Math.min(z + 0.1, 2.0)), [])
   const zoomOut = useCallback(() => setZoom(z => Math.max(z - 0.1, 0.3)), [])
   const zoomFit = useCallback(() => setZoom(0.75), [])
 
   const showPanel = !!config && !!onConfigChange
-  const showFooter = showPanel && (!!onSave || !!onFooterBack)
+  // Algumas telas (como Blocos dentro de um Modelo) usam o cabeçalho como
+  // único ponto de salvamento. Elas podem manter no rodapé somente uma ação
+  // contextual de redefinição, sem duplicar Salvar/Voltar/Cancelar.
+  const showFooter = showPanel && (!!onSave || !!onFooterBack || !!footerExtra)
+  const renderedPageCount = pageCount - (tocEntries?.length ? 1 : 0) + tocPageCount
+
+  useEffect(() => {
+    setTocPageCount(tocEntries?.length ? 1 : 0)
+  }, [tocEntries])
+
+  const standardTexts = useMemo(() => {
+    const findBlock = (items: DocumentBlock[], id: string): DocumentBlock | undefined => {
+      for (const item of items) {
+        if (item.id === id) return item
+        const nested = item.children ? findBlock(item.children, id) : undefined
+        if (nested) return nested
+      }
+      return undefined
+    }
+    return Object.fromEntries(Object.entries(SECTION_ANCHOR_MAP).map(([externalId, internalId]) => {
+      const data = findBlock(blocks, internalId)?.data ?? {}
+      const text = [data.introTexto, data.definicaoTexto, data.textoOrientacao, data.texto]
+        .find(value => typeof value === 'string' && value.trim())
+      return [externalId, typeof text === 'string' ? text : 'Este bloco não possui um texto de introdução configurado.']
+    })) as Record<string, string>
+  }, [blocks])
 
   const panel = showPanel ? (
     <div style={{
@@ -109,12 +148,12 @@ export function DocumentOrganizerView({
     }}>
       {panelTitle && (
         <div style={{ padding: 20, borderBottom: `1px solid ${t.pb}`, flexShrink: 0 }}>
-          <PageTitle title={panelTitle} info={panelInfo ?? ''} size={16} />
+          <PageTitle title={panelTitle} info={panelInfo ?? ''} size={16} scope={scope} />
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <BlockOrderPanel config={config!} onChange={onConfigChange!} />
+      <div className="vw-scroll-area" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <BlockOrderPanel config={config!} onChange={onConfigChange!} standardTexts={standardTexts} onEditSystemText={onEditBlockText} />
       </div>
 
       {showFooter && (
@@ -138,18 +177,8 @@ export function DocumentOrganizerView({
             </SecondaryBtn>
           )}
 
-          {onSave && (
-            <div style={{
-              flex: isDirty ? 1 : 0,
-              maxWidth: isDirty ? '100%' : 0,
-              opacity: isDirty ? 1 : 0,
-              // overflowX só volta a "visible" quando já totalmente expandido —
-              // sem isso o leve zoom do hover do botão ficava cortado nas laterais.
-              overflowY: 'hidden', overflowX: isDirty ? 'visible' : 'hidden',
-              transition: 'flex 0.25s ease, max-width 0.25s ease, opacity 0.2s ease',
-            }}>
-              {/* Mesma medida do botão "+ Criar Novo Template" (BrandPage.tsx) —
-                  padrão único pra qualquer botão dinâmico de Salvar no app. */}
+          {onSave && isDirty && (
+            <div style={{ flex: 1 }}>
               <PrimaryBtn onClick={onSave} disabled={saving} style={{ padding: '10px', fontSize: 12, width: '100%', justifyContent: 'center', whiteSpace: 'nowrap' }}>
                 {saving ? 'Salvando...' : 'Salvar'}
               </PrimaryBtn>
@@ -188,7 +217,7 @@ export function DocumentOrganizerView({
       {savingIndicator}
 
       <span style={{ fontSize: 11, color: t.fg4, fontFamily: t.mono, flexShrink: 0 }}>
-        {pageCount} {pageCount === 1 ? 'página' : 'páginas'}
+        {renderedPageCount} {renderedPageCount === 1 ? 'página' : 'páginas'}
       </span>
 
       {/* Zoom controls */}
@@ -239,7 +268,7 @@ export function DocumentOrganizerView({
     <div style={{ flex: 1, position: 'relative', minHeight: 0, background: '#0e0810' }}>
       <div style={{
         position: 'absolute', top: 16, left: 16, right: 16, zIndex: 20,
-        display: 'flex', alignItems: 'center', gap: 10,
+        display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
         padding: '10px 16px', borderRadius: 12,
         background: 'rgba(22,15,26,0.88)', backdropFilter: 'blur(8px)',
         border: `1px solid ${t.pb}`, boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
@@ -247,7 +276,7 @@ export function DocumentOrganizerView({
         {toolbarContent}
       </div>
 
-      <div className="preview-scroll" style={{
+      <div className="preview-scroll vw-scroll-area" style={{
         position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'auto',
         padding: '88px 24px 64px',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -255,8 +284,12 @@ export function DocumentOrganizerView({
         <DocumentPreviewStack
           theme={theme}
           blocks={blocks}
+          pages={pages}
+          tocEntries={tocEntries}
+          onTocPageCountChange={setTocPageCount}
           subject={subject}
           dataNascimento={dataNascimento}
+          showSubjectInHeader={showSubjectInHeader}
           isPro={isPro}
           zoom={zoom}
         />

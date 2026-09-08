@@ -4,7 +4,6 @@ import { NumberCard } from '../shared/NumberCard'
 import { ChevronIcon, CloseIcon } from '../shared/icons'
 import { PrimaryBtn, SecondaryBtn } from '../shared/Button'
 import { MarkdownEditor } from '../shared/MarkdownEditor'
-import { useConfirm } from '../shared/ConfirmDialog'
 import { useIsMobile } from '../../lib/useIsMobile'
 import {
   calcPessoal,
@@ -12,7 +11,11 @@ import {
   type MesPessoalEntry,
 } from '../../lib/numerology'
 import type { AnalysisData } from '../../pages/AppPage'
-import { fetchInterpretation, type InterpretationRow, type TextOverrides } from '../../lib/supabase'
+import {
+  fetchInterpretation, fetchSystemInterpretation,
+  overrideTexto, overrideSistema, overrideVersoes,
+  type InterpretationRow, type TextOverrides,
+} from '../../lib/neon'
 
 interface Props {
   data: AnalysisData
@@ -26,7 +29,10 @@ interface Props {
   onPreview?: () => void
   onGenerate?: () => void
   textOverrides?: TextOverrides
-  onTextOverrideChange?: (numero: number, tipo: string, texto: string) => void
+  // mode: 'save' grava texto | 'global' volta pro texto global do consultor |
+  // 'sistema' força o padrão do sistema (pula o global). Ver
+  // handleTextOverrideChange em AppPage.tsx (único escritor, empilha versões).
+  onTextOverrideChange?: (numero: number, tipo: string, texto: string, mode?: 'save' | 'global' | 'sistema') => void
   // Template específico desta análise (2026-07-12, ver migration 016) — só
   // aparece pra plano Pro, que é quem tem templates de marca pra escolher.
   isPro?: boolean
@@ -89,25 +95,37 @@ export function OutputPanel({
   onPreview, onGenerate, textOverrides, onTextOverrideChange,
   isPro, templateOptions, templateOverride, onTemplateOverrideChange, effectiveTemplateName, globalTemplateName,
 }: Props) {
-  const confirm = useConfirm()
-  const isMobile = useIsMobile()
+  const isMobile = useIsMobile(900)
   const nums = useMemo(() => calcPessoal(data.nome, data.dob), [data])
 
   const [selectedCard, setSelectedCard] = useState<SelectedCard | null>(null)
   const [interp, setInterp] = useState<InterpretationRow | null>(null)
+  const [systemInterp, setSystemInterp] = useState<InterpretationRow | null>(null)
   const [draft, setDraft] = useState('')
+  const [restoreMenuOpen, setRestoreMenuOpen] = useState(false)
+  const restoreMenuRef = useRef<HTMLDivElement>(null)
 
-  // Valor hoje "salvo" pra este campo: o override deste cliente se existir
-  // (mesma checagem truthy que PreviewPage.tsx usa pra decidir entre override
-  // e padrão — string vazia == "sem override", cai no padrão), senão o texto
-  // padrão global. `isDirty`/`isCustom` seguem o mesmo par de conceitos do
-  // rodapé de CustomTexts.tsx (Personalizar Textos).
-  const overrideValue = (selectedCard && textOverrides?.[selectedCard.value]?.[selectedCard.tipo]) || ''
-  const defaultValue = interp?.texto ?? ''
+  // Camadas do campo selecionado (NUNCA usar truthiness no entry cru — desde
+  // 2026-07-18 ele pode ser objeto com versões/marcador, sempre truthy):
+  //   overrideValue → texto próprio desta análise (camada 1)
+  //   forceSistema  → marcador "usar padrão do sistema" (pula o global)
+  //   versions      → histórico das últimas versões salvas deste campo
+  // `interp` é o texto efetivo global (consultor → sistema); `systemInterp`
+  // é SÓ o do sistema — baseline exibida quando forceSistema está ligado.
+  const overrideEntry = selectedCard ? textOverrides?.[selectedCard.value]?.[selectedCard.tipo] : undefined
+  const overrideValue = overrideTexto(overrideEntry)
+  const forceSistema = overrideSistema(overrideEntry)
+  const versions = overrideVersoes(overrideEntry)
+  const globalIsCustom = !!interp?.titulo?.startsWith('Personalizado:')
+  const defaultValue = (forceSistema ? systemInterp?.texto : interp?.texto) ?? ''
   const savedText = overrideValue || defaultValue
   const isCustom = !!overrideValue
   const isDirty = draft !== savedText
-  const showFieldFooter = isCustom || isDirty
+  // O menu "Restaurar" existe sempre que há PRA ONDE voltar: override ativo,
+  // versões guardadas, modo sistema ligado, ou um texto global personalizado
+  // que se possa querer pular.
+  const hasRestoreOptions = isCustom || forceSistema || versions.length > 0 || globalIsCustom
+  const showFieldFooter = hasRestoreOptions || isDirty
 
   // Seletor de template desta análise (2026-07-12, redesenho): popover com
   // busca + opções em formato card, no lugar do <select> nativo (que
@@ -147,26 +165,46 @@ export function OutputPanel({
     }
   }, [nums]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch interpretation when selected card changes
+  // Busca as duas baselines quando o campo selecionado muda: a efetiva
+  // global (consultor → sistema) e a só-sistema (usada quando o campo está
+  // travado em "padrão do sistema").
   useEffect(() => {
-    if (!selectedCard?.value) { setInterp(null); return }
+    if (!selectedCard?.value) { setInterp(null); setSystemInterp(null); return }
     let cancelled = false
-    fetchInterpretation(selectedCard.value, selectedCard.tipo).then(row => {
-      if (!cancelled) setInterp(row)
+    Promise.all([
+      fetchInterpretation(selectedCard.value, selectedCard.tipo),
+      fetchSystemInterpretation(selectedCard.value, selectedCard.tipo),
+    ]).then(([row, sysRow]) => {
+      if (cancelled) return
+      setInterp(row)
+      setSystemInterp(sysRow)
     })
     return () => { cancelled = true }
   }, [selectedCard])
 
   // Sincroniza o rascunho editável: prioriza o override já salvo deste cliente,
-  // depois o texto padrão (global) do consultor/sistema. Só reage a mudanças
-  // de campo selecionado/interpretação carregada e ao commit do próprio botão
-  // Salvar/Restaurar (que atualiza textOverrides) — não mais a cada tecla
-  // digitada, já que agora o override só é gravado no clique de "Salvar".
+  // depois a baseline correta (sistema quando forceSistema, senão a global).
+  // Só reage a mudanças de campo selecionado/interpretação carregada e ao
+  // commit do próprio Salvar/Restaurar (que atualiza textOverrides) — não a
+  // cada tecla digitada.
   useEffect(() => {
     if (!selectedCard) return
-    const override = textOverrides?.[selectedCard.value]?.[selectedCard.tipo]
-    setDraft(override || interp?.texto || '')
-  }, [selectedCard, interp, textOverrides])
+    const entry = textOverrides?.[selectedCard.value]?.[selectedCard.tipo]
+    const base = (overrideSistema(entry) ? systemInterp?.texto : interp?.texto) ?? ''
+    setDraft(overrideTexto(entry) || base)
+  }, [selectedCard, interp, systemInterp, textOverrides])
+
+  // Fecha o menu Restaurar em clique fora (mesmo padrão do templatePicker).
+  useEffect(() => {
+    if (!restoreMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (restoreMenuRef.current && !restoreMenuRef.current.contains(e.target as Node)) {
+        setRestoreMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [restoreMenuOpen])
 
   // --- Modal de edição do texto (por análise) ---
   // Clicar num número NÃO troca mais a tela inteira (nem abre painel lateral):
@@ -179,21 +217,34 @@ export function OutputPanel({
 
   function handleFieldSave() {
     if (!selectedCard) return
-    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, draft)
+    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, draft, 'save')
   }
   function handleFieldClear() {
     setDraft(savedText)
   }
-  async function handleFieldRestore() {
+  // Destinos de restauração — TODOS não-destrutivos (o texto atual vai pro
+  // histórico de versões antes de ser substituído, ver AppPage), por isso
+  // nenhum precisa de diálogo de confirmação.
+  function handleRestoreVersion(texto: string) {
     if (!selectedCard) return
-    const ok = await confirm({
-      title: 'Restaurar padrão',
-      message: 'Deseja apagar sua versão personalizada e restaurar o texto padrão do Vibraweb pra este cliente?',
-      confirmLabel: 'Restaurar',
-      danger: true,
-    })
-    if (!ok) return
-    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, '')
+    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, texto, 'save')
+    setRestoreMenuOpen(false)
+  }
+  function handleUseGlobal() {
+    if (!selectedCard) return
+    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, '', 'global')
+    setRestoreMenuOpen(false)
+  }
+  function handleUseSystem() {
+    if (!selectedCard) return
+    onTextOverrideChange!(selectedCard.value, selectedCard.tipo, '', 'sistema')
+    setRestoreMenuOpen(false)
+  }
+
+  function fmtVersionDate(iso: string): string {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   }
 
   const accentColor = selectedCard ? ((t as Record<string, string>)[selectedCard.accent] || t.gold) : t.gold
@@ -245,6 +296,17 @@ export function OutputPanel({
               Texto Personalizado Ativo
             </span>
           )}
+          {!isCustom && forceSistema && (
+            <span
+              title="Este campo está fixado no padrão do sistema — o seu texto global de Personalizar Textos está sendo ignorado só nesta análise."
+              style={{
+                fontSize: 11, padding: '4px 8px', borderRadius: 4, fontFamily: t.body, flexShrink: 0,
+                background: 'rgba(255,255,255,0.06)', border: `1px solid ${t.pb}`, color: t.fg3,
+              }}
+            >
+              Padrão do Sistema (fixado)
+            </span>
+          )}
           <button
             onClick={() => setSelectedCard(null)}
             title="Fechar"
@@ -278,7 +340,7 @@ export function OutputPanel({
               </div>
             </>
           ) : (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            <div className="vw-scroll-area" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
               <p style={{ fontFamily: t.body, fontSize: 15, color: t.fg, margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
                 {draft || `Interpretando o número ${selectedCard.value} para ${selectedCard.label}...`}
               </p>
@@ -287,22 +349,84 @@ export function OutputPanel({
         </div>
 
         {/* Rodapé dinâmico — mesmo padrão de CustomTexts (Personalizar Textos):
-            colapsa a 0 sem nada a mostrar; Restaurar sozinho com override
-            salvo; Limpar/Salvar só com edição pendente. */}
+            colapsa a 0 sem nada a mostrar; menu "Restaurar" com destinos
+            explícitos (versões anteriores / texto global / padrão do sistema)
+            quando há pra onde voltar; Limpar/Salvar só com edição pendente.
+            `overflow` NÃO pode ser hidden quando o menu está aberto — o
+            popover sobe pra fora do rodapé. */}
         {canEdit && (
           <div style={{
             flexShrink: 0, marginLeft: 20, marginRight: 20,
             borderTop: `1px solid ${showFieldFooter ? t.pb : 'transparent'}`,
             padding: showFieldFooter ? '14px 0' : '0',
             maxHeight: showFieldFooter ? 64 : 0,
-            overflow: 'hidden',
+            overflow: restoreMenuOpen ? 'visible' : 'hidden',
             display: 'flex', alignItems: 'center', gap: 10,
             transition: 'max-height 0.25s ease, padding 0.25s ease, border-color 0.25s ease',
           }}>
-            {isCustom && (
-              <SecondaryBtn onClick={handleFieldRestore} style={{ padding: '10px', fontSize: 12, flexShrink: 0 }}>
-                Restaurar Padrão
-              </SecondaryBtn>
+            {hasRestoreOptions && (
+              <div ref={restoreMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
+                <SecondaryBtn onClick={() => setRestoreMenuOpen(o => !o)} style={{ padding: '10px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  Restaurar
+                  <ChevronIcon open={restoreMenuOpen} size={10} />
+                </SecondaryBtn>
+
+                {restoreMenuOpen && (
+                  <div style={{
+                    position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, width: 320, zIndex: 60,
+                    background: t.night2, border: `1px solid ${t.pb}`, borderRadius: 10,
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.5)', padding: 8,
+                    display: 'flex', flexDirection: 'column', gap: 4,
+                  }}>
+                    {versions.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: t.fg4, fontFamily: t.body, textTransform: 'uppercase', letterSpacing: '.06em', padding: '4px 8px 2px' }}>
+                          Versões anteriores
+                        </div>
+                        <div className="vw-scroll-area" style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {versions.map((v, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleRestoreVersion(v.texto)}
+                              title="Restaurar esta versão (a atual vai pro histórico — nada se perde)"
+                              style={{
+                                textAlign: 'left', padding: '7px 8px', borderRadius: 7, cursor: 'pointer',
+                                border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)',
+                                display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
+                              }}
+                            >
+                              <span style={{ fontSize: 10, color: t.gold, fontFamily: t.body, fontWeight: 700 }}>
+                                {fmtVersionDate(v.data)}
+                              </span>
+                              <span style={{
+                                fontSize: 11, color: t.fg2, fontFamily: t.body,
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                                {v.texto.slice(0, 60)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ height: 1, background: t.pb, margin: '4px 0' }} />
+                      </>
+                    )}
+                    {/* Destinos da cascata — desabilitado quando o campo JÁ está
+                        naquele estado (nada a fazer). */}
+                    <RestoreDest
+                      label="Usar meu texto global"
+                      sub={globalIsCustom ? 'O texto de Personalizar Textos' : 'Sem texto global — cai no padrão do sistema'}
+                      disabled={!isCustom && !forceSistema}
+                      onClick={handleUseGlobal}
+                    />
+                    <RestoreDest
+                      label="Usar padrão do sistema"
+                      sub="Ignora seu texto global só nesta análise"
+                      disabled={forceSistema && !isCustom}
+                      onClick={handleUseSystem}
+                    />
+                  </div>
+                )}
+              </div>
             )}
             <div style={{ flex: 1 }} />
             <div style={{
@@ -397,7 +521,7 @@ export function OutputPanel({
                   boxSizing: 'border-box',
                 }}
               />
-              <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="vw-scroll-area" style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {templatePickerOptions.length === 0 && (
                   <div style={{ padding: '10px 8px', fontSize: 12, color: t.fg4, fontFamily: t.body, textAlign: 'center' }}>
                     Nenhum template encontrado
@@ -498,7 +622,7 @@ export function OutputPanel({
           {toolbarContent}
         </div>
       )}
-      <div style={{
+      <div className="vw-scroll-area" style={{
         position: 'absolute', inset: 0,
         padding: toolbarVisible ? '88px 28px 64px' : 28,
         overflowY: 'auto',
@@ -549,7 +673,7 @@ export function OutputPanel({
 
       {/* 2. Propósito de Vida — por que você veio */}
       <Section label="Propósito de Vida">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10 }}>
           <NumberCard
             label="Dia Natalício" value={nums.diaNatalicio} accent="gold"
             onClick={nums.diaNatalicio != null ? () => setSelectedCard({
@@ -582,7 +706,7 @@ export function OutputPanel({
       <Section label="Aspectos Cármicos">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'stretch' }}>
           {nums.licoesCarmicas.length > 0 && (
-            <div style={{ flex: '1 1 200px', minWidth: 200, display: 'flex' }}>
+            <div style={{ flex: '1 1 200px', minWidth: isMobile ? 0 : 200, display: 'flex' }}>
               <GroupCard label="Lições Cármicas" accent="magenta">
                 {nums.licoesCarmicas.map((v, i) => (
                   <CircleNumber key={`licao-${i}`} value={v} accent="magenta" onClick={() => setSelectedCard({
@@ -593,7 +717,7 @@ export function OutputPanel({
             </div>
           )}
           {nums.debitosCarmicos.length > 0 && (
-            <div style={{ flex: '1 1 200px', minWidth: 200, display: 'flex' }}>
+            <div style={{ flex: '1 1 200px', minWidth: isMobile ? 0 : 200, display: 'flex' }}>
               <GroupCard label="Débitos Cármicos" accent="magenta">
                 {nums.debitosCarmicos.map((v, i) => (
                   <CircleNumber key={`debito-${i}`} value={v} accent="magenta" onClick={() => setSelectedCard({
@@ -604,7 +728,7 @@ export function OutputPanel({
             </div>
           )}
           {nums.tendenciasOcultas.length > 0 && (
-            <div style={{ flex: '1 1 200px', minWidth: 200, display: 'flex' }}>
+            <div style={{ flex: '1 1 200px', minWidth: isMobile ? 0 : 200, display: 'flex' }}>
               <GroupCard label="Tendências Ocultas" accent="success">
                 {nums.tendenciasOcultas.map((v, i) => (
                   <CircleNumber key={`tend-${i}`} value={v} accent="success" onClick={() => setSelectedCard({
@@ -615,7 +739,7 @@ export function OutputPanel({
             </div>
           )}
           {nums.respostaSubconsciente != null && (
-            <div style={{ flex: '1 1 200px', minWidth: 200 }}>
+            <div style={{ flex: '1 1 200px', minWidth: isMobile ? 0 : 200 }}>
               <NumberCard
                 label="Resposta Subconsciente" value={nums.respostaSubconsciente} accent="info"
                 onClick={() => setSelectedCard({
@@ -634,7 +758,7 @@ export function OutputPanel({
           {nums.ciclosDeVida.length > 0 && (
             <div>
               <SubLabel>Ciclos de Vida</SubLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', gap: 10 }}>
                 {nums.ciclosDeVida.map((c, i) => (
                   <MiniTile
                     key={i} value={c.regente} title={`Ciclo ${i + 1}`} sub={`${c.inicio} – ${c.fim}`}
@@ -651,7 +775,7 @@ export function OutputPanel({
           {nums.desafios && (
             <div>
               <SubLabel>Desafios</SubLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', gap: 10 }}>
                 {([
                   { label: 'Desafio 1', subKey: 'desafio1' as const, period: nums.ciclosDeVida[0] ? `${nums.ciclosDeVida[0].inicio} – ${nums.ciclosDeVida[0].fim}` : '' },
                   { label: 'Desafio 2', subKey: 'desafio2' as const, period: nums.ciclosDeVida[0] && typeof nums.ciclosDeVida[0].fim === 'number' ? `${nums.ciclosDeVida[0].fim} – ${nums.ciclosDeVida[0].fim + 9}` : '' },
@@ -671,7 +795,7 @@ export function OutputPanel({
           {nums.momentosDecisivos && (
             <div>
               <SubLabel>Momentos Decisivos</SubLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))', gap: 10 }}>
                 {([
                   { i: 1, label: 'Momento 1', subKey: 'momento1' as const, period: nums.ciclosDeVida[0] ? `${nums.ciclosDeVida[0].inicio} – ${nums.ciclosDeVida[0].fim}` : '' },
                   { i: 2, label: 'Momento 2', subKey: 'momento2' as const, period: nums.ciclosDeVida[0] && typeof nums.ciclosDeVida[0].fim === 'number' ? `${nums.ciclosDeVida[0].fim} – ${nums.ciclosDeVida[0].fim + 9}` : '' },
@@ -700,7 +824,7 @@ export function OutputPanel({
       <Section label="Previsões Temporais">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {(nums.anoPessoal !== null || nums.diaPessoal !== null || nums.mesesPessoais.length > 0) && (
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
                 {nums.anoPessoal !== null && (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -727,6 +851,7 @@ export function OutputPanel({
                 {nums.mesesPessoais.length > 0 && (
                   <MesesPessoaisGrid
                     meses={nums.mesesPessoais}
+                    isMobile={isMobile}
                     onMonthClick={(entry, idx) => setSelectedCard({
                       key: `mesesPessoais.${idx}`, label: entry.nome, value: entry.numero, accent: 'gold', tipo: 'pessoal_mesPessoal'
                     })}
@@ -753,7 +878,7 @@ export function OutputPanel({
       <Section label="Relacionamentos">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {nums.harmoniaConjugal && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, alignItems: 'stretch' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10, alignItems: 'stretch' }}>
               <GroupCard label="Vibra com" accent="indigo">
                 {nums.harmoniaConjugal.vibra.map((v, i) => (
                   <CircleNumber key={`vibra-${i}`} value={v} accent="indigo" onClick={() => setSelectedCard({
@@ -787,7 +912,7 @@ export function OutputPanel({
             </div>
           )}
           {nums.numerosHarmonicos.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
               <GroupCard label="Números Harmônicos" accent="success">
                 {nums.numerosHarmonicos.map((v, i) => (
                   <CircleNumber key={`harm-${i}`} value={v} accent="success" />
@@ -803,7 +928,7 @@ export function OutputPanel({
       {nums.trianguloDaVida && (
       <Section label="Triângulo da Vida e Arcanos">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 10, alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(110px, 1fr) minmax(0, 3fr)', gap: 10, alignItems: 'stretch' }}>
             <NumberCard
               label="Arcano Regente" value={nums.trianguloDaVida.arcanoRegente} accent="indigo"
               onClick={nums.trianguloDaVida.arcanoRegente != null ? () => setSelectedCard({
@@ -821,11 +946,29 @@ export function OutputPanel({
           </div>
           {nums.arcanoAtual && (
             <GroupCard label="Arcano Atual" accent="indigo">
+              {/* Hover sutil no clicável (borda + fundo indigo) — mesma pista
+                  visual dos demais elementos que abrem o modal de texto. */}
               <div
                 onClick={nums.arcanoAtual.numero != null ? () => setSelectedCard({
                   key: 'arcanoAtual', label: 'Arcano Atual', value: nums.arcanoAtual!.numero!, accent: 'indigo', tipo: 'pessoal_arcano'
                 }) : undefined}
-                style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: nums.arcanoAtual.numero != null ? 'pointer' : 'default' }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  cursor: nums.arcanoAtual.numero != null ? 'pointer' : 'default',
+                  padding: '6px 12px', margin: '-6px -12px', borderRadius: 10,
+                  border: '1px solid transparent', transition: 'border-color .2s, background .2s',
+                }}
+                onMouseEnter={e => {
+                  if (nums.arcanoAtual?.numero == null) return
+                  const el = e.currentTarget as HTMLDivElement
+                  el.style.borderColor = t.indigo
+                  el.style.background = 'rgba(108,92,231,.08)'
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLDivElement
+                  el.style.borderColor = 'transparent'
+                  el.style.background = 'transparent'
+                }}
               >
                 <span style={{ fontFamily: t.display, fontWeight: 900, fontSize: 40, color: t.indigo }}>
                   {nums.arcanoAtual.numero}
@@ -871,6 +1014,34 @@ function Section({ label, children }: { label: string; children: React.ReactNode
       </div>
       {children}
     </div>
+  )
+}
+
+// Item de destino do menu Restaurar (camadas da cascata) — desabilitado
+// quando o campo já está naquele estado.
+function RestoreDest({ label, sub, disabled, onClick }: {
+  label: string
+  sub: string
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      style={{
+        textAlign: 'left', padding: '8px 8px', borderRadius: 7,
+        cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.45 : 1,
+        border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)',
+        display: 'flex', flexDirection: 'column', gap: 2,
+      }}
+    >
+      <span style={{ fontSize: 12, color: t.fg, fontFamily: t.body, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+        {label}
+        {disabled && <span style={{ fontSize: 9, color: t.fg4, fontWeight: 400, textTransform: 'uppercase', letterSpacing: '.05em' }}>atual</span>}
+      </span>
+      <span style={{ fontSize: 10, color: t.fg4, fontFamily: t.body }}>{sub}</span>
+    </button>
   )
 }
 
@@ -970,19 +1141,24 @@ function CircleNumber({ value, accent, onClick }: { value: string | number; acce
   )
 }
 
-function MesesPessoaisGrid({ meses, onMonthClick }: {
+function MesesPessoaisGrid({ meses, isMobile, onMonthClick }: {
   meses: MesPessoalEntry[]
+  isMobile: boolean
   onMonthClick: (entry: MesPessoalEntry, idx: number) => void
 }) {
   return (
+    // flex column + grid com gridAutoRows 1fr: os quadrados dos meses esticam
+    // e dividem IGUALMENTE toda a altura que o card pai tiver (o card fica
+    // lado a lado com a pilha Ano/Dia Pessoal, que define a altura da linha) —
+    // sem sobra morta embaixo da grade.
     <div style={{
       padding: '10px 14px', borderRadius: 12, background: 'rgba(42,22,32,.35)', border: `1px solid ${t.pb}`,
-      flex: 1, minWidth: 260,
+      flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', boxSizing: 'border-box',
     }}>
-      <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg3, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8, fontWeight: 600 }}>
+      <div style={{ fontFamily: t.body, fontSize: 10, color: t.fg3, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8, fontWeight: 600, flexShrink: 0 }}>
         Meses Pessoais
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? (meses.length > 6 ? 4 : 3) : 6}, minmax(0, 1fr))`, gridAutoRows: '1fr', gap: 4, flex: 1, minHeight: 0 }}>
         {meses.map((entry, i) => (
           <div
             key={i}
@@ -990,6 +1166,7 @@ function MesesPessoaisGrid({ meses, onMonthClick }: {
             style={{
               padding: '6px 4px', borderRadius: 8, textAlign: 'center', cursor: 'pointer',
               border: `1px solid ${t.pb}`, transition: 'border-color .2s, background .2s',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             }}
             onMouseEnter={e => {
               const el = e.currentTarget as HTMLDivElement
@@ -1010,4 +1187,3 @@ function MesesPessoaisGrid({ meses, onMonthClick }: {
     </div>
   )
 }
-

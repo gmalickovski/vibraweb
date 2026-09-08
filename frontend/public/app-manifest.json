@@ -1,0 +1,32 @@
+{
+  "id": "/app",
+  "name": "Vibraweb Workspace",
+  "short_name": "Vibraweb",
+  "description": "Workspace profissional do consultor Vibraweb.",
+  "start_url": "/app/novo",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#120A10",
+  "theme_color": "#120A10",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/assets/logo-vibraweb-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

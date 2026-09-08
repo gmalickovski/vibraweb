@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { t } from '../lib/tokens'
 import { Field } from '../components/shared/Field'
 import { PrimaryBtn, SecondaryBtn } from '../components/shared/Button'
-import { supabase } from '../lib/supabase'
+import { resetUserProfileCache, neon } from '../lib/neon'
 
 interface Props {
   onSuccess: () => void
   onBack: () => void
+  mode?: 'workspace' | 'admin'
 }
 
-export function LoginPage({ onSuccess, onBack }: Props) {
+export function LoginPage({ onSuccess, onBack, mode = 'workspace' }: Props) {
+  const isAdminLogin = mode === 'admin'
   const [isLogin, setIsLogin] = useState(true)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -42,11 +44,14 @@ export function LoginPage({ onSuccess, onBack }: Props) {
     }
 
     if (isLogin) {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+      const { error: err } = await neon.auth.signInWithPassword({ email, password })
       if (err) setError(err.message)
-      else onSuccess()
+      else {
+        resetUserProfileCache()
+        onSuccess()
+      }
     } else {
-      const { error: err } = await supabase.auth.signUp({ 
+      const { error: err } = await neon.auth.signUp({ 
         email, 
         password,
         options: {
@@ -59,6 +64,7 @@ export function LoginPage({ onSuccess, onBack }: Props) {
       if (err) {
         setError(err.message)
       } else {
+        resetUserProfileCache()
         setMsg('Conta criada com sucesso! Você já pode entrar.')
         setIsLogin(true)
       }
@@ -67,14 +73,14 @@ export function LoginPage({ onSuccess, onBack }: Props) {
   }
 
   return (
-    <div style={{
+    <div className="vw-auth-page" style={{
       minHeight: '100vh',
       display: 'grid',
       gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
       background: t.night,
     }}>
       {/* Left — brand panel */}
-      <div style={{
+      <div className="vw-auth-brand" style={{
         position: 'relative',
         padding: 48,
         display: 'flex',
@@ -98,17 +104,17 @@ export function LoginPage({ onSuccess, onBack }: Props) {
             fontFamily: t.display, fontWeight: 900, fontSize: 52, lineHeight: 1.05,
             letterSpacing: '-.02em', color: t.fg, margin: 0,
           }}>
-            Sua assinatura em<br />
+            {isAdminLogin ? 'Acesso administrativo do' : 'Sua assinatura em'}<br />
             <span style={{
               background: t.gradText,
               WebkitBackgroundClip: 'text', backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              harmonia com os números.
+              {isAdminLogin ? 'Vibraweb.' : 'harmonia com os números.'}
             </span>
           </h1>
           <p style={{ fontFamily: t.body, fontSize: 15, color: t.fg3, marginTop: 16, maxWidth: 420, lineHeight: 1.6 }}>
-            Gere mapas completos de Numerologia Cabalística com a sua marca — em tempo real, exportáveis em PDF e DOCX.
+            {isAdminLogin ? 'Gerencie conteúdo global, planos, templates e a operação do produto.' : 'Gere mapas completos de Numerologia Cabalística com a sua marca — em tempo real, exportáveis em PDF e DOCX.'}
           </p>
         </div>
         <div style={{ fontFamily: t.body, fontSize: 11, color: t.fg4 }}>
@@ -117,23 +123,23 @@ export function LoginPage({ onSuccess, onBack }: Props) {
       </div>
 
       {/* Right — login form */}
-      <div style={{
+      <div className="vw-auth-form" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderLeft: `1px solid ${t.pb}`,
         background: t.night2,
       }}>
-        <div style={{ width: 360, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="vw-auth-form-inner" style={{ width: 360, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <h2 style={{ fontFamily: t.display, fontWeight: 700, fontSize: 28, color: t.fg, margin: 0 }}>
               {isLogin ? 'Entrar' : 'Criar minha conta'}
             </h2>
             <p style={{ fontFamily: t.body, fontSize: 13, color: t.fg3, marginTop: 4 }}>
-              {isLogin ? 'Acesse seu workspace profissional.' : 'Comece a gerar seus próprios relatórios agora.'}
+              {isAdminLogin ? 'Entre no console interno do Vibraweb.' : isLogin ? 'Acesse seu workspace profissional.' : 'Comece a gerar seus próprios relatórios agora.'}
             </p>
           </div>
 
           {!isLogin && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="vw-auth-name-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
               <Field label="Nome" value={firstName} onChange={setFirstName} placeholder="João" type="text" />
               <Field label="Sobrenome" value={lastName} onChange={setLastName} placeholder="Silva" type="text" />
             </div>
@@ -172,16 +178,18 @@ export function LoginPage({ onSuccess, onBack }: Props) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
             <PrimaryBtn onClick={handleSubmit} disabled={loading} style={{ width: '100%', justifyContent: 'center' }}>
-              {loading ? 'Aguarde...' : isLogin ? 'Entrar no Workspace' : 'Criar Workspace Grátis'}
+              {loading ? 'Aguarde...' : isAdminLogin ? 'Entrar no Admin' : isLogin ? 'Entrar no Workspace' : 'Criar Workspace Grátis'}
             </PrimaryBtn>
 
-            <SecondaryBtn 
-              onClick={() => { setIsLogin(!isLogin); setError(''); setMsg(''); }} 
-              disabled={loading} 
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              {isLogin ? 'Criar uma conta nova' : 'Já possuo uma conta (Entrar)'}
-            </SecondaryBtn>
+            {!isAdminLogin && (
+              <SecondaryBtn
+                onClick={() => { setIsLogin(!isLogin); setError(''); setMsg(''); }}
+                disabled={loading}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {isLogin ? 'Criar uma conta nova' : 'Já possuo uma conta (Entrar)'}
+              </SecondaryBtn>
+            )}
           </div>
         </div>
       </div>

@@ -44,7 +44,97 @@
       "mcp__claude-in-chrome__resize_window",
       "mcp__claude-in-chrome__read_console_messages",
       "mcp__claude-in-chrome__read_network_requests",
-      "mcp__claude-in-chrome__browser_batch"
+      "mcp__claude-in-chrome__browser_batch",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173 --max-time 3)",
+      "mcp__claude-in-chrome__tabs_create_mcp",
+      "mcp__claude-in-chrome__tabs_close_mcp",
+      "WebSearch",
+      "Bash(gh api *)",
+      "WebFetch(domain:api.github.com)",
+      "PowerShell(cd C:\\\\Dev\\\\vibraweb\\\\frontend; npm audit --json 2>&1 | ConvertFrom-Json | ForEach-Object { $_.vulnerabilities.PSObject.Properties | Where-Object { $_.Value.severity -eq 'high' } | ForEach-Object { $_.Name } })",
+      "Bash(sed -i '906,916d' document-builder.ts)",
+      "Bash(sed -i '850,858d' document-builder.ts)",
+      "Bash(awk 'NR>=1425 && NR<=1490' document-builder.ts)",
+      "Bash(sed -i '1425,1485d' document-builder.ts)",
+      "Bash(sed -i '28d' document-builder.ts)",
+      "Bash(awk 'NR>=489 && NR<=560' DocumentBlock.tsx)",
+      "Bash(sed -i '964,975d' document-builder.ts)",
+      "Bash(sed -i '873,882d' document-builder.ts)",
+      "Bash(awk 'NR>=1571 && NR<=1660' document-builder.ts)",
+      "Bash(sed -i '1568,1640d' document-builder.ts)",
+      "Bash(sed -i '37d' document-builder.ts)",
+      "Bash(awk 'NR>=1412 && NR<=1500' DocumentBlock.tsx)",
+      "Bash(Select-String -Pattern \"error TS|✓ built\")",
+      "Bash(Select-Object -First 8)",
+      "Bash(sed -i '923,933d' document-builder.ts)",
+      "Bash(sed -i '878,886d' document-builder.ts)",
+      "Bash(awk 'NR>=1065 && NR<=1120' document-builder.ts)",
+      "Bash(awk 'NR>=1347 && NR<=1410' document-builder.ts)",
+      "Bash(sed -i '1347,1396d' document-builder.ts)",
+      "Bash(sed -i '27d' document-builder.ts)",
+      "Bash(awk 'NR>=360 && NR<=460' DocumentBlock.tsx)",
+      "Bash(sed -i '986,997d' document-builder.ts)",
+      "Bash(sed -i '928,937d' document-builder.ts)",
+      "Bash(awk 'NR>=1104 && NR<=1180' document-builder.ts)",
+      "Bash(awk 'NR>=1326 && NR<=1420' document-builder.ts)",
+      "Bash(sed -i '1326,1417d' document-builder.ts)",
+      "Bash(awk 'NR>=1292 && NR<=1470' DocumentBlock.tsx)",
+      "Bash(awk 'NR>=1427 && NR<=1530' document-builder.ts)",
+      "Bash(sed -i '1427,1512d' document-builder.ts)",
+      "Bash(sed -i '1027,1030d' document-builder.ts)",
+      "Bash(sed -i '32d' document-builder.ts)",
+      "Bash(awk 'NR>=964 && NR<=1050' DocumentBlock.tsx)",
+      "Bash(sed -i '1465,1528d' document-builder.ts)",
+      "Bash(sed -i '1039,1044d' document-builder.ts)",
+      "Bash(sed -i '31d' document-builder.ts)",
+      "Bash(awk 'NR>=648 && NR<=1010' DocumentBlock.tsx)",
+      "Bash(awk 'NR>=648 && NR<=820' DocumentBlock.tsx)",
+      "Bash(python3 -)",
+      "Bash(sed -i '1088,1103d' document-builder.ts)",
+      "Bash(sed -i '1062,1071d' document-builder.ts)",
+      "Bash(awk 'NR>=1435 && NR<=1520' document-builder.ts)",
+      "Bash(sed -i '1487,1498d' document-builder.ts)",
+      "Bash(sed -i '1435,1484d' document-builder.ts)",
+      "Bash(awk 'NR>=656 && NR<=705' DocumentBlock.tsx)",
+      "Bash(sed -i '656,700d' DocumentBlock.tsx)",
+      "Bash(sed -i \"32d\" document-builder.ts)",
+      "PowerShell(cd C:\\\\Dev\\\\vibraweb\\\\frontend; Remove-Item .\\\\probe.html, .\\\\src\\\\lib\\\\__probe.tsx -Force -ErrorAction SilentlyContinue; npm run build 2>&1 | Select-String -Pattern \"error|✓ built\" | Select-Object -First 5; \"--- tamanho dos arquivos ---\"; \\(Get-Content .\\\\src\\\\lib\\\\document-builder.ts | Measure-Object -Line\\).Lines; \\(Get-Content .\\\\src\\\\components\\\\app\\\\DocumentBlock.tsx | Measure-Object -Line\\).Lines)",
+      "Bash(mkdir -p \"C:/Dev/vibraweb/.claude/agents\" \"C:/Dev/vibraweb/.claude/context/ui-guidelines\")",
+      "Skill(impeccable)",
+      "Skill(impeccable:*)",
+      "Bash(echo \"--- .gemini ---\"; find \"$HOME/.gemini\" -maxdepth 4 2>/dev/null | grep -i impeccable; echo \"--- .agents ---\"; find \"$HOME/.agents\" -maxdepth 4 2>/dev/null | grep -i impeccable; echo \"--- gemini settings ---\"; find \"$HOME/.gemini\" -maxdepth 2 -iname \"*.json\" 2>/dev/null)",
+      "Bash(git -C /c/Dev/vibraweb diff --stat -- frontend/src/components/site/Analyses.tsx)",
+      "Bash(git -C /c/Dev/vibraweb checkout -- frontend/src/components/site/Analyses.tsx)",
+      "Bash(git -C /c/Dev/vibraweb status --porcelain -- frontend/src/components/site/Hero.tsx frontend/src/components/site/Analyses.tsx frontend/src/components/site/HeroHandoff.tsx frontend/src/pages/SitePage.tsx)",
+      "Bash(npx tsc *)"
     ]
-  }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f \"C:\\\\Users\\\\gmali\\\\.claude\\\\skills\\\\impeccable\\\\scripts\\\\hook.mjs\" ] || node \"C:\\\\Users\\\\gmali\\\\.claude\\\\skills\\\\impeccable\\\\scripts\\\\hook.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Checking UI changes"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f \"C:\\\\Users\\\\gmali\\\\.claude\\\\skills\\\\impeccable\\\\scripts\\\\hook.mjs\" ] || node \"C:\\\\Users\\\\gmali\\\\.claude\\\\skills\\\\impeccable\\\\scripts\\\\hook.mjs\"",
+            "timeout": 30,
+            "statusMessage": "Design deep pass"
+          }
+        ]
+      }
+    ]
+  },
+  "description": "Impeccable design detector: immediate-tier checks after Edit/Write/MultiEdit on UI files, full-rule deep pass on Stop."
 }

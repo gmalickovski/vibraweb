@@ -78,7 +78,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              width: 420,
+              width: 'min(420px, calc(100vw - 32px))',
               maxWidth: '100%',
               background: t.night2,
               borderRadius: 20,
@@ -99,7 +99,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               {pending.message}
             </p>
 
-            <div style={{ marginTop: 24, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div style={{ marginTop: 24, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <SecondaryBtn onClick={() => settle(false)} small>
                 {pending.cancelLabel ?? 'Cancelar'}
               </SecondaryBtn>

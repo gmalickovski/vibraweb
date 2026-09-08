@@ -21,6 +21,8 @@ export function ExportModal({ onClose }: Props) {
         background: 'rgba(0,0,0,.7)',
         backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 'max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))',
+        overflowY: 'auto',
         zIndex: 50,
       }}
       onClick={onClose}
@@ -28,7 +30,7 @@ export function ExportModal({ onClose }: Props) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: 480,
+          width: 'min(480px, 100%)',
           background: t.night2,
           borderRadius: 20,
           border: `1px solid ${t.pb}`,
@@ -43,7 +45,7 @@ export function ExportModal({ onClose }: Props) {
           Escolha o formato e o template da sua marca.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 18 }}>
           {formats.map(o => {
             const on = fmt === o.id
             return (
@@ -67,7 +69,7 @@ export function ExportModal({ onClose }: Props) {
           })}
         </div>
 
-        <div style={{ marginTop: 18, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <div style={{ marginTop: 18, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <SecondaryBtn onClick={onClose}>Cancelar</SecondaryBtn>
           <PrimaryBtn onClick={onClose} small>Gerar {fmt.toUpperCase()}</PrimaryBtn>
         </div>

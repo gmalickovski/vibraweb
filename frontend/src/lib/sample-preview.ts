@@ -2,7 +2,7 @@
 // Blocos do Relatório e Templates de Marca. Essas telas não têm uma análise
 // real em contexto (não são a tela de geração do mapa), então usamos um mapa
 // de exemplo com números calculados de verdade (calcPessoal) e os MESMOS
-// textos reais do Supabase que o documento final usaria — igual ao preview
+// textos reais do neon que o documento final usaria — igual ao preview
 // de geração do PDF (PreviewPage.tsx), só que com um "cliente fictício".
 // Ver Produto/docs/vibra-web/requisitos.md (ajuste de 2026-07-11).
 //
@@ -15,7 +15,7 @@
 // desatualizados com o tempo se fossem salvos prontos no banco.
 
 import { calcPessoal, type NumerologyMap } from './numerology'
-import { fetchInterpretation, supabase } from './supabase'
+import { fetchInterpretation, neon } from './neon'
 import { NUMERIC_INTERP_KEYS, STATIC_TEXT_KEYS, DIA_PESSOAL_GUIA_NUMEROS, type InterpretationMap } from './document-builder'
 
 export interface SampleIdentity {
@@ -32,7 +32,7 @@ let cachedIdentity: SampleIdentity | null = null
 async function loadSampleIdentity(): Promise<SampleIdentity> {
   if (cachedIdentity) return cachedIdentity
 
-  const { data, error } = await supabase
+  const { data, error } = await neon
     .from('sample_client')
     .select('subject, data_nascimento')
     .eq('id', 1)

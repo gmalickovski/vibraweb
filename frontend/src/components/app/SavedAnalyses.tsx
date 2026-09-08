@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react'
 import { t } from '../../lib/tokens'
-import { listAnalyses, deleteAnalysis, type AnalysisRow } from '../../lib/supabase'
+import { listAnalyses, deleteAnalysis, type AnalysisRow } from '../../lib/neon'
 import { PageTitle } from '../shared/PageTitle'
 import type { AnalysisData, AnalysisTab } from '../../pages/AppPage'
 
@@ -76,7 +76,7 @@ export function SavedAnalyses({ selectedId, onLoad }: Props) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: t.night }}>
       {headerContent}
-      <div style={{
+      <div className="vw-scroll-area" style={{
         flex: 1, padding: 20, overflowY: 'auto',
         backgroundImage: 'radial-gradient(circle at 70% 0%, rgba(88,28,60,.2), transparent 60%)',
       }}>

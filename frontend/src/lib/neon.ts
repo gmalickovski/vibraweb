@@ -1,16 +1,26 @@
-// Supabase client — uses the anon (publishable) key only.
-// The service role key NEVER touches the browser; it lives only in Edge Functions.
-// All data access is protected by Row Level Security policies on the database.
+// Neon client — uses Neon Auth + Data API.
+// Storage writes go through Neon Functions so S3 credentials never touch the browser.
+// All user data access is protected by Row Level Security policies on the database.
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseAuthAdapter } from '@neondatabase/neon-js'
 import type { NumerologyMap } from './numerology'
 import type { AnalysisData } from '../pages/AppPage'
 import type { BlockOrderConfig } from './block-order'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+const neonAuthUrl = import.meta.env.VITE_NEON_AUTH_URL as string
+const neonDataApiUrl = import.meta.env.VITE_NEON_DATA_API_URL as string
+const neonFunctionApiUrl = import.meta.env.VITE_NEON_FUNCTION_API_URL as string
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const neon = createClient({
+  auth: {
+    adapter: SupabaseAuthAdapter(),
+    url: neonAuthUrl,
+    allowAnonymous: true,
+  },
+  dataApi: {
+    url: neonDataApiUrl,
+  },
+})
 
 export type AnalysisType = 'pessoal' | 'bebe' | 'empresa' | 'previsoes'
 
@@ -72,11 +82,11 @@ export function overrideData(entry: TextOverrideEntry | undefined | null): strin
 }
 
 // ---------- Helpers ----------
-let getUserPromise: ReturnType<typeof supabase.auth.getUser> | null = null
+let getUserPromise: ReturnType<typeof neon.auth.getUser> | null = null
 
 async function getAuthUser() {
   if (!getUserPromise) {
-    getUserPromise = supabase.auth.getUser()
+    getUserPromise = neon.auth.getUser()
     getUserPromise.finally(() => {
       // Clear cache shortly after resolving to allow fresh fetches later
       setTimeout(() => { getUserPromise = null }, 50)
@@ -133,7 +143,7 @@ async function ensureInterpretationsCache(): Promise<void> {
 
   interpCache.loadingPromise = (async () => {
     const [{ data: defaultsData }, { data: { user } }] = await Promise.all([
-      supabase.from('interpretacoes').select('numero, tipo, titulo, texto'),
+      neon.from('interpretacoes').select('numero, tipo, titulo, texto'),
       getAuthUser(),
     ])
     ;(defaultsData ?? []).forEach(row => {
@@ -141,7 +151,7 @@ async function ensureInterpretationsCache(): Promise<void> {
     })
 
     if (user) {
-      const { data: userData } = await supabase
+      const { data: userData } = await neon
         .from('user_interpretations')
         .select('numero, tipo, texto')
         .eq('user_id', user.id)
@@ -172,6 +182,19 @@ export async function fetchInterpretation(
   // 1) Override do consultor (user_interpretations) — sempre vence.
   const custom = interpCache.userOverrides.get(interpCacheKey(numero, tipo))
   if (custom) return custom
+
+  // A camada global ativa do Admin fica acima do padrão do sistema e abaixo
+  // da personalização própria do consultor. Isso mantém a cascata antiga e
+  // adiciona o template oficial sem duplicar a tabela de interpretações.
+  const globalTemplate = await fetchActiveGlobalTemplate()
+  const globalEntry = (globalTemplate?.config?.textOverrides as TextOverrides | undefined)?.[numero]?.[tipo]
+  const globalText = overrideTexto(globalEntry)
+  if (globalText) {
+    const base = systemInterpretation(numero, tipo)
+    return base
+      ? { ...base, titulo: `Personalizado: ${base.titulo}`, texto: globalText }
+      : { numero, tipo, titulo: `Personalizado: ${tipo}`, texto: globalText }
+  }
 
   return systemInterpretation(numero, tipo)
 }
@@ -255,7 +278,7 @@ export async function saveUserInterpretation(
 
   if (!texto) {
     // Drop the custom if user restores default
-    const { error } = await supabase
+    const { error } = await neon
       .from('user_interpretations')
       .delete()
       .eq('user_id', user.id)
@@ -265,7 +288,7 @@ export async function saveUserInterpretation(
     return !error
   }
 
-  const { error } = await supabase
+  const { error } = await neon
     .from('user_interpretations')
     .upsert(
       { user_id: user.id, numero, tipo, texto, updated_at: new Date().toISOString() },
@@ -286,7 +309,7 @@ export async function saveUserInterpretation(
 export async function deleteAllUserInterpretations(): Promise<boolean> {
   const { data: { user } } = await getAuthUser()
   if (!user) return false
-  const { error } = await supabase
+  const { error } = await neon
     .from('user_interpretations')
     .delete()
     .eq('user_id', user.id)
@@ -307,6 +330,175 @@ export interface UserProfile {
   block_order: any | null // JSONB — ver lib/block-order.ts (Item 1, Fase 1)
 }
 
+export interface BillingPlan {
+  id: string
+  slug: string
+  name: string
+  description: string
+  status: 'draft' | 'active' | 'archived'
+  currency: 'BRL'
+  monthly_price_cents: number
+  annual_price_cents: number
+  stripe_product_id: string | null
+  stripe_monthly_price_id: string | null
+  stripe_annual_price_id: string | null
+  features: string[]
+  limits: Record<string, unknown>
+  sort_order: number
+  updated_at: string
+}
+
+export interface GlobalSetting {
+  id: string
+  setting_key: string
+  category: string
+  label: string
+  description: string
+  value: Record<string, unknown>
+  updated_at: string
+}
+
+export interface GlobalTemplate {
+  id: string
+  slug: string
+  name: string
+  description: string
+  template_type: string
+  config: Record<string, unknown>
+  is_active: boolean
+  is_system: boolean
+  sort_order: number
+  updated_at: string
+}
+
+export interface AdminInterpretation {
+  id: number
+  numero: number
+  tipo: string
+  titulo: string
+  texto: string
+  created_at: string
+}
+
+export async function fetchAdminPlans(): Promise<BillingPlan[]> {
+  const { data, error } = await neon.from('billing_plans').select('*').order('sort_order')
+  return error ? [] : (data ?? []) as BillingPlan[]
+}
+
+export async function saveAdminPlan(plan: Partial<BillingPlan> & Pick<BillingPlan, 'slug' | 'name'>): Promise<BillingPlan | null> {
+  const { data: { user } } = await getAuthUser()
+  if (!user) return null
+  const payload = { ...plan, updated_by: user.id, updated_at: new Date().toISOString() }
+  const query = plan.id
+    ? neon.from('billing_plans').update(payload).eq('id', plan.id)
+    : neon.from('billing_plans').insert(payload)
+  const { data, error } = await query.select('*').single()
+  return error ? null : data as BillingPlan
+}
+
+export async function deleteAdminPlan(id: string): Promise<boolean> {
+  const { error } = await neon.from('billing_plans').delete().eq('id', id)
+  return !error
+}
+
+export async function fetchGlobalSettings(): Promise<GlobalSetting[]> {
+  const { data, error } = await neon.from('global_settings').select('*').order('category').order('label')
+  return error ? [] : (data ?? []) as GlobalSetting[]
+}
+
+export async function saveGlobalSetting(setting: Partial<GlobalSetting> & Pick<GlobalSetting, 'setting_key' | 'label'>): Promise<GlobalSetting | null> {
+  const { data: { user } } = await getAuthUser()
+  if (!user) return null
+  const payload = { ...setting, updated_by: user.id, updated_at: new Date().toISOString() }
+  const query = setting.id
+    ? neon.from('global_settings').update(payload).eq('id', setting.id)
+    : neon.from('global_settings').insert(payload)
+  const { data, error } = await query.select('*').single()
+  return error ? null : data as GlobalSetting
+}
+
+export async function fetchGlobalTemplates(): Promise<GlobalTemplate[]> {
+  const { data, error } = await neon.from('global_templates').select('*').order('sort_order').order('name')
+  return error ? [] : (data ?? []) as GlobalTemplate[]
+}
+
+export async function saveGlobalTemplate(template: Partial<GlobalTemplate> & Pick<GlobalTemplate, 'slug' | 'name'>): Promise<GlobalTemplate | null> {
+  const { data: { user } } = await getAuthUser()
+  if (!user) return null
+  const payload = { ...template, updated_by: user.id, updated_at: new Date().toISOString() }
+  const query = template.id
+    ? neon.from('global_templates').update(payload).eq('id', template.id)
+    : neon.from('global_templates').insert(payload)
+  const { data, error } = await query.select('*').single()
+  if (!error) activeGlobalTemplateCache = { value: null, promise: null }
+  return error ? null : data as GlobalTemplate
+}
+
+export async function deleteGlobalTemplate(id: string): Promise<boolean> {
+  const { error } = await neon.from('global_templates').delete().eq('id', id)
+  if (!error) activeGlobalTemplateCache = { value: null, promise: null }
+  return !error
+}
+
+let activeGlobalTemplateCache: { value: GlobalTemplate | null; promise: Promise<GlobalTemplate | null> | null } = {
+  value: null, promise: null,
+}
+
+/** Template global publicado que serve como fallback para novos workspaces. */
+export async function fetchActiveGlobalTemplate(): Promise<GlobalTemplate | null> {
+  if (activeGlobalTemplateCache.value) return activeGlobalTemplateCache.value
+  if (activeGlobalTemplateCache.promise) return activeGlobalTemplateCache.promise
+  activeGlobalTemplateCache.promise = (async () => {
+    const { data, error } = await neon
+      .from('global_templates')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order')
+      .limit(1)
+      .maybeSingle()
+    const value = error ? null : data as GlobalTemplate | null
+    activeGlobalTemplateCache.value = value
+    activeGlobalTemplateCache.promise = null
+    return value
+  })()
+  return activeGlobalTemplateCache.promise
+}
+
+/** Publica um único template global e retira o status dos demais. */
+export async function activateGlobalTemplate(id: string): Promise<GlobalTemplate | null> {
+  const { error: clearError } = await neon
+    .from('global_templates')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .neq('id', id)
+  if (clearError) return null
+  const { data, error } = await neon
+    .from('global_templates')
+    .update({ is_active: true, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*')
+    .single()
+  if (!error) activeGlobalTemplateCache = { value: data as GlobalTemplate, promise: null }
+  return error ? null : data as GlobalTemplate
+}
+
+export async function fetchAdminInterpretations(): Promise<AdminInterpretation[]> {
+  const { data, error } = await neon.from('interpretacoes').select('id, numero, tipo, titulo, texto, created_at').order('tipo').order('numero')
+  return error ? [] : (data ?? []) as AdminInterpretation[]
+}
+
+export async function saveAdminInterpretation(item: Partial<AdminInterpretation> & Pick<AdminInterpretation, 'numero' | 'tipo' | 'titulo' | 'texto'>): Promise<AdminInterpretation | null> {
+  const query = item.id
+    ? neon.from('interpretacoes').update({ numero: item.numero, tipo: item.tipo, titulo: item.titulo, texto: item.texto }).eq('id', item.id)
+    : neon.from('interpretacoes').insert({ numero: item.numero, tipo: item.tipo, titulo: item.titulo, texto: item.texto })
+  const { data, error } = await query.select('id, numero, tipo, titulo, texto, created_at').single()
+  return error ? null : data as AdminInterpretation
+}
+
+export async function deleteAdminInterpretation(id: number): Promise<boolean> {
+  const { error } = await neon.from('interpretacoes').delete().eq('id', id)
+  return !error
+}
+
 // Cache em memória (module-level, mesma ideia do cache de interpretações
 // acima) — `fetchUserProfile()` era chamado de novo em CADA navegação
 // (AppLayout, BlocosPage, BrandPage, AppPage todos chamam no próprio mount),
@@ -315,24 +507,58 @@ export interface UserProfile {
 // (`block_order`), ambos JSONB numa única linha — agora carregados uma vez
 // e reaproveitados; `updateUserProfile` atualiza o cache (write-through)
 // pra próxima leitura já vir com o valor novo, sem round-trip.
-let profileCache: { value: UserProfile | null; promise: Promise<UserProfile | null> | null; loaded: boolean } = {
-  value: null, promise: null, loaded: false,
+let profileCache: { value: UserProfile | null; promise: Promise<UserProfile | null> | null; loaded: boolean; userId: string | null } = {
+  value: null, promise: null, loaded: false, userId: null,
+}
+
+export function resetUserProfileCache() {
+  profileCache = { value: null, promise: null, loaded: false, userId: null }
 }
 
 export async function fetchUserProfile(): Promise<UserProfile | null> {
-  if (profileCache.loaded) return profileCache.value
-  if (profileCache.promise) return profileCache.promise
+  const { data: { user } } = await getAuthUser()
+  const userId = user?.id ?? null
+
+  if (profileCache.loaded && profileCache.userId === userId) return profileCache.value
+  if (profileCache.promise && profileCache.userId === userId) return profileCache.promise
 
   profileCache.promise = (async () => {
-    const { data: { user } } = await getAuthUser()
-    if (!user) { profileCache.loaded = true; profileCache.value = null; return null }
-    const { data, error } = await supabase
+    if (!user) {
+      profileCache.loaded = true
+      profileCache.userId = null
+      profileCache.value = null
+      return null
+    }
+    const { data, error } = await neon
       .from('user_profiles')
       .select('id, consultant_name, consultant_contact, logo_url, plan, role, brand_config, block_order')
       .eq('id', user.id)
       .single()
     profileCache.loaded = true
-    profileCache.value = error ? null : (data as UserProfile)
+    profileCache.userId = user.id
+    if (error) {
+      profileCache.value = null
+      return null
+    }
+
+    const profile = data as UserProfile
+    const globalTemplate = await fetchActiveGlobalTemplate()
+    const globalConfig = globalTemplate?.config ?? {}
+    const hasOwnBrandConfig = !!profile.brand_config && (
+      !!profile.brand_config.activeTemplateId
+      || (Array.isArray(profile.brand_config.templates) && profile.brand_config.templates.length > 0)
+      || !!profile.brand_config.primaryColor
+    )
+
+    // A personal template/order always wins. Empty legacy profiles inherit the
+    // published global template transparently, including future fields.
+    profileCache.value = {
+      ...profile,
+      brand_config: hasOwnBrandConfig
+        ? profile.brand_config
+        : { activeTemplateId: 'global', templates: [{ id: 'global', config: globalConfig }] },
+      block_order: profile.block_order ?? globalConfig.blockOrder ?? null,
+    }
     return profileCache.value
   })()
 
@@ -344,7 +570,7 @@ export async function updateUserProfile(
 ): Promise<boolean> {
   const { data: { user } } = await getAuthUser()
   if (!user) return false
-  const { error } = await supabase
+  const { error } = await neon
     .from('user_profiles')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', user.id)
@@ -380,7 +606,7 @@ export async function saveAnalysis(
 ): Promise<string | null> {
   const { data: { user } } = await getAuthUser()
   if (!user) return null
-  const { data, error } = await supabase
+  const { data, error } = await neon
     .from('analyses')
     .insert({
       user_id: user.id,
@@ -406,7 +632,7 @@ export async function updateAnalysis(
   id: string,
   updates: Partial<{ text_overrides: TextOverrides | null; block_order: BlockOrderConfig | null; template_id: string | null }>
 ): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await neon
     .from('analyses')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -414,7 +640,7 @@ export async function updateAnalysis(
 }
 
 export async function listAnalyses(): Promise<AnalysisRow[]> {
-  const { data, error } = await supabase
+  const { data, error } = await neon
     .from('analyses')
     .select('id, type, subject, input_data, result_data, text_overrides, block_order, template_id, created_at, updated_at')
     .order('created_at', { ascending: false })
@@ -424,30 +650,30 @@ export async function listAnalyses(): Promise<AnalysisRow[]> {
 }
 
 export async function deleteAnalysis(id: string): Promise<boolean> {
-  const { error } = await supabase.from('analyses').delete().eq('id', id)
+  const { error } = await neon.from('analyses').delete().eq('id', id)
   return !error
 }
 
 export async function uploadBrandLogo(file: File): Promise<string | null> {
-  const { data: { user } } = await getAuthUser()
-  if (!user) return null
+  const { data: { session } } = await neon.auth.getSession()
+  if (!session?.access_token) return null
 
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`
-  const filePath = `${fileName}`
+  const body = new FormData()
+  body.append('file', file)
 
-  const { error: uploadError } = await supabase.storage
-    .from('brand-assets')
-    .upload(filePath, file)
+  const response = await fetch(`${neonFunctionApiUrl}/upload-brand-logo`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body,
+  })
 
-  if (uploadError) {
-    console.error('Error uploading logo:', uploadError)
+  if (!response.ok) {
+    console.error('Error uploading logo:', await response.text())
     return null
   }
 
-  const { data } = supabase.storage
-    .from('brand-assets')
-    .getPublicUrl(filePath)
-
-  return data.publicUrl
+  const data = await response.json() as { url?: string }
+  return data.url ?? null
 }
